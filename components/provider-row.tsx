@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { CheckCircle2, Clock, Globe, XCircle } from "lucide-react";
 
 import { BRAND_ICONS } from "./brand-icons.js";
@@ -26,21 +28,35 @@ const ICON_TINTS: Record<AvailabilityStatus, string> = {
   invalid: "text-zinc-600",
 };
 
+/** Floating availability chip tint — matches the icon's status color. */
+const CHIP_TINTS: Record<AvailabilityStatus, string> = {
+  available: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
+  taken: "border-red-400/30 bg-red-400/10 text-red-300",
+  unknown: "border-amber-400/30 bg-amber-400/10 text-amber-300",
+  invalid: "border-zinc-700/60 bg-zinc-800/60 text-zinc-400",
+};
+
+const MORPH_SPRING = { type: "spring", stiffness: 500, damping: 30 } as const;
+const CHIP_SPRING = { type: "spring", stiffness: 420, damping: 28 } as const;
+
 /**
- * Platform brand mark tinted by availability; on row hover/focus it morphs
- * into the status glyph — a performant opacity/scale crossfade, disabled
- * under prefers-reduced-motion. While the check is in flight the icon just
- * pulses neutral zinc.
+ * Platform brand mark tinted by availability. While the icon's own hover /
+ * focus target is engaged (`revealed`) it springs into the matching status
+ * glyph — a composited opacity/scale morph, reduced to a plain crossfade
+ * under prefers-reduced-motion. During a pending check it pulses zinc.
  */
 function RowIcon({
   id,
   status,
   pending,
+  revealed,
 }: {
   id: string;
   status: AvailabilityStatus | undefined;
   pending: boolean;
+  revealed: boolean;
 }) {
+  const reduce = useReducedMotion();
   const Icon = BRAND_ICONS[id as keyof typeof BRAND_ICONS] ?? Globe;
   if (pending || status === undefined) {
     return (
@@ -54,12 +70,76 @@ function RowIcon({
   const tint = ICON_TINTS[status];
   return (
     <span className="relative flex size-3.5 shrink-0 items-center" aria-hidden="true">
-      <span className="absolute inset-0 flex items-center justify-center transition-all duration-150 motion-safe:group-hover:scale-75 motion-safe:group-hover:opacity-0 motion-safe:group-focus-within:scale-75 motion-safe:group-focus-within:opacity-0 motion-reduce:transition-none">
+      <motion.span
+        className="absolute inset-0 flex items-center justify-center"
+        initial={false}
+        animate={{
+          opacity: revealed ? 0 : 1,
+          scale: reduce ? 1 : revealed ? 0.75 : 1,
+        }}
+        transition={reduce ? { duration: 0.15 } : MORPH_SPRING}
+      >
         <Icon className={cn("size-3.5", tint)} />
-      </span>
-      <span className="absolute inset-0 flex scale-75 items-center justify-center opacity-0 transition-all duration-150 motion-safe:group-hover:scale-100 motion-safe:group-hover:opacity-100 motion-safe:group-focus-within:scale-100 motion-safe:group-focus-within:opacity-100 motion-reduce:transition-none">
+      </motion.span>
+      <motion.span
+        className="absolute inset-0 flex items-center justify-center"
+        initial={false}
+        animate={{
+          opacity: revealed ? 1 : 0,
+          scale: reduce ? 1 : revealed ? 1 : 0.75,
+        }}
+        transition={reduce ? { duration: 0.15 } : MORPH_SPRING}
+      >
         <Glyph className={cn("size-3.5", tint)} />
-      </span>
+      </motion.span>
+    </span>
+  );
+}
+
+/**
+ * Floating availability pill that emerges when the row's icon target is
+ * hovered/focused: it springs in from the left, settles at the row's right
+ * edge on a z-raised, backdrop-blurred layer over the row content, then
+ * slides back out on leave. pointer-events-none — it never intercepts the
+ * row's own click target; status stays in the a11y tree via sr-only text.
+ */
+function StatusChip({ status, visible }: { status: AvailabilityStatus; visible: boolean }) {
+  const reduce = useReducedMotion();
+  const Glyph = STATUS_GLYPHS[status];
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute top-1/2 right-2 z-10 -translate-y-1/2"
+    >
+      <AnimatePresence>
+        {visible ? (
+          <motion.span
+            key="chip"
+            initial={{
+              opacity: 0,
+              x: reduce ? 0 : -140,
+              scale: reduce ? 1 : 0.92,
+            }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{
+              opacity: 0,
+              x: reduce ? 0 : -24,
+              scale: reduce ? 1 : 0.96,
+              transition: { duration: 0.15, ease: "easeOut" },
+            }}
+            transition={reduce ? { duration: 0.15 } : CHIP_SPRING}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5",
+              "text-[10px] font-medium tracking-[0.08em] uppercase",
+              "shadow-lg shadow-black/50 backdrop-blur-md",
+              CHIP_TINTS[status],
+            )}
+          >
+            <Glyph className="size-3" aria-hidden="true" />
+            {status}
+          </motion.span>
+        ) : null}
+      </AnimatePresence>
     </span>
   );
 }
@@ -116,12 +196,15 @@ interface ProviderRowProps {
  * One result line. The whole row is the action — an anchor when the status
  * yields a target (register/claim for free names, live site/profile for
  * taken ones), static text otherwise. Availability is expressed purely by
- * icon tint (status text stays in the a11y tree via sr-only/aria-label);
- * the brand mark morphs into the status glyph on hover. Available domains
- * link to the first registrar carrying the TLD while the price chips offer
- * every registrar.
+ * icon tint (status text stays in the a11y tree via sr-only/aria-label).
+ * Only the icon is the status trigger: hovering/focusing it morphs the
+ * brand mark into the status glyph and slides the status chip across the
+ * row — the rest of the row never triggers it. Available domains link to
+ * the first registrar carrying the TLD while the price chips offer every
+ * registrar.
  */
 export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
+  const [revealed, setRevealed] = useState(false);
   const isDomain = meta.id.startsWith("domain:");
   const subject =
     result?.subject ??
@@ -157,15 +240,9 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
     "group relative flex h-10 items-center border-t border-border transition-colors first:border-t-0",
     href !== null && "cursor-pointer hover:bg-zinc-900/50",
   );
-  const mainAreaClasses = cn(
-    "flex min-w-0 flex-1 items-center gap-2.5 self-stretch px-3 text-left outline-none",
-    href !== null &&
-      "focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-  );
 
   const identity = (
     <>
-      <RowIcon id={meta.id} status={status} pending={pending} />
       {isDomain ? null : (
         <span className="shrink-0 text-[10px] font-medium text-zinc-600">{meta.label}</span>
       )}
@@ -176,19 +253,37 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
 
   return (
     <li className={sharedRowClasses} title={isDomain ? undefined : statusText}>
+      {/* Icon-scoped status trigger: hover/focus on this target alone
+          reveals the chip — the rest of the row never does. */}
+      <span
+        tabIndex={0}
+        aria-label={`${meta.label} ${subject} — ${statusText}`}
+        onMouseEnter={() => setRevealed(true)}
+        onMouseLeave={() => setRevealed(false)}
+        onFocus={() => setRevealed(true)}
+        onBlur={() => setRevealed(false)}
+        className="flex shrink-0 cursor-default items-center self-stretch pr-1 pl-3 outline-none focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      >
+        <RowIcon id={meta.id} status={status} pending={pending} revealed={revealed} />
+      </span>
+
       {href !== null ? (
         <a
           href={href}
           target="_blank"
           rel="noreferrer noopener"
           aria-label={`${actionLabel ?? subject} — ${statusText}`}
-          className={mainAreaClasses}
+          className="flex min-w-0 flex-1 items-center gap-2.5 self-stretch pr-3 pl-1.5 text-left outline-none focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         >
           {identity}
         </a>
       ) : (
-        <div className={mainAreaClasses}>{identity}</div>
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 self-stretch pr-3 pl-1.5 text-left">
+          {identity}
+        </div>
       )}
+
+      {status !== undefined && !pending ? <StatusChip status={status} visible={revealed} /> : null}
 
       {prices.length > 0 ? (
         <span className="flex shrink-0 items-center gap-1.5 pr-3">
