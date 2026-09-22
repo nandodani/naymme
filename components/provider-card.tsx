@@ -27,7 +27,7 @@ function SkeletonRows({ count }: { count: number }) {
 }
 
 /**
- * One bento card per provider group (Domains / Developer / Socials): an
+ * One bento card per provider group (e.g. Core domains / Social media): an
  * 11px tracked header, 40px provider rows and skeleton pulses while the
  * async RDAP/WHOIS/registry checks are in flight.
  */

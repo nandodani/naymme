@@ -12,7 +12,8 @@ export interface ProviderMeta {
   hint?: string;
 }
 
-export type ProviderGroupId = "domains" | "developer" | "socials" | "community";
+export type ProviderGroupId =
+  "domains" | "regions" | "niche" | "code" | "platforms" | "socials" | "community";
 
 export interface ProviderGroup {
   id: ProviderGroupId;
@@ -20,41 +21,15 @@ export interface ProviderGroup {
   providers: readonly ProviderMeta[];
 }
 
+/**
+ * The grid renders one card per group, in this order — Overall aside, the
+ * code/social identity checks lead, the three domain bands sit together,
+ * then platforms and community publishing close it out.
+ */
 export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
   {
-    id: "domains",
-    title: "Domains",
-    providers: [
-      { id: "domain:com", label: ".com" },
-      { id: "domain:dev", label: ".dev" },
-      { id: "domain:io", label: ".io" },
-      { id: "domain:ai", label: ".ai" },
-      { id: "domain:gg", label: ".gg" },
-      { id: "domain:app", label: ".app" },
-      { id: "domain:pt", label: ".pt" },
-      { id: "domain:es", label: ".es" },
-      { id: "domain:de", label: ".de" },
-      { id: "domain:fr", label: ".fr" },
-      { id: "domain:uk", label: ".uk" },
-      { id: "domain:eu", label: ".eu" },
-      { id: "domain:co", label: ".co" },
-      { id: "domain:me", label: ".me" },
-      { id: "domain:org", label: ".org" },
-      { id: "domain:sh", label: ".sh" },
-      { id: "domain:so", label: ".so" },
-      { id: "domain:xyz", label: ".xyz" },
-      { id: "domain:design", label: ".design" },
-      { id: "domain:store", label: ".store" },
-      { id: "domain:work", label: ".work" },
-      { id: "domain:studio", label: ".studio" },
-      { id: "domain:tech", label: ".tech" },
-      { id: "domain:agency", label: ".agency" },
-      { id: "domain:space", label: ".space" },
-    ],
-  },
-  {
-    id: "developer",
-    title: "Developer platforms",
+    id: "code",
+    title: "Code & registries",
     providers: [
       { id: "github:user", label: "GitHub (User)" },
       { id: "github:org", label: "GitHub (Org)" },
@@ -68,11 +43,6 @@ export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
       { id: "nuget", label: "NuGet" },
       { id: "rubygems", label: "RubyGems" },
       { id: "homebrew", label: "Homebrew" },
-      { id: "codepen", label: "CodePen" },
-      { id: "replit", label: "Replit" },
-      { id: "vercel", label: "Vercel" },
-      { id: "netlify", label: "Netlify" },
-      { id: "appstore", label: "App Store" },
     ],
   },
   {
@@ -82,22 +52,76 @@ export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
       { id: "social:x", label: "X" },
       { id: "social:bluesky", label: "Bluesky" },
       { id: "social:instagram", label: "Instagram" },
-      { id: "social:reddit", label: "Reddit" },
-      { id: "social:youtube", label: "YouTube" },
       { id: "social:tiktok", label: "TikTok" },
+      { id: "social:youtube", label: "YouTube" },
+      { id: "social:reddit", label: "Reddit" },
+      { id: "telegram", label: "Telegram" },
+    ],
+  },
+  {
+    id: "domains",
+    title: "Core domains",
+    providers: [
+      { id: "domain:com", label: ".com" },
+      { id: "domain:io", label: ".io" },
+      { id: "domain:ai", label: ".ai" },
+      { id: "domain:dev", label: ".dev" },
+      { id: "domain:app", label: ".app" },
+      { id: "domain:co", label: ".co" },
+      { id: "domain:me", label: ".me" },
+      { id: "domain:org", label: ".org" },
+      { id: "domain:xyz", label: ".xyz" },
+    ],
+  },
+  {
+    id: "regions",
+    title: "Regional domains",
+    providers: [
+      { id: "domain:pt", label: ".pt" },
+      { id: "domain:es", label: ".es" },
+      { id: "domain:de", label: ".de" },
+      { id: "domain:fr", label: ".fr" },
+      { id: "domain:uk", label: ".uk" },
+      { id: "domain:eu", label: ".eu" },
+      { id: "domain:gg", label: ".gg" },
+      { id: "domain:sh", label: ".sh" },
+      { id: "domain:so", label: ".so" },
+    ],
+  },
+  {
+    id: "niche",
+    title: "Industry domains",
+    providers: [
+      { id: "domain:design", label: ".design" },
+      { id: "domain:store", label: ".store" },
+      { id: "domain:work", label: ".work" },
+      { id: "domain:studio", label: ".studio" },
+      { id: "domain:tech", label: ".tech" },
+      { id: "domain:agency", label: ".agency" },
+      { id: "domain:space", label: ".space" },
+    ],
+  },
+  {
+    id: "platforms",
+    title: "Platforms & stores",
+    providers: [
+      { id: "codepen", label: "CodePen" },
+      { id: "replit", label: "Replit" },
+      { id: "vercel", label: "Vercel" },
+      { id: "netlify", label: "Netlify" },
+      { id: "appstore", label: "App Store" },
     ],
   },
   {
     id: "community",
-    title: "Creator & community",
+    title: "Community & publishing",
     providers: [
       { id: "figma", label: "Figma" },
       { id: "dribbble", label: "Dribbble" },
       { id: "behance", label: "Behance" },
       { id: "substack", label: "Substack" },
-      { id: "producthunt", label: "Product Hunt" },
-      { id: "telegram", label: "Telegram" },
       { id: "medium", label: "Medium" },
+      { id: "producthunt", label: "Product Hunt" },
     ],
   },
 ];

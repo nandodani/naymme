@@ -5,7 +5,7 @@ import { SearchX } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
 import type { AvailabilityResponse } from "@/lib/availability.js";
-import { ALL_PROVIDER_IDS, providerGroup } from "@/lib/provider-meta.js";
+import { ALL_PROVIDER_IDS, PROVIDER_GROUPS } from "@/lib/provider-meta.js";
 import { resultCounts, type ResultFilter } from "@/lib/result-filter.js";
 import { cn } from "@/lib/utils.js";
 import type { AvailabilityResult } from "@/src/types.js";
@@ -36,16 +36,16 @@ const FILTERS: readonly { id: ResultFilter; label: string }[] = [
   { id: "available", label: "Available only" },
 ];
 
-/** Every provider id the four grid groups render — the count denominator. */
+/** Every provider id the grid groups render — the count denominator. */
 const EXPECTED_PROVIDER_IDS = ALL_PROVIDER_IDS;
 
 /**
  * The searched state: a bento grid of the overall availability card plus
- * one card per provider group. DOM order is the same as reading order at
- * every breakpoint — Overall, Developer, Socials, Domains, Community — so the
- * stagger, tab order and screen-reader order all agree. On xl the score
- * anchors the left column, Developer and Socials fill out row one, Domains
- * spans underneath and Community fills the bottom-right slot.
+ * one card per provider group, rendered in PROVIDER_GROUPS order. DOM
+ * order is the same as reading order at every breakpoint — Overall, then
+ * the groups — so the stagger, tab order and screen-reader order all
+ * agree. Groups are sized to flow three-across on xl: the domain bands
+ * share a row, and no card needs a manual span.
  */
 export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: ResultsGridProps) {
   const [filter, setFilter] = useState<ResultFilter>("all");
@@ -58,11 +58,6 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
   // unresolved + pending always reconcile to it — no ghost items.
   const counts = resultCounts(data?.results ?? [], EXPECTED_PROVIDER_IDS);
   const emptyFiltered = filter === "available" && counts.available === 0 && !checking;
-
-  const domains = providerGroup("domains");
-  const developer = providerGroup("developer");
-  const socials = providerGroup("socials");
-  const community = providerGroup("community");
 
   return (
     <div className="flex flex-col gap-3">
@@ -163,13 +158,10 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
             <p className="text-[12px] text-zinc-500">No available handles found for this search.</p>
           </motion.div>
         ) : (
-          <>
-            <motion.div
-              variants={item}
-              className="md:col-start-1 md:row-start-2 xl:col-start-2 xl:row-start-1"
-            >
+          PROVIDER_GROUPS.map((group) => (
+            <motion.div key={group.id} variants={item}>
               <ProviderCard
-                group={developer}
+                group={group}
                 name={name}
                 resultsByProvider={resultsByProvider}
                 pending={pending}
@@ -177,49 +169,7 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
                 className="h-full"
               />
             </motion.div>
-
-            <motion.div
-              variants={item}
-              className="md:col-start-2 md:row-start-2 xl:col-start-3 xl:row-start-1"
-            >
-              <ProviderCard
-                group={socials}
-                name={name}
-                resultsByProvider={resultsByProvider}
-                pending={pending}
-                filter={filter}
-                className="h-full"
-              />
-            </motion.div>
-
-            <motion.div
-              variants={item}
-              className="md:col-start-1 md:row-start-3 xl:col-span-2 xl:col-start-1 xl:row-start-2"
-            >
-              <ProviderCard
-                group={domains}
-                name={name}
-                resultsByProvider={resultsByProvider}
-                pending={pending}
-                filter={filter}
-                className="h-full"
-              />
-            </motion.div>
-
-            <motion.div
-              variants={item}
-              className="md:col-start-2 md:row-start-3 xl:col-start-3 xl:row-start-2"
-            >
-              <ProviderCard
-                group={community}
-                name={name}
-                resultsByProvider={resultsByProvider}
-                pending={pending}
-                filter={filter}
-                className="h-full"
-              />
-            </motion.div>
-          </>
+          ))
         )}
       </motion.div>
     </div>
