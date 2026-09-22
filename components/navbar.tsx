@@ -8,7 +8,7 @@ import { ConnectMcpDialog } from "./connect-mcp-dialog.js";
  */
 export function Navbar({ onCopy }: { onCopy: (text: string, label: string) => void }) {
   return (
-    <header className="sticky top-0 z-40 border-b border-white/5 bg-black/80 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-white/5 bg-transparent backdrop-blur-md">
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4 sm:px-6">
         <a
           href="/"
