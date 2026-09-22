@@ -28,9 +28,12 @@ export function Hero({ value, onChange, onSubmit, valid, inputRef }: HeroProps) 
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         className="flex w-full max-w-xl flex-col items-center"
       >
-        <h1 className="max-w-lg text-center text-[26px] leading-tight font-semibold tracking-tight text-zinc-100 sm:text-4xl">
-          Check identity availability across domains, code, and socials
+        <h1 className="max-w-xl bg-gradient-to-b from-white via-white to-zinc-500 bg-clip-text text-center text-[28px] leading-[1.15] font-semibold tracking-tight text-balance text-transparent sm:text-[40px]">
+          Check name availability across domains, code, and socials
         </h1>
+        <p className="mt-4 text-center text-[14px] leading-relaxed text-zinc-500 sm:text-[15px]">
+          One name, twenty registries — checked in a single search.
+        </p>
         <div className="mt-8 w-full">
           <SearchInput
             ref={inputRef}
