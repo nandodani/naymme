@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Atom } from "loading-dev";
 
 import { nameSchema } from "@/src/schemas.js";
@@ -57,6 +57,13 @@ export function NameChecker() {
   );
 
   const searched = searchedName !== "";
+  const reduceMotion = useReducedMotion();
+  /** hero → atom loader → sharp results; the loader replaces the view while
+   * checks are in flight so old results never peek through. */
+  const phase = !searched ? "hero" : checking ? "loading" : "results";
+  const blurOut = reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.98, filter: "blur(16px)" };
+  const blurIn = reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.98, filter: "blur(12px)" };
+  const sharp = reduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, filter: "blur(0px)" };
 
   /** Explicit search — fires on Enter or the Search button, never on typing. */
   const submitSearch = useCallback(() => {
@@ -64,6 +71,9 @@ export function NameChecker() {
       setSearchedName("");
       return;
     }
+    // Flip to the loading phase in the same commit so the outgoing view
+    // blurs straight into the atom loader.
+    setChecking(true);
     if (name === searchedName) {
       // Re-submitting the same name re-runs the check (fresh availability).
       setReloadTick((tick) => tick + 1);
@@ -115,7 +125,7 @@ export function NameChecker() {
 
   useEffect(() => {
     inputRef.current?.focus();
-  }, [searched]);
+  }, [searched, phase]);
 
   // Back/forward navigation re-reads ?q=.
   useEffect(() => {
@@ -181,13 +191,41 @@ export function NameChecker() {
         <Navbar onCopy={notify} />
 
         <AnimatePresence mode="wait" initial={false}>
-          {searched ? (
-            <motion.main
-              key="results"
+          {phase === "hero" ? (
+            <motion.div
+              key="hero"
+              exit={blurOut}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+              className="flex flex-1 flex-col"
+            >
+              <Hero
+                value={query}
+                onChange={setQuery}
+                onSubmit={submitSearch}
+                valid={nameValid}
+                inputRef={inputRef}
+              />
+            </motion.div>
+          ) : phase === "loading" ? (
+            <motion.div
+              key="loading"
+              role="status"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black"
+            >
+              <Atom size={44} className="text-zinc-300" />
+              <span className="sr-only">Checking availability…</span>
+            </motion.div>
+          ) : (
+            <motion.main
+              key="results"
+              initial={blurIn}
+              animate={sharp}
+              exit={blurOut}
+              transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
               className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 sm:px-6"
             >
               <div className="mx-auto max-w-xl pt-7 pb-8">
@@ -204,55 +242,22 @@ export function NameChecker() {
                 <span className="font-mono text-[11px] text-zinc-500">
                   results for <span className="text-zinc-300">{searchedName}</span>
                 </span>
-                {checking ? null : availability !== null ? (
+                {availability !== null ? (
                   <span className="font-mono text-[11px] text-zinc-500 tabular-nums">
                     {availability.summary.available} free · {availability.summary.taken} taken
                   </span>
                 ) : null}
               </div>
-              <div className="relative">
-                <ResultsGrid
-                  name={searchedName}
-                  score={score}
-                  data={availability}
-                  checking={checking}
-                  error={error}
-                  onRetry={retry}
-                  onCopy={notify}
-                />
-                <AnimatePresence>
-                  {checking ? (
-                    <motion.div
-                      key="checking-overlay"
-                      role="status"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-black"
-                    >
-                      <Atom size={44} className="text-zinc-300" />
-                      <span className="sr-only">Checking availability…</span>
-                    </motion.div>
-                  ) : null}
-                </AnimatePresence>
-              </div>
-            </motion.main>
-          ) : (
-            <motion.div
-              key="hero"
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.18 }}
-              className="flex flex-1 flex-col"
-            >
-              <Hero
-                value={query}
-                onChange={setQuery}
-                onSubmit={submitSearch}
-                valid={nameValid}
-                inputRef={inputRef}
+              <ResultsGrid
+                name={searchedName}
+                score={score}
+                data={availability}
+                checking={checking}
+                error={error}
+                onRetry={retry}
+                onCopy={notify}
               />
-            </motion.div>
+            </motion.main>
           )}
         </AnimatePresence>
 
