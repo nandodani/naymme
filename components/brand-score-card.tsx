@@ -15,20 +15,20 @@ import { Skeleton } from "./ui/skeleton.js";
 
 const TIER_STYLES: Record<RatingTier, { badge: string; ring: string }> = {
   Excellent: {
-    badge: "border-emerald-400/40 bg-emerald-400/15 text-emerald-200",
-    ring: "stroke-emerald-400",
+    badge: "border-white/40 bg-white/10 text-zinc-50",
+    ring: "stroke-white",
   },
   Strong: {
-    badge: "border-sky-400/40 bg-sky-400/15 text-sky-200",
-    ring: "stroke-sky-400",
+    badge: "border-white/25 bg-white/[0.06] text-zinc-200",
+    ring: "stroke-zinc-300",
   },
   Fair: {
-    badge: "border-amber-400/40 bg-amber-400/15 text-amber-200",
-    ring: "stroke-amber-400",
+    badge: "border-zinc-700 bg-white/[0.03] text-zinc-400",
+    ring: "stroke-zinc-500",
   },
   Contested: {
-    badge: "border-rose-400/40 bg-rose-400/15 text-rose-200",
-    ring: "stroke-rose-400",
+    badge: "border-zinc-800 bg-transparent text-zinc-500",
+    ring: "stroke-zinc-600",
   },
 };
 
@@ -128,7 +128,7 @@ function RatingGauge({ rating, tier }: { rating: number | null; tier: RatingTier
   );
 }
 
-/** Thin available-vs-taken meter: emerald fill on a zinc track. */
+/** Thin available-vs-taken meter: zinc fill on a zinc-800 track. */
 function MiniMeter({ ratio, pending, label }: { ratio: number; pending: boolean; label: string }) {
   const reduceMotion = useReducedMotion();
   return (
@@ -139,7 +139,7 @@ function MiniMeter({ ratio, pending, label }: { ratio: number; pending: boolean;
     >
       {pending ? null : (
         <motion.span
-          className="block h-full rounded-full bg-emerald-400/70"
+          className="block h-full rounded-full bg-zinc-200"
           style={{ transformOrigin: "left" }}
           initial={{ scaleX: 0 }}
           animate={{ scaleX: ratio }}
@@ -338,7 +338,7 @@ export function BrandScoreCard({
           Brand score
         </h2>
         {availability?.mode === "demo" ? (
-          <span className="rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
+          <span className="rounded border border-zinc-700 bg-white/[0.03] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">
             demo data
           </span>
         ) : null}
@@ -360,6 +360,9 @@ export function BrandScoreCard({
                 {score.normalized}
               </div>
               <div className="mt-1.5 flex items-center gap-2">
+                <span className="text-[10px] font-medium tracking-[0.1em] text-zinc-600 uppercase">
+                  Overall brand score
+                </span>
                 {tier !== null ? (
                   <span
                     className={cn(

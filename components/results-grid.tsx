@@ -58,9 +58,9 @@ export function ResultsGrid({
       {error !== null ? (
         <div
           role="alert"
-          className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-2.5"
+          className="flex items-center justify-between gap-3 rounded-xl border border-white/15 bg-white/[0.03] px-4 py-2.5"
         >
-          <p className="text-[12px] text-red-300">Availability check failed — {error}</p>
+          <p className="text-[12px] text-zinc-400">Availability check failed — {error}</p>
           <Button variant="outline" size="sm" onClick={onRetry}>
             Retry
           </Button>
