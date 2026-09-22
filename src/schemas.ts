@@ -14,6 +14,12 @@ export const PROVIDER_IDS = [
   "domain:fr",
   "domain:uk",
   "domain:eu",
+  "domain:co",
+  "domain:me",
+  "domain:org",
+  "domain:sh",
+  "domain:so",
+  "domain:xyz",
   "github:user",
   "github:org",
   "gitlab",
@@ -72,6 +78,10 @@ export const DOMAIN_CCTLD_PROVIDER_IDS = [
   "domain:fr",
   "domain:uk",
   "domain:eu",
+  "domain:co",
+  "domain:me",
+  "domain:sh",
+  "domain:so",
 ] as const satisfies readonly ProviderId[];
 
 /** Every domain provider, covered by the `domains:all` alias. */
@@ -88,6 +98,12 @@ export const DOMAIN_ALL_PROVIDER_IDS = [
   "domain:fr",
   "domain:uk",
   "domain:eu",
+  "domain:co",
+  "domain:me",
+  "domain:org",
+  "domain:sh",
+  "domain:so",
+  "domain:xyz",
 ] as const satisfies readonly ProviderId[];
 
 /** Social-media handle providers covered by the `socials` alias. */

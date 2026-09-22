@@ -129,6 +129,62 @@ describe("european ccTLD adapters — WHOIS + DNS fallback", () => {
   });
 });
 
+describe("new TLD adapters — RDAP-first with WHOIS/DNS fallback", () => {
+  /** Bootstrap advertising the registries for the six new TLDs. */
+  const NEW_BOOTSTRAP = {
+    services: [
+      [["co"], ["https://rdap.nic.co/"]],
+      [["me"], ["https://rdap.identitydigital.services/rdap/"]],
+      [["org"], ["https://rdap.publicinterestregistry.org/rdap/"]],
+      [["sh"], ["https://rdap.identitydigital.services/rdap/"]],
+      [["xyz"], ["https://rdap.centralnic.com/xyz/"]],
+    ],
+  };
+  const rdapDeps = (status: number) =>
+    makeDeps({
+      fetch: async (input) => {
+        if (urlOf(input).includes("iana.org")) return jsonResponse(NEW_BOOTSTRAP);
+        return new Response(null, { status });
+      },
+    });
+
+  for (const id of ["domain:co", "domain:me", "domain:org", "domain:sh", "domain:xyz"] as const) {
+    it(`${id} maps RDAP 404 to available`, async () => {
+      const r = await check(id, "acme", rdapDeps(404));
+      expect(r).toMatchObject({ status: "available", available: true });
+      expect(r.detail).toContain("rdap:");
+    });
+
+    it(`${id} maps RDAP 200 to taken`, async () => {
+      const r = await check(id, "acme", rdapDeps(200));
+      expect(r).toMatchObject({ status: "taken", available: false });
+    });
+  }
+
+  it("domain:so (no RDAP service) falls back to WHOIS", async () => {
+    const r = await check(
+      "domain:so",
+      "acme",
+      makeDeps({
+        fetch: async (input) => {
+          if (urlOf(input).includes("iana.org")) return jsonResponse(NEW_BOOTSTRAP);
+          return new Response(null, { status: 500 });
+        },
+        whoisDomain: async () => ({ "whois.nic.so": { __raw: "Not found" } }),
+      }),
+    );
+    expect(r).toMatchObject({ status: "available", available: true });
+    expect(r.detail).toContain("whois fallback");
+  });
+
+  it("new TLDs are registered in createAdapters", () => {
+    const adapters = createAdapters(makeDeps());
+    for (const id of ["co", "me", "org", "sh", "so", "xyz"]) {
+      expect(adapters[`domain:${id}` as keyof typeof adapters]?.id).toBe(`domain:${id}`);
+    }
+  });
+});
+
 describe("social:x adapter", () => {
   it("maps 404 to available", async () => {
     expect(await check("social:x", "acme_co", statusDeps(404))).toMatchObject({

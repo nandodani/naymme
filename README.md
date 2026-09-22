@@ -7,8 +7,11 @@ A web app and MCP (Model Context Protocol) server that answers two
 questions about a candidate name:
 
 1. **`check_availability`** — is it free as a `.com` / `.gg` / `.dev` / `.io` /
-   `.app` domain or European ccTLD (`.pt` / `.es` / `.de` / `.fr` / `.uk` /
-   `.eu`), as a GitHub user/org, as an npm package, and as a social handle on
+   `.app` / `.ai` / `.org` / `.xyz` domain or a ccTLD (`.pt` / `.es` / `.de` /
+   `.fr` / `.uk` / `.eu` / `.co` / `.me` / `.sh` / `.so`), as a GitHub user/org,
+   as a package on npm/PyPI/NuGet/RubyGems/crates.io/Docker Hub/Homebrew, on
+   Hugging Face, CodePen, Replit, Figma, Dribbble, Behance, Bento, Substack,
+   Product Hunt, Telegram or Medium, and as a social handle on
    X, Bluesky, Instagram, Reddit, YouTube and TikTok?
 2. **`score_name`** — how good is it as a brand, deterministically scored
    out of 100?
@@ -64,8 +67,13 @@ npm run check        # typecheck + lint + format:check + test + build
   ≤63 chars, must start with a letter or digit.
 - `providers` — subset of:
   `domain:com`, `domain:gg`, `domain:dev`, `domain:io`, `domain:app`,
-  `domain:pt`, `domain:es`, `domain:de`, `domain:fr`, `domain:uk`,
-  `domain:eu`, `github`, `npm`, `social:x`, `social:bluesky`,
+  `domain:ai`, `domain:pt`, `domain:es`, `domain:de`, `domain:fr`,
+  `domain:uk`, `domain:eu`, `domain:co`, `domain:me`, `domain:org`,
+  `domain:sh`, `domain:so`, `domain:xyz`, `github:user`, `github:org`,
+  `gitlab`, `npm`, `pypi`, `crates`, `dockerhub`, `huggingface`, `nuget`,
+  `rubygems`, `homebrew`, `codepen`, `replit`, `figma`, `dribbble`,
+  `behance`, `bento`, `substack`, `producthunt`, `telegram`, `medium`,
+  `social:x`, `social:bluesky`,
   `social:instagram`, `social:reddit`, `social:youtube`, `social:tiktok`,
   plus the aliases `domains` (the original four TLDs), `domains:all` (every
   TLD), `domains:cctld` (the ccTLDs), `socials` (all social providers) and
@@ -330,9 +338,10 @@ IP); the GitHub provider degrades to `unknown` when rate-limited.
 ## Availability semantics & limitations
 
 - **Domains**: looked up via [RDAP](https://www.rfc-editor.org/rfc/rfc7484)
-  when the IANA bootstrap registry lists a service for the TLD (today:
-  `.com`, `.dev`, `.app` via the Google Registry, `.fr`, `.uk`), otherwise
-  via raw **WHOIS** (`whoiser`) — `.gg`, `.io`, `.pt`, `.es`, `.de`, `.eu`.
+  when the IANA bootstrap registry lists a service for the TLD (e.g.
+  `.com`, `.dev`, `.app`, `.org`, `.xyz`, `.co`, `.me`, `.sh`, `.fr`, `.uk`),
+  otherwise via raw **WHOIS** (`whoiser`) — `.gg`, `.io`, `.pt`, `.es`,
+  `.de`, `.eu`, `.so`.
   RDAP `404` → `available`, `200` → `taken`; WHOIS is normalized by text
   matching ("no match", registrar fields) and is inherently fuzzy. When
   WHOIS is inconclusive a **DNS NS-record** check runs as a last resort —

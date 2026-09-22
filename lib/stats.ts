@@ -39,14 +39,10 @@ function count(results: readonly AvailabilityResult[], match: (id: string) => bo
 export function availabilityStats(data: CheckAvailabilityOutput | null): AvailabilityStats | null {
   if (data === null || data.results.length === 0) return null;
   const tld = count(data.results, (id) => id.startsWith("domain:"));
-  const social = count(
-    data.results,
-    (id) => id.startsWith("social:") || COMMUNITY_IDS.has(id as never),
-  );
+  const social = count(data.results, (id) => id.startsWith("social:") || COMMUNITY_IDS.has(id));
   const dev = count(
     data.results,
-    (id) =>
-      !id.startsWith("domain:") && !id.startsWith("social:") && !COMMUNITY_IDS.has(id as never),
+    (id) => !id.startsWith("domain:") && !id.startsWith("social:") && !COMMUNITY_IDS.has(id),
   );
   const fraction = (c: CategoryCount) => (c.total === 0 ? 0 : c.free / c.total);
   // .com anchors a brand, so it counts triple inside the composite rating

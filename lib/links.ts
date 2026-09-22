@@ -11,7 +11,16 @@ import type { ProviderId } from "../src/schemas.js";
  * (or no published rate is tracked), shown as `—` rather than invented.
  */
 
-export type RegistrarId = "porkbun" | "cloudflare" | "namecheap" | "godaddy";
+export type RegistrarId =
+  | "porkbun"
+  | "cloudflare"
+  | "namecheap"
+  | "godaddy"
+  | "vercel"
+  | "spaceship"
+  | "dynadot"
+  | "gandi"
+  | "hover";
 
 export interface Registrar {
   id: RegistrarId;
@@ -43,6 +52,34 @@ export const REGISTRARS: readonly [Registrar, ...Registrar[]] = [
     searchUrl: (domain) =>
       `https://www.godaddy.com/domainsearch/find?domainToCheck=${encodeURIComponent(domain)}`,
   },
+  {
+    id: "vercel",
+    label: "Vercel",
+    searchUrl: (domain) => `https://vercel.com/domains?query=${encodeURIComponent(domain)}`,
+  },
+  {
+    id: "spaceship",
+    label: "Spaceship",
+    searchUrl: (domain) =>
+      `https://www.spaceship.com/domain-search/?query=${encodeURIComponent(domain)}`,
+  },
+  {
+    id: "dynadot",
+    label: "Dynadot",
+    searchUrl: (domain) =>
+      `https://www.dynadot.com/domain/search.html?domain=${encodeURIComponent(domain)}`,
+  },
+  {
+    id: "gandi",
+    label: "Gandi",
+    searchUrl: (domain) =>
+      `https://shop.gandi.net/en/domain/suggest?search=${encodeURIComponent(domain)}`,
+  },
+  {
+    id: "hover",
+    label: "Hover",
+    searchUrl: (domain) => `https://www.hover.com/domains/results?q=${encodeURIComponent(domain)}`,
+  },
 ] as const;
 
 /**
@@ -53,18 +90,204 @@ export const REGISTRARS: readonly [Registrar, ...Registrar[]] = [
 const TLD_PRICE_ESTIMATES: Partial<
   Record<ProviderId, Partial<Record<RegistrarId, number | null>>>
 > = {
-  "domain:com": { porkbun: 11, cloudflare: 10, namecheap: 11, godaddy: 13 },
-  "domain:dev": { porkbun: 12, cloudflare: 13, namecheap: 13, godaddy: 17 },
-  "domain:io": { porkbun: 34, cloudflare: null, namecheap: 33, godaddy: 45 },
-  "domain:ai": { porkbun: 68, cloudflare: null, namecheap: 68, godaddy: 100 },
-  "domain:gg": { porkbun: 68, cloudflare: null, namecheap: 70, godaddy: 90 },
-  "domain:app": { porkbun: 14, cloudflare: 15, namecheap: 13, godaddy: 20 },
-  "domain:pt": { porkbun: 12, cloudflare: null, namecheap: 14, godaddy: 25 },
-  "domain:es": { porkbun: 9, cloudflare: null, namecheap: 10, godaddy: 12 },
-  "domain:de": { porkbun: 8, cloudflare: null, namecheap: 9, godaddy: 10 },
-  "domain:fr": { porkbun: 10, cloudflare: null, namecheap: 12, godaddy: 13 },
-  "domain:uk": { porkbun: 8, cloudflare: null, namecheap: 9, godaddy: 10 },
-  "domain:eu": { porkbun: 9, cloudflare: null, namecheap: 9, godaddy: 10 },
+  "domain:com": {
+    porkbun: 11,
+    cloudflare: 10,
+    namecheap: 11,
+    godaddy: 13,
+    vercel: 20,
+    spaceship: 10,
+    dynadot: 10,
+    gandi: 16,
+    hover: 15,
+  },
+  "domain:dev": {
+    porkbun: 12,
+    cloudflare: 13,
+    namecheap: 13,
+    godaddy: 17,
+    vercel: 20,
+    spaceship: 11,
+    dynadot: 12,
+    gandi: 15,
+    hover: 15,
+  },
+  "domain:io": {
+    porkbun: 34,
+    cloudflare: null,
+    namecheap: 33,
+    godaddy: 45,
+    vercel: 65,
+    spaceship: 45,
+    dynadot: 50,
+    gandi: 45,
+    hover: 50,
+  },
+  "domain:ai": {
+    porkbun: 68,
+    cloudflare: null,
+    namecheap: 68,
+    godaddy: 100,
+    vercel: null,
+    spaceship: 70,
+    dynadot: 65,
+    gandi: 95,
+    hover: 115,
+  },
+  "domain:gg": {
+    porkbun: 68,
+    cloudflare: null,
+    namecheap: 70,
+    godaddy: 90,
+    vercel: null,
+    spaceship: 70,
+    dynadot: 75,
+    gandi: 85,
+    hover: 90,
+  },
+  "domain:app": {
+    porkbun: 14,
+    cloudflare: 15,
+    namecheap: 13,
+    godaddy: 20,
+    vercel: 14,
+    spaceship: 13,
+    dynadot: 13,
+    gandi: 18,
+    hover: 19,
+  },
+  "domain:pt": {
+    porkbun: 12,
+    cloudflare: null,
+    namecheap: 14,
+    godaddy: 25,
+    vercel: null,
+    spaceship: 15,
+    dynadot: 20,
+    gandi: 25,
+    hover: 30,
+  },
+  "domain:es": {
+    porkbun: 9,
+    cloudflare: null,
+    namecheap: 10,
+    godaddy: 12,
+    vercel: null,
+    spaceship: 10,
+    dynadot: 12,
+    gandi: 14,
+    hover: 15,
+  },
+  "domain:de": {
+    porkbun: 8,
+    cloudflare: null,
+    namecheap: 9,
+    godaddy: 10,
+    vercel: null,
+    spaceship: 8,
+    dynadot: 9,
+    gandi: 10,
+    hover: 12,
+  },
+  "domain:fr": {
+    porkbun: 10,
+    cloudflare: null,
+    namecheap: 12,
+    godaddy: 13,
+    vercel: null,
+    spaceship: 10,
+    dynadot: 12,
+    gandi: 12,
+    hover: 15,
+  },
+  "domain:uk": {
+    porkbun: 8,
+    cloudflare: null,
+    namecheap: 9,
+    godaddy: 10,
+    vercel: null,
+    spaceship: 8,
+    dynadot: 9,
+    gandi: 9,
+    hover: 11,
+  },
+  "domain:eu": {
+    porkbun: 9,
+    cloudflare: null,
+    namecheap: 9,
+    godaddy: 10,
+    vercel: null,
+    spaceship: 9,
+    dynadot: 9,
+    gandi: 10,
+    hover: 12,
+  },
+  "domain:co": {
+    porkbun: 12,
+    cloudflare: 12,
+    namecheap: 12,
+    godaddy: 15,
+    vercel: null,
+    spaceship: 12,
+    dynadot: 15,
+    gandi: 25,
+    hover: 25,
+  },
+  "domain:me": {
+    porkbun: 13,
+    cloudflare: 12,
+    namecheap: 10,
+    godaddy: 14,
+    vercel: null,
+    spaceship: 10,
+    dynadot: 9,
+    gandi: 15,
+    hover: 20,
+  },
+  "domain:org": {
+    porkbun: 10,
+    cloudflare: 11,
+    namecheap: 8,
+    godaddy: 10,
+    vercel: 20,
+    spaceship: 9,
+    dynadot: 10,
+    gandi: 17,
+    hover: 16,
+  },
+  "domain:sh": {
+    porkbun: 45,
+    cloudflare: null,
+    namecheap: 50,
+    godaddy: 80,
+    vercel: null,
+    spaceship: 40,
+    dynadot: 55,
+    gandi: 75,
+    hover: 80,
+  },
+  "domain:so": {
+    porkbun: 60,
+    cloudflare: null,
+    namecheap: 60,
+    godaddy: 90,
+    vercel: null,
+    spaceship: 45,
+    dynadot: 50,
+    gandi: 80,
+    hover: 85,
+  },
+  "domain:xyz": {
+    porkbun: 10,
+    cloudflare: 12,
+    namecheap: 10,
+    godaddy: 13,
+    vercel: 15,
+    spaceship: 2,
+    dynadot: 3,
+    gandi: 16,
+    hover: 15,
+  },
 };
 
 export interface RegistrarPrice {

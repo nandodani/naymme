@@ -73,7 +73,7 @@ function PriceChips({ provider, subject }: { provider: string; subject: string }
   const prices = tldPrices(provider as Parameters<typeof tldPrices>[0]);
   if (prices.length === 0) return null;
   return (
-    <span className="hidden items-center gap-1 lg:flex" aria-label="First-year price estimates">
+    <span className="hidden items-center gap-1 xl:flex" aria-label="First-year price estimates">
       {prices.map(({ registrar, estimate }) =>
         estimate === null ? (
           <span

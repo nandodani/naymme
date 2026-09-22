@@ -50,6 +50,10 @@ describe("resolveProviderIds", () => {
       "domain:fr",
       "domain:uk",
       "domain:eu",
+      "domain:co",
+      "domain:me",
+      "domain:sh",
+      "domain:so",
     ]);
   });
 
@@ -67,6 +71,12 @@ describe("resolveProviderIds", () => {
       "domain:fr",
       "domain:uk",
       "domain:eu",
+      "domain:co",
+      "domain:me",
+      "domain:org",
+      "domain:sh",
+      "domain:so",
+      "domain:xyz",
     ]);
   });
 
@@ -104,6 +114,10 @@ describe("resolveProviderIds", () => {
       "domain:fr",
       "domain:uk",
       "domain:eu",
+      "domain:co",
+      "domain:me",
+      "domain:sh",
+      "domain:so",
       "social:x",
     ]);
   });
