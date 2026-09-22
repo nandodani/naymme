@@ -26,6 +26,8 @@ function fnv1a(input: string): number {
 function demoSubject(provider: string, name: string): string {
   if (provider.startsWith("domain:")) return `${name}.${provider.slice("domain:".length)}`;
   if (provider.startsWith("social:")) return `@${name}`;
+  if (provider === "vercel") return `${name}.vercel.app`;
+  if (provider === "netlify") return `${name}.netlify.app`;
   return name;
 }
 

@@ -58,6 +58,7 @@ export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
     providers: [
       { id: "github:user", label: "GitHub (User)" },
       { id: "github:org", label: "GitHub (Org)" },
+      { id: "github:repo", label: "GitHub (Repo)" },
       { id: "gitlab", label: "GitLab" },
       { id: "npm", label: "npm" },
       { id: "pypi", label: "PyPI" },
@@ -69,6 +70,9 @@ export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
       { id: "homebrew", label: "Homebrew" },
       { id: "codepen", label: "CodePen" },
       { id: "replit", label: "Replit" },
+      { id: "vercel", label: "Vercel" },
+      { id: "netlify", label: "Netlify" },
+      { id: "appstore", label: "App Store" },
     ],
   },
   {

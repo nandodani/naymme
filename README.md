@@ -73,9 +73,10 @@ npm run check        # typecheck + lint + format:check + test + build
   `domain:uk`, `domain:eu`, `domain:co`, `domain:me`, `domain:org`,
   `domain:sh`, `domain:so`, `domain:xyz`, `domain:design`, `domain:store`,
   `domain:work`, `domain:studio`, `domain:tech`, `domain:agency`,
-  `domain:space`, `github:user`, `github:org`,
+  `domain:space`, `github:user`, `github:org`, `github:repo`,
   `gitlab`, `npm`, `pypi`, `crates`, `dockerhub`, `huggingface`, `nuget`,
-  `rubygems`, `homebrew`, `codepen`, `replit`, `figma`, `dribbble`,
+  `rubygems`, `homebrew`, `codepen`, `replit`, `vercel`, `netlify`,
+  `appstore`, `figma`, `dribbble`,
   `behance`, `substack`, `producthunt`, `telegram`, `medium`,
   `social:x`, `social:bluesky`,
   `social:instagram`, `social:reddit`, `social:youtube`, `social:tiktok`,
@@ -154,7 +155,9 @@ src/
     rdap.ts             IANA bootstrap → per-TLD RDAP client (cached)
     whois.ts            whoiser wrapper + text normalization
     dns.ts              NS-record signal after inconclusive WHOIS
-    github.ts           GET api.github.com/users/{name}
+    github.ts           /users/{name} login check + repository search collision
+    hosting.ts          {name}.vercel.app / {name}.netlify.app subdomain checks
+    stores.ts           Apple App Store listing check (iTunes Search API)
     npm.ts              npm-name wrapper
     social.ts           X, Bluesky, Instagram, Reddit, YouTube, TikTok handles
   tools/checkAvailability.ts   Promise.allSettled runner + per-provider timeout
