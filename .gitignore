@@ -12,3 +12,7 @@ coverage/
 out/
 next-env.d.ts
 *.tsbuildinfo
+
+# next dev auto-generates these agent hint files
+AGENTS.md
+CLAUDE.md

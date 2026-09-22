@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Atom } from "loading-dev";
 
 import { nameSchema } from "@/src/schemas.js";
-import { scoreName, type NameScore } from "@/src/scoring/score.js";
 import type { AvailabilityResponse } from "@/lib/availability.js";
 import { Hero } from "./hero.js";
 import { Navbar } from "./navbar.js";
@@ -50,12 +49,6 @@ export function NameChecker() {
 
   const name = normalize(query);
   const nameValid = name.length > 0 && nameSchema.safeParse(name).success;
-  // The score tracks the explicitly searched name so the bento stays
-  // consistent while the user drafts their next query.
-  const score: NameScore | null = useMemo(
-    () => (searchedName === "" ? null : scoreName(searchedName)),
-    [searchedName],
-  );
 
   const searched = searchedName !== "";
   const reduceMotion = useReducedMotion();
@@ -242,19 +235,8 @@ export function NameChecker() {
                   variant="compact"
                 />
               </div>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <span className="font-mono text-[11px] text-zinc-500">
-                  results for <span className="text-zinc-300">{searchedName}</span>
-                </span>
-                {availability !== null ? (
-                  <span className="font-mono text-[11px] text-zinc-500 tabular-nums">
-                    {availability.summary.available} free · {availability.summary.taken} taken
-                  </span>
-                ) : null}
-              </div>
               <ResultsGrid
                 name={searchedName}
-                score={score}
                 data={availability}
                 checking={checking}
                 error={error}

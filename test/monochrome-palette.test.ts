@@ -17,7 +17,7 @@ const SCAN_EXT = /\.(tsx?|css)$/;
 
 const SEMANTIC_ALLOWLIST = new Set([
   "components/provider-row.tsx", // availability icon + chip tints
-  "components/brand-score-card.tsx", // rating tier badges, ring, meters
+  "components/overall-card.tsx", // availability segment fills
   "components/connect-mcp-dialog.tsx", // copy-confirm state
   "components/results-grid.tsx", // error banner
   "components/search-input.tsx", // validation hint

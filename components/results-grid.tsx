@@ -5,18 +5,16 @@ import { SearchX } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
 import type { AvailabilityResponse } from "@/lib/availability.js";
-import { providerGroup } from "@/lib/provider-meta.js";
+import { ALL_PROVIDER_IDS, providerGroup } from "@/lib/provider-meta.js";
 import { resultCounts, type ResultFilter } from "@/lib/result-filter.js";
 import { cn } from "@/lib/utils.js";
 import type { AvailabilityResult } from "@/src/types.js";
-import type { NameScore } from "@/src/scoring/score.js";
-import { BrandScoreCard } from "./brand-score-card.js";
+import { OverallCard } from "./overall-card.js";
 import { ProviderCard } from "./provider-card.js";
 import { Button } from "./ui/button.js";
 
 interface ResultsGridProps {
   name: string;
-  score: NameScore | null;
   data: AvailabilityResponse | null;
   checking: boolean;
   error: string | null;
@@ -38,30 +36,27 @@ const FILTERS: readonly { id: ResultFilter; label: string }[] = [
   { id: "available", label: "Available only" },
 ];
 
+/** Every provider id the four grid groups render — the count denominator. */
+const EXPECTED_PROVIDER_IDS = ALL_PROVIDER_IDS;
+
 /**
- * The searched state: a bento grid of the brand score card plus one card per
- * provider group. DOM order is the same as reading order at every
- * breakpoint — score, Developer, Socials, Domains, Community — so the
+ * The searched state: a bento grid of the overall availability card plus
+ * one card per provider group. DOM order is the same as reading order at
+ * every breakpoint — Overall, Developer, Socials, Domains, Community — so the
  * stagger, tab order and screen-reader order all agree. On xl the score
  * anchors the left column, Developer and Socials fill out row one, Domains
  * spans underneath and Community fills the bottom-right slot.
  */
-export function ResultsGrid({
-  name,
-  score,
-  data,
-  checking,
-  error,
-  onRetry,
-  onCopy,
-}: ResultsGridProps) {
+export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: ResultsGridProps) {
   const [filter, setFilter] = useState<ResultFilter>("all");
   const reduceMotion = useReducedMotion();
   const resultsByProvider = new Map<string, AvailabilityResult>(
     (data?.results ?? []).map((r) => [r.provider, r]),
   );
   const pending = checking;
-  const counts = resultCounts(data?.results ?? []);
+  // Expected providers = every row the grid renders; free + taken +
+  // unresolved + pending always reconcile to it — no ghost items.
+  const counts = resultCounts(data?.results ?? [], EXPECTED_PROVIDER_IDS);
   const emptyFiltered = filter === "available" && counts.available === 0 && !checking;
 
   const domains = providerGroup("domains");
@@ -83,38 +78,64 @@ export function ResultsGrid({
         </div>
       ) : null}
 
-      <div
-        role="tablist"
-        aria-label="Filter results by availability"
-        className="inline-flex w-fit items-center rounded-full border border-zinc-800 bg-zinc-950/80 p-0.5"
-      >
-        {FILTERS.map(({ id, label }) => {
-          const active = filter === id;
-          const count = id === "all" ? counts.resolved : counts.available;
-          return (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setFilter(id)}
-              className="relative rounded-full px-3 py-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="flex min-w-0 items-center gap-3 font-mono text-[11px] text-zinc-500">
+          <span className="truncate">
+            results for <span className="text-zinc-300">{name}</span>
+          </span>
+          {data !== null ? (
+            <span
+              className="shrink-0 border-l border-zinc-800 pl-3 tabular-nums"
+              title={`${counts.settled} settled of ${counts.expected} checked`}
             >
-              {active ? (
-                <motion.span
-                  layoutId="activeFilter"
-                  transition={
-                    reduceMotion ? { duration: 0 } : { type: "spring", bounce: 0.2, duration: 0.4 }
-                  }
-                  className="absolute inset-0 rounded-full border border-zinc-700 bg-white/10"
-                />
+              {counts.available} free · {counts.taken} taken
+              {counts.unresolved > 0 ? (
+                <span className="text-amber-400/80"> · {counts.unresolved} unresolved</span>
               ) : null}
-              <span className={cn("relative", active ? "text-zinc-100" : "text-zinc-500")}>
-                {label} ({count})
-              </span>
-            </button>
-          );
-        })}
+              {counts.pending > 0 ? (
+                <span className={checking ? "animate-pulse" : undefined}>
+                  {" "}
+                  · {counts.pending} pending
+                </span>
+              ) : null}
+            </span>
+          ) : null}
+        </div>
+        <div
+          role="tablist"
+          aria-label="Filter results by availability"
+          className="inline-flex w-fit shrink-0 items-center rounded-full border border-zinc-800 bg-zinc-950/80 p-0.5"
+        >
+          {FILTERS.map(({ id, label }) => {
+            const active = filter === id;
+            const count = id === "all" ? counts.expected : counts.available;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setFilter(id)}
+                className="relative rounded-full px-3 py-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {active ? (
+                  <motion.span
+                    layoutId="activeFilter"
+                    transition={
+                      reduceMotion
+                        ? { duration: 0 }
+                        : { type: "spring", bounce: 0.2, duration: 0.4 }
+                    }
+                    className="absolute inset-0 rounded-full border border-zinc-700 bg-white/10"
+                  />
+                ) : null}
+                <span className={cn("relative", active ? "text-zinc-100" : "text-zinc-500")}>
+                  {label} ({count})
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <motion.div
@@ -124,8 +145,7 @@ export function ResultsGrid({
         className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
       >
         <motion.div variants={item} className="md:col-span-2 xl:col-span-1 xl:col-start-1">
-          <BrandScoreCard
-            score={score}
+          <OverallCard
             availability={data}
             checking={checking}
             name={name}
