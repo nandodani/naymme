@@ -86,21 +86,14 @@ function RowIcon({
 }
 
 /**
- * Feathered blur halo behind the chip: a radially-masked backdrop-blur
- * layer weighted to the right of the pill so row text behind/around it is
- * softly blurred without clashing.
- */
-const HALO_MASK = "radial-gradient(140% 220% at 30% 50%, rgba(0,0,0,0.75) 30%, transparent 70%)";
-
-/**
  * Floating availability pill — status glyph + label as one unified chip.
  * It swaps in at the icon slot when the icon target is hovered/focused,
  * staying local to the start of the row on a z-raised layer with a 1px
- * border, soft shadow and a feathered blur halo reaching ~25px right of
- * the pill; it never traverses the row. The halo animates its own
- * backdrop-filter so the blur fades in with the chip rather than popping
- * after the spring settles. pointer-events-none — it never intercepts the
- * row's own click target; status stays in the a11y tree via sr-only text.
+ * border and soft shadow. A marquee-style black gradient shade trails
+ * ~90px to the right, fading the row text behind it into the OLED
+ * background instead of blurring. pointer-events-none — it never
+ * intercepts the row's own click target; status stays in the a11y tree
+ * via sr-only text.
  */
 function StatusChip({ status, visible }: { status: AvailabilityStatus; visible: boolean }) {
   const reduce = useReducedMotion();
@@ -114,17 +107,12 @@ function StatusChip({ status, visible }: { status: AvailabilityStatus; visible: 
         {visible
           ? [
               <motion.span
-                key="halo"
-                initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
-                animate={{ opacity: 1, backdropFilter: "blur(6px)" }}
-                exit={{
-                  opacity: 0,
-                  backdropFilter: "blur(0px)",
-                  transition: { duration: 0.15, ease: "easeOut" },
-                }}
+                key="shade"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, transition: { duration: 0.15, ease: "easeOut" } }}
                 transition={CHIP_SPRING}
-                style={{ maskImage: HALO_MASK, WebkitMaskImage: HALO_MASK }}
-                className="absolute top-0 -left-3 h-9 w-[190px] -translate-y-1/2 rounded-full backdrop-blur-sm"
+                className="absolute top-0 -left-2 h-9 w-44 -translate-y-1/2 bg-gradient-to-r from-black via-black/70 to-transparent"
               />,
               <motion.span
                 key="chip"
