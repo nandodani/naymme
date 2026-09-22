@@ -235,16 +235,6 @@ export function NameChecker() {
                   variant="compact"
                 />
               </div>
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <span className="font-mono text-[11px] text-zinc-500">
-                  results for <span className="text-zinc-300">{searchedName}</span>
-                </span>
-                {availability !== null ? (
-                  <span className="font-mono text-[11px] text-zinc-500 tabular-nums">
-                    {availability.summary.available} free · {availability.summary.taken} taken
-                  </span>
-                ) : null}
-              </div>
               <ResultsGrid
                 name={searchedName}
                 data={availability}

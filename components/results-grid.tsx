@@ -73,38 +73,52 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
         </div>
       ) : null}
 
-      <div
-        role="tablist"
-        aria-label="Filter results by availability"
-        className="inline-flex w-fit items-center rounded-full border border-zinc-800 bg-zinc-950/80 p-0.5"
-      >
-        {FILTERS.map(({ id, label }) => {
-          const active = filter === id;
-          const count = id === "all" ? counts.resolved : counts.available;
-          return (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setFilter(id)}
-              className="relative rounded-full px-3 py-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {active ? (
-                <motion.span
-                  layoutId="activeFilter"
-                  transition={
-                    reduceMotion ? { duration: 0 } : { type: "spring", bounce: 0.2, duration: 0.4 }
-                  }
-                  className="absolute inset-0 rounded-full border border-zinc-700 bg-white/10"
-                />
-              ) : null}
-              <span className={cn("relative", active ? "text-zinc-100" : "text-zinc-500")}>
-                {label} ({count})
-              </span>
-            </button>
-          );
-        })}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="flex min-w-0 items-center gap-2 font-mono text-[11px] text-zinc-500">
+          <span className="truncate">
+            results for <span className="text-zinc-300">{name}</span>
+          </span>
+          {data !== null ? (
+            <span className="shrink-0 tabular-nums">
+              {data.summary.available} free · {data.summary.taken} taken
+            </span>
+          ) : null}
+        </div>
+        <div
+          role="tablist"
+          aria-label="Filter results by availability"
+          className="inline-flex w-fit shrink-0 items-center rounded-full border border-zinc-800 bg-zinc-950/80 p-0.5"
+        >
+          {FILTERS.map(({ id, label }) => {
+            const active = filter === id;
+            const count = id === "all" ? counts.resolved : counts.available;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setFilter(id)}
+                className="relative rounded-full px-3 py-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {active ? (
+                  <motion.span
+                    layoutId="activeFilter"
+                    transition={
+                      reduceMotion
+                        ? { duration: 0 }
+                        : { type: "spring", bounce: 0.2, duration: 0.4 }
+                    }
+                    className="absolute inset-0 rounded-full border border-zinc-700 bg-white/10"
+                  />
+                ) : null}
+                <span className={cn("relative", active ? "text-zinc-100" : "text-zinc-500")}>
+                  {label} ({count})
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <motion.div
