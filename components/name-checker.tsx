@@ -11,6 +11,7 @@ import { Hero } from "./hero.js";
 import { Navbar } from "./navbar.js";
 import { ResultsGrid } from "./results-grid.js";
 import { SearchInput } from "./search-input.js";
+import Silk from "./silk.js";
 import { CopyToast } from "./toast.js";
 import { TooltipProvider } from "./ui/tooltip.js";
 
@@ -188,6 +189,9 @@ export function NameChecker() {
   return (
     <TooltipProvider>
       <div className="flex min-h-screen flex-col">
+        <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10">
+          <Silk speed={5.4} scale={0.5} color="#262626" noiseIntensity={2.7} rotation={0} />
+        </div>
         <Navbar onCopy={notify} />
 
         <AnimatePresence mode="wait" initial={false}>
