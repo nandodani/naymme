@@ -8,6 +8,7 @@ async function makeClientServer() {
   const deps = defaultDeps({
     fetch: async () => new Response(null, { status: 404 }),
     whoisDomain: async () => ({ "whois.test": { __raw: "No match" } }),
+    resolveNs: async () => [],
     npmNameAvailable: async () => true,
     timeoutMs: 50,
   });

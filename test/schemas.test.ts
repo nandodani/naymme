@@ -40,6 +40,46 @@ describe("resolveProviderIds", () => {
     ]);
   });
 
+  it("expands 'domains:cctld' to the ccTLD providers", () => {
+    expect(resolveProviderIds(["domains:cctld"])).toEqual([
+      "domain:gg",
+      "domain:io",
+      "domain:pt",
+      "domain:es",
+      "domain:de",
+      "domain:fr",
+      "domain:uk",
+      "domain:eu",
+    ]);
+  });
+
+  it("expands 'domains:all' to every domain provider", () => {
+    expect(resolveProviderIds(["domains:all"])).toEqual([
+      "domain:com",
+      "domain:gg",
+      "domain:dev",
+      "domain:io",
+      "domain:app",
+      "domain:pt",
+      "domain:es",
+      "domain:de",
+      "domain:fr",
+      "domain:uk",
+      "domain:eu",
+    ]);
+  });
+
+  it("expands 'socials' to the social handle providers", () => {
+    expect(resolveProviderIds(["socials"])).toEqual([
+      "social:x",
+      "social:bluesky",
+      "social:instagram",
+      "social:reddit",
+      "social:youtube",
+      "social:tiktok",
+    ]);
+  });
+
   it("de-duplicates while preserving order", () => {
     expect(resolveProviderIds(["github", "domains", "github", "npm"])).toEqual([
       "github",
@@ -48,6 +88,22 @@ describe("resolveProviderIds", () => {
       "domain:dev",
       "domain:io",
       "npm",
+    ]);
+  });
+
+  it("de-duplicates overlapping aliases", () => {
+    expect(resolveProviderIds(["domains", "domains:cctld", "social:x"])).toEqual([
+      "domain:com",
+      "domain:gg",
+      "domain:dev",
+      "domain:io",
+      "domain:pt",
+      "domain:es",
+      "domain:de",
+      "domain:fr",
+      "domain:uk",
+      "domain:eu",
+      "social:x",
     ]);
   });
 });

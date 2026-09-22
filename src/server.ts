@@ -9,7 +9,7 @@ import {
 } from "./schemas.js";
 import { checkAvailability } from "./tools/checkAvailability.js";
 
-export const SERVER_NAME = "name-check-mcp";
+export const SERVER_NAME = "lmkurname";
 export const SERVER_VERSION = "0.1.0";
 
 /**
@@ -24,8 +24,10 @@ export function createNameCheckServer(deps: ProviderDeps = defaultDeps()): McpSe
     {
       title: "Check name availability",
       description:
-        "Check whether a bare name is available across domain TLDs (.com, .gg, .dev, .io), " +
-        "GitHub (user/org namespace) and npm. Providers run concurrently with an independent " +
+        "Check whether a bare name is available across domain TLDs (.com, .gg, .dev, .io, .app " +
+        "and the European ccTLDs .pt/.es/.de/.fr/.uk/.eu), GitHub (user/org namespace), npm and " +
+        "social handles (X, Bluesky, Instagram, Reddit, YouTube, TikTok). Providers run " +
+        "concurrently with an independent " +
         "5-second timeout each; a provider that fails or is inconclusive reports status " +
         "'unknown' rather than failing the request. 'available'/'taken' are best-effort " +
         "registrations snapshots — always re-confirm before buying or registering.",

@@ -27,6 +27,7 @@ function makeDeps(overrides: Partial<ProviderDeps> = {}): ProviderDeps {
   return defaultDeps({
     fetch: async () => new Response(null, { status: 500 }),
     whoisDomain: async () => ({}),
+    resolveNs: async () => [],
     npmNameAvailable: async () => true,
     timeoutMs: 50,
     ...overrides,

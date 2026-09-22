@@ -1,13 +1,13 @@
 {
-  "name": "name-check-mcp",
+  "name": "lmkurname",
   "version": "0.1.0",
-  "description": "MCP server for name availability checks (domains, GitHub, npm) and deterministic brand-name scoring",
+  "description": "MCP server for name availability checks (domains, GitHub, npm, social handles) and deterministic brand-name scoring",
   "type": "module",
   "engines": {
     "node": ">=20"
   },
   "bin": {
-    "name-check-mcp": "dist/index.js"
+    "lmkurname": "dist/index.js"
   },
   "main": "dist/index.js",
   "files": [
@@ -36,7 +36,9 @@
     "domain",
     "availability",
     "naming",
-    "branding"
+    "branding",
+    "social",
+    "handle"
   ],
   "author": "",
   "license": "MIT",

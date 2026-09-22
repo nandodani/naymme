@@ -6,20 +6,77 @@ export const PROVIDER_IDS = [
   "domain:gg",
   "domain:dev",
   "domain:io",
+  "domain:app",
+  "domain:pt",
+  "domain:es",
+  "domain:de",
+  "domain:fr",
+  "domain:uk",
+  "domain:eu",
   "github",
   "npm",
+  "social:x",
+  "social:bluesky",
+  "social:instagram",
+  "social:reddit",
+  "social:youtube",
+  "social:tiktok",
 ] as const;
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
 /** Convenience aliases accepted in `providers`. */
-export const PROVIDER_ALIASES = ["all", "domains"] as const;
+export const PROVIDER_ALIASES = [
+  "all",
+  "domains",
+  "domains:cctld",
+  "domains:all",
+  "socials",
+] as const;
 export type ProviderAlias = (typeof PROVIDER_ALIASES)[number];
 
+/** The original four TLDs covered by the `domains` alias. */
 export const DOMAIN_PROVIDER_IDS = [
   "domain:com",
   "domain:gg",
   "domain:dev",
   "domain:io",
+] as const satisfies readonly ProviderId[];
+
+/** Country-code TLD providers covered by the `domains:cctld` alias. */
+export const DOMAIN_CCTLD_PROVIDER_IDS = [
+  "domain:gg",
+  "domain:io",
+  "domain:pt",
+  "domain:es",
+  "domain:de",
+  "domain:fr",
+  "domain:uk",
+  "domain:eu",
+] as const satisfies readonly ProviderId[];
+
+/** Every domain provider, covered by the `domains:all` alias. */
+export const DOMAIN_ALL_PROVIDER_IDS = [
+  "domain:com",
+  "domain:gg",
+  "domain:dev",
+  "domain:io",
+  "domain:app",
+  "domain:pt",
+  "domain:es",
+  "domain:de",
+  "domain:fr",
+  "domain:uk",
+  "domain:eu",
+] as const satisfies readonly ProviderId[];
+
+/** Social-media handle providers covered by the `socials` alias. */
+export const SOCIAL_PROVIDER_IDS = [
+  "social:x",
+  "social:bluesky",
+  "social:instagram",
+  "social:reddit",
+  "social:youtube",
+  "social:tiktok",
 ] as const satisfies readonly ProviderId[];
 
 export const providerIdSchema = z.enum(PROVIDER_IDS);
@@ -42,13 +99,13 @@ export const nameSchema = z
 
 export const checkAvailabilityInputSchema = z.object({
   name: nameSchema.describe(
-    "Bare name to check, e.g. 'acme'. Checked as acme.com/acme.gg/..., GitHub user 'acme', npm package 'acme'.",
+    "Bare name to check, e.g. 'acme'. Checked as acme.com/acme.app/..., GitHub user 'acme', npm package 'acme', social handle 'acme'.",
   ),
   providers: z
     .array(providerSelectionSchema)
     .optional()
     .describe(
-      "Providers to query. Defaults to all. Aliases: 'all' (everything), 'domains' (all four TLDs).",
+      "Providers to query. Defaults to all. Aliases: 'all' (everything), 'domains' (.com/.gg/.dev/.io), 'domains:all' (every TLD), 'domains:cctld' (ccTLDs), 'socials' (all social handles).",
     ),
 });
 
@@ -106,18 +163,27 @@ export type CheckAvailabilityOutput = z.infer<typeof checkAvailabilityOutputSche
 export type ScoreNameInput = z.infer<typeof scoreNameInputSchema>;
 export type ScoreNameOutput = z.infer<typeof scoreNameOutputSchema>;
 
+const ALIAS_EXPANSIONS: Record<ProviderAlias, readonly ProviderId[]> = {
+  all: PROVIDER_IDS,
+  domains: DOMAIN_PROVIDER_IDS,
+  "domains:cctld": DOMAIN_CCTLD_PROVIDER_IDS,
+  "domains:all": DOMAIN_ALL_PROVIDER_IDS,
+  socials: SOCIAL_PROVIDER_IDS,
+};
+
+function isAlias(item: string): item is ProviderAlias {
+  return (PROVIDER_ALIASES as readonly string[]).includes(item);
+}
+
 /** Expand aliases and de-duplicate, preserving first-seen order. */
 export function resolveProviderIds(selection?: readonly string[]): ProviderId[] {
   const source = selection && selection.length > 0 ? selection : (["all"] as const);
   const out: ProviderId[] = [];
   const seen = new Set<string>();
   for (const item of source) {
-    const ids: readonly ProviderId[] =
-      item === "all"
-        ? PROVIDER_IDS
-        : item === "domains"
-          ? DOMAIN_PROVIDER_IDS
-          : [item as ProviderId];
+    const ids: readonly ProviderId[] = isAlias(item)
+      ? ALIAS_EXPANSIONS[item]
+      : [item as ProviderId];
     for (const id of ids) {
       if (!seen.has(id)) {
         seen.add(id);
