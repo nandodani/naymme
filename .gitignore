@@ -8,3 +8,7 @@ coverage/
 .dev.vars
 .env
 .env.*
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
