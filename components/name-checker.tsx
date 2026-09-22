@@ -261,8 +261,12 @@ export function NameChecker() {
           )}
         </AnimatePresence>
 
-        <footer className="flex h-10 shrink-0 items-center justify-center border-t border-white/5 px-4 text-[11px] text-zinc-600 sm:px-6">
-          <span className="text-center">
+        <footer className="flex shrink-0 flex-col items-center justify-center gap-0.5 border-t border-white/5 px-4 py-2.5 text-center text-[11px] text-zinc-600 sm:px-6">
+          <span>
+            Independent project. Not affiliated with, endorsed by, or associated with any brands,
+            platforms, or registries displayed.
+          </span>
+          <span className="text-zinc-700">
             Scores are deterministic heuristics · availability is a best-effort snapshot, not a
             guarantee.
           </span>

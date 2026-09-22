@@ -32,7 +32,7 @@ export function Hero({ value, onChange, onSubmit, valid, inputRef }: HeroProps) 
           Check name availability across domains, code, and socials
         </h1>
         <p className="mt-4 text-center text-[14px] leading-relaxed text-zinc-500 sm:text-[15px]">
-          One name, twenty registries — checked in a single search.
+          Real-time availability across code registries, social handles, and top-level domains.
         </p>
         <div className="mt-8 w-full">
           <SearchInput
