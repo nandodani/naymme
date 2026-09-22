@@ -23,6 +23,7 @@ describe("verdictTone", () => {
     expect(verdictTone(verdictFor(95, 4))).toBe("uncontested");
     expect(verdictTone(verdictFor(80, 2))).toBe("strong");
     expect(verdictTone(verdictFor(60, 2))).toBe("partial");
+    expect(verdictTone(verdictFor(60, 0, 2))).toBe("pending");
     expect(verdictTone(verdictFor(60, 0))).toBe("contested");
     expect(verdictTone(verdictFor(10))).toBe("crowded");
   });

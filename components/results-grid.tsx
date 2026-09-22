@@ -5,7 +5,7 @@ import { SearchX } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
 import type { AvailabilityResponse } from "@/lib/availability.js";
-import { providerGroup } from "@/lib/provider-meta.js";
+import { ALL_PROVIDER_IDS, providerGroup } from "@/lib/provider-meta.js";
 import { resultCounts, type ResultFilter } from "@/lib/result-filter.js";
 import { cn } from "@/lib/utils.js";
 import type { AvailabilityResult } from "@/src/types.js";
@@ -36,6 +36,9 @@ const FILTERS: readonly { id: ResultFilter; label: string }[] = [
   { id: "available", label: "Available only" },
 ];
 
+/** Every provider id the four grid groups render — the count denominator. */
+const EXPECTED_PROVIDER_IDS = ALL_PROVIDER_IDS;
+
 /**
  * The searched state: a bento grid of the brand score card plus one card per
  * provider group. DOM order is the same as reading order at every
@@ -51,7 +54,9 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
     (data?.results ?? []).map((r) => [r.provider, r]),
   );
   const pending = checking;
-  const counts = resultCounts(data?.results ?? []);
+  // Expected providers = every row the grid renders; free + taken +
+  // unresolved + pending always reconcile to it — no ghost items.
+  const counts = resultCounts(data?.results ?? [], EXPECTED_PROVIDER_IDS);
   const emptyFiltered = filter === "available" && counts.available === 0 && !checking;
 
   const domains = providerGroup("domains");
@@ -79,8 +84,20 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
             results for <span className="text-zinc-300">{name}</span>
           </span>
           {data !== null ? (
-            <span className="shrink-0 tabular-nums">
-              {data.summary.available} free · {data.summary.taken} taken
+            <span
+              className="shrink-0 tabular-nums"
+              title={`${counts.settled} settled of ${counts.expected} checked`}
+            >
+              {counts.available} free · {counts.taken} taken
+              {counts.unresolved > 0 ? (
+                <span className="text-amber-400/80"> · {counts.unresolved} unresolved</span>
+              ) : null}
+              {counts.pending > 0 ? (
+                <span className={checking ? "animate-pulse" : undefined}>
+                  {" "}
+                  · {counts.pending} pending
+                </span>
+              ) : null}
             </span>
           ) : null}
         </div>
@@ -91,7 +108,7 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
         >
           {FILTERS.map(({ id, label }) => {
             const active = filter === id;
-            const count = id === "all" ? counts.resolved : counts.available;
+            const count = id === "all" ? counts.expected : counts.available;
             return (
               <button
                 key={id}

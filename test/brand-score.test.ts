@@ -107,7 +107,7 @@ describe("brandScore tiers", () => {
     expect(b.tiers.longtail).toMatchObject({ free: 1, checked: 1, slots: 1 });
     expect(b.baseScore).toBe(15);
     // …and it still counts toward the raw availability tally the card shows.
-    expect(b.availability).toEqual({ free: 1, total: 1 });
+    expect(b.availability).toEqual({ free: 1, settled: 1, pending: 0, total: 1 });
   });
 
   it("keeps instagram out of the long tail — it is a crown jewel candidate", () => {
@@ -167,7 +167,7 @@ describe("brandScore tiers", () => {
     const results = UNIVERSE.map((id) => result(id, free.has(id) ? "available" : "taken"));
     const b = brandScore("acme", results);
     expect(b.crownJewels.free).toBe(2);
-    expect(b.availability).toEqual({ free: 31, total: 54 });
+    expect(b.availability).toEqual({ free: 31, settled: 54, pending: 0, total: 54 });
     expect(b.score).toBeGreaterThan(53);
     expect(b.score).toBeLessThan(75);
     expect(b.verdict).toBe("Partial · Key Ground Held");
@@ -182,6 +182,42 @@ describe("brandScore tiers", () => {
     expect(b.baseScore).toBe(33); // 18 crown + 15 tld share (dev is the only TLD checked)
     expect(b.multiplier).toBe(1.1);
     expect(b.score).toBe(Math.round(33 * 1.1));
+  });
+
+  it("never lets pending checks read as taken", () => {
+    // .com unresolved (unknown status) — must not count as taken: no
+    // 'Crown Jewels Taken' verdict and no 50-cap logic fires.
+    const b = brandScore(
+      "acme",
+      UNIVERSE.map((id) =>
+        result(id, id === "domain:com" ? "unknown" : CROWN.includes(id) ? "taken" : "available"),
+      ),
+    );
+    expect(b.crownJewels.free).toBe(0);
+    expect(b.crownJewels.pending).toBe(1);
+    expect(b.crownJewels.slots[0]?.pending).toBe(true);
+    expect(b.availability).toMatchObject({ free: 48, settled: 53, pending: 1, total: 54 });
+    expect(b.verdict).toBe("Pending · Jewels Unresolved");
+  });
+
+  it("keeps unknown slots out of a group's share denominator", () => {
+    // reddit free + bluesky unknown: the 12 social points split over the
+    // one settled slot — pending can't cost points.
+    const b = brandScore("acme", [
+      result("social:reddit", "available"),
+      result("social:bluesky", "unknown"),
+    ]);
+    expect(b.tiers.core.earned).toBe(12);
+    expect(b.availability).toEqual({ free: 1, settled: 1, pending: 1, total: 2 });
+  });
+
+  it("counts expected-but-missing providers as pending, never missing", () => {
+    const b = brandScore(
+      "acme",
+      [result("domain:com", "available")],
+      ["domain:com", "domain:dev", "domain:io"],
+    );
+    expect(b.availability).toEqual({ free: 1, settled: 1, pending: 2, total: 3 });
   });
 });
 
@@ -229,6 +265,8 @@ describe("linguisticAnalysis", () => {
     expect(linguisticAnalysis("paloma").trait).toContain("6-letter");
     expect(linguisticAnalysis("paloma").trait).toContain("High flow");
     expect(linguisticAnalysis("acme-1").trait).toContain("charset penalty");
+    // Regression: the trait must reflect the real letter count.
+    expect(linguisticAnalysis("nandodani").trait).toContain("9-letter");
   });
 });
 
@@ -258,5 +296,11 @@ describe("verdictFor", () => {
       expect(verdictFor(50, held)).toBe("Partial · Key Ground Held");
     }
     expect(verdictFor(50, 0)).toBe("Contested · Crown Jewels Taken");
+  });
+
+  it("reads as pending, not taken, when no jewel is free but some are open", () => {
+    expect(verdictFor(60, 0, 1)).toBe("Pending · Jewels Unresolved");
+    expect(verdictFor(60, 0, 0)).toBe("Contested · Crown Jewels Taken");
+    expect(verdictFor(74, 0, 3)).toBe("Pending · Jewels Unresolved");
   });
 });

@@ -1,4 +1,4 @@
-import type { AvailabilityResult } from "../types.js";
+import type { AvailabilityResult, AvailabilityStatus } from "../types.js";
 
 /**
  * Tiered brand score: availability coverage weighted by how much each
@@ -19,6 +19,7 @@ export type BrandVerdict =
   | "Uncontested · Prime Real Estate"
   | "Strong · Available on Key Platforms"
   | "Partial · Key Ground Held"
+  | "Pending · Jewels Unresolved"
   | "Contested · Crown Jewels Taken"
   | "Crowded · Heavily Taken";
 
@@ -41,6 +42,8 @@ export interface CrownJewel {
   provider: string | null;
   free: boolean;
   checked: boolean;
+  /** Checked-or-unchecked but not settled — must not read as "taken". */
+  pending: boolean;
 }
 
 /** Type alias (not interface) so it's assignable to MCP structuredContent. */
@@ -54,9 +57,11 @@ export type BrandScore = {
   /** Final 0–100 brand score. */
   score: number;
   verdict: BrandVerdict;
-  crownJewels: { free: number; slots: CrownJewel[] };
-  /** Every provider that resolved `available` over every result returned. */
-  availability: { free: number; total: number };
+  crownJewels: { free: number; pending: number; slots: CrownJewel[] };
+  /** Availability tally: `settled` is the definitive outcomes (available,
+   * taken, invalid); `pending` is unknown statuses plus expected providers
+   * that never returned. Pending slots never count as taken. */
+  availability: { free: number; settled: number; pending: number; total: number };
   tiers: { crown: TierStat; core: TierStat; longtail: TierStat };
   /** Concise linguistic note, e.g. "5-letter crisp · High flow". */
   trait: string;
@@ -131,12 +136,16 @@ function tier3Ids(results: readonly AvailabilityResult[]): string[] {
 interface CrownResolution {
   earned: number;
   free: number;
+  /** Slots that are not confirmed-free but also not definitively taken —
+   * unchecked candidates or `unknown` statuses. */
+  pending: number;
   jewels: CrownJewel[];
 }
 
 function resolveCrownJewels(byProvider: Map<string, AvailabilityResult>): CrownResolution {
   let earned = 0;
   let free = 0;
+  let pending = 0;
   const jewels: CrownJewel[] = [];
   for (const slot of CROWN_SLOTS) {
     const used = slot.candidates.filter((id) => byProvider.has(id));
@@ -145,41 +154,66 @@ function resolveCrownJewels(byProvider: Map<string, AvailabilityResult>): CrownR
       earned += slot.points;
       free += 1;
     }
+    // Settled means every candidate returned a definitive answer — any
+    // unchecked candidate or `unknown` result leaves the slot pending.
+    const slotSettled =
+      slotFree ||
+      (used.length === slot.candidates.length &&
+        used.every((id) => byProvider.get(id)?.status !== "unknown"));
+    const slotPending = !slotFree && !slotSettled;
+    if (slotPending) pending += 1;
     const chosen = slot.candidates.find((id) => byProvider.has(id)) ?? null;
     const label = "altLabel" in slot && chosen === slot.candidates[1] ? slot.altLabel : slot.label;
-    jewels.push({ label, provider: chosen, free: slotFree, checked: used.length > 0 });
+    jewels.push({
+      label,
+      provider: chosen,
+      free: slotFree,
+      checked: used.length > 0,
+      pending: slotPending,
+    });
   }
-  return { earned, free, jewels };
+  return { earned, free, pending, jewels };
 }
 
 interface GroupResolution {
   earned: number;
   free: number;
   checked: number;
+  /** Slots with a definitive outcome (available/taken/invalid). */
+  settled: number;
 }
 
 /**
- * Spread `maxPoints` evenly over the members of `ids` that were actually
- * checked; each free member earns its share. Dividing by the checked set
- * (not the full universe) means slots the registry doesn't offer — like
- * LinkedIn/Discord/Twitch today — can't silently cap the group.
+ * Spread `maxPoints` evenly over the members of `ids` that produced a
+ * definitive outcome; each free member earns its share. Unchecked and
+ * `unknown` slots stay out of the denominator entirely — in-flight or
+ * inconclusive checks can neither earn nor cost points, so pending work
+ * never depresses the score. Unchecked slots also can't cap the group for
+ * providers the registry doesn't offer (LinkedIn/Discord/Twitch today).
  */
 function resolveDistributed(
   byProvider: Map<string, AvailabilityResult>,
   ids: readonly string[],
   maxPoints: number,
 ): GroupResolution {
-  const checked = ids.filter((id) => byProvider.has(id));
-  const share = checked.length === 0 ? 0 : maxPoints / checked.length;
+  let checked = 0;
+  let settled = 0;
   let earned = 0;
   let free = 0;
-  for (const id of checked) {
-    if (byProvider.get(id)?.status === "available") {
-      earned += share;
+  for (const id of ids) {
+    const r = byProvider.get(id);
+    if (r === undefined) continue;
+    checked += 1;
+    if (r.status === "unknown") continue;
+    settled += 1;
+    if (r.status === "available") {
       free += 1;
     }
   }
-  return { earned, free, checked: checked.length };
+  if (settled > 0) {
+    earned = (maxPoints / settled) * free;
+  }
+  return { earned, free, checked, settled };
 }
 
 /** Longest run of consonant letters (non-letters break the run). */
@@ -258,20 +292,59 @@ export function linguisticAnalysis(normalized: string): LinguisticAnalysis {
  * with mid overall coverage — reads as a partial claim, not a contested
  * defeat.
  */
-export function verdictFor(score: number, crownFree = 0): BrandVerdict {
+export function verdictFor(score: number, crownFree = 0, crownPending = 0): BrandVerdict {
   if (score >= 90) return "Uncontested · Prime Real Estate";
   if (score >= 75) return "Strong · Available on Key Platforms";
   if (score >= 50) {
-    return crownFree === 0 ? "Contested · Crown Jewels Taken" : "Partial · Key Ground Held";
+    if (crownFree > 0) return "Partial · Key Ground Held";
+    // No jewel confirmed free but some still open — "taken" would be a lie.
+    if (crownPending > 0) return "Pending · Jewels Unresolved";
+    return "Contested · Crown Jewels Taken";
   }
   return "Crowded · Heavily Taken";
 }
 
+/** Statuses that resolved to a definitive yes/no. `unknown` stays pending. */
+const SETTLED_STATUSES: ReadonlySet<AvailabilityStatus> = new Set([
+  "available",
+  "taken",
+  "invalid",
+]);
+
+function availabilityTally(
+  results: readonly AvailabilityResult[],
+  byProvider: Map<string, AvailabilityResult>,
+  expectedProviders: readonly string[],
+): BrandScore["availability"] {
+  let free = 0;
+  let settled = 0;
+  let pending = 0;
+  for (const r of results) {
+    if (r.status === "available") free += 1;
+    if (SETTLED_STATUSES.has(r.status)) {
+      settled += 1;
+    } else {
+      pending += 1;
+    }
+  }
+  // Expected providers that never returned are in-flight, not missing.
+  for (const id of expectedProviders) {
+    if (!byProvider.has(id)) pending += 1;
+  }
+  return { free, settled, pending, total: settled + pending };
+}
+
 /**
  * Deterministic brand score for `name` over a completed availability run.
- * Unknown/invalid results earn nothing — only confirmed availability scores.
+ * Unknown/invalid results earn nothing — only confirmed availability scores,
+ * and pending checks occupy no denominator so they can't deflate it.
  */
-export function brandScore(name: string, results: readonly AvailabilityResult[]): BrandScore {
+export function brandScore(
+  name: string,
+  results: readonly AvailabilityResult[],
+  /** Provider ids expected to return — used to count in-flight checks. */
+  expectedProviders: readonly string[] = [],
+): BrandScore {
   const normalized = name.trim().toLowerCase();
   const byProvider = new Map<string, AvailabilityResult>(results.map((r) => [r.provider, r]));
 
@@ -300,8 +373,9 @@ export function brandScore(name: string, results: readonly AvailabilityResult[])
   };
 
   let baseScore = crown.earned + core.earned + tail.earned;
-  // No crown jewel free → the name is contested at the top; ceiling 50.
-  if (crown.free === 0) baseScore = Math.min(baseScore, 50);
+  // No crown jewel free AND none pending → definitively contested at the
+  // top; ceiling 50. Pending jewels get the benefit of the doubt.
+  if (crown.free === 0 && crown.pending === 0) baseScore = Math.min(baseScore, 50);
   // Shares are fractional (12/5, 15/28…) — round off the float noise.
   baseScore = Math.round(baseScore * 100) / 100;
 
@@ -314,12 +388,9 @@ export function brandScore(name: string, results: readonly AvailabilityResult[])
     baseScore,
     multiplier: linguistic.multiplier,
     score,
-    verdict: verdictFor(score, crown.free),
-    crownJewels: { free: crown.free, slots: crown.jewels },
-    availability: {
-      free: results.filter((r) => r.status === "available").length,
-      total: results.length,
-    },
+    verdict: verdictFor(score, crown.free, crown.pending),
+    crownJewels: { free: crown.free, pending: crown.pending, slots: crown.jewels },
+    availability: availabilityTally(results, byProvider, expectedProviders),
     tiers: {
       crown: {
         earned: crown.earned,

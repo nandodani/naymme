@@ -5,7 +5,7 @@ import { ClipboardCopy, Gem, Globe, Share2, Type } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
 import type { AvailabilityResponse } from "@/lib/availability.js";
-import { PROVIDER_GROUPS } from "@/lib/provider-meta.js";
+import { ALL_PROVIDER_IDS, PROVIDER_GROUPS } from "@/lib/provider-meta.js";
 import { coverageRatio, verdictTone, type VerdictTone } from "@/lib/score-display.js";
 import { brandScore, type BrandScore } from "@/src/scoring/brand.js";
 import { cn } from "@/lib/utils.js";
@@ -21,6 +21,10 @@ const TONE_STYLES: Record<VerdictTone, { badge: string; dot: string }> = {
   partial: {
     badge: "border-amber-400/40 bg-amber-400/10 text-amber-300",
     dot: "bg-amber-400",
+  },
+  pending: {
+    badge: "border-zinc-500/40 bg-white/[0.06] text-zinc-300",
+    dot: "bg-zinc-400",
   },
   contested: {
     badge: "border-orange-400/40 bg-orange-400/10 text-orange-300",
@@ -83,13 +87,13 @@ function StatPill({
   return (
     <div
       title={title}
-      className="flex h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-zinc-800 bg-white/[0.02] px-3 py-2 text-center"
+      className="flex h-20 min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-zinc-800 bg-white/[0.02] px-3 py-2 text-center"
     >
       <div className="flex items-center gap-1.5 text-[10px] font-medium tracking-[0.08em] text-zinc-500 uppercase">
         <Icon aria-hidden="true" className="size-3 shrink-0" />
         <span className="truncate">{label}</span>
       </div>
-      <div className="flex items-center justify-center gap-2 font-mono text-[12px] text-zinc-200 tabular-nums">
+      <div className="flex w-full min-w-0 flex-col items-center justify-center gap-1.5 font-mono text-[12px] text-zinc-200 tabular-nums">
         {children}
       </div>
     </div>
@@ -105,7 +109,11 @@ function CrownDots({ brand }: { brand: BrandScore }) {
           key={jewel.label}
           className={cn(
             "size-1.5 rounded-full",
-            jewel.free ? "bg-emerald-400" : "border border-zinc-600 bg-transparent",
+            jewel.free
+              ? "bg-emerald-400"
+              : jewel.pending
+                ? "animate-pulse border border-zinc-500 bg-zinc-700"
+                : "border border-zinc-600 bg-transparent",
           )}
         />
       ))}
@@ -122,7 +130,7 @@ function AvailabilityBar({ ratio }: { ratio: number }) {
     <span
       role="img"
       aria-label={`${Math.round(ratio * 100)}% available`}
-      className="relative inline-block h-1 w-14 shrink-0 overflow-hidden rounded-full bg-zinc-800 align-middle"
+      className="relative block h-1 w-full shrink-0 overflow-hidden rounded-full bg-zinc-800"
     >
       <motion.span
         className="absolute inset-y-0 left-0 block rounded-full bg-emerald-400/70"
@@ -143,12 +151,18 @@ function markdownSummary(
   availability: AvailabilityResponse,
   url: string,
 ): string {
+  const jewelWord = (j: BrandScore["crownJewels"]["slots"][number]) =>
+    j.free ? "free" : j.pending ? "pending" : "taken";
+  const pendingNote =
+    brand.availability.pending > 0 ? ` · ${brand.availability.pending} pending` : "";
   const lines = [
     `## lmkurname — ${name}`,
     `**${brand.score}/100** — ${brand.verdict}`,
     `Crown jewels ${brand.crownJewels.free} of ${brand.crownJewels.slots.length} free (${brand.crownJewels.slots
-      .map((j) => `${j.label} ${j.free ? "free" : "taken"}`)
-      .join(", ")}) · total availability ${brand.availability.free}/${brand.availability.total}`,
+      .map((j) => `${j.label} ${jewelWord(j)}`)
+      .join(
+        ", ",
+      )}) · total availability ${brand.availability.free}/${brand.availability.settled} free${pendingNote}`,
     `Base ${Math.round(brand.baseScore)} × linguistic ${brand.multiplier.toFixed(2)} — ${brand.trait}`,
     "",
     "| Provider | Subject | Status |",
@@ -202,7 +216,7 @@ export function BrandScoreCard({
     () =>
       name === "" || checking || availability === null
         ? null
-        : brandScore(name, availability.results),
+        : brandScore(name, availability.results, ALL_PROVIDER_IDS),
     [name, checking, availability],
   );
   const display = useCountUp(brand?.score ?? null);
@@ -226,7 +240,10 @@ export function BrandScoreCard({
     brand === null
       ? undefined
       : brand.crownJewels.slots
-          .map((j) => `${j.label}: ${j.checked ? (j.free ? "free" : "taken") : "not checked"}`)
+          .map(
+            (j) =>
+              `${j.label}: ${j.free ? "free" : j.pending ? "pending" : j.checked ? "taken" : "not checked"}`,
+          )
           .join(" · ");
 
   return (
@@ -312,16 +329,25 @@ export function BrandScoreCard({
               </span>
               <CrownDots brand={brand} />
             </StatPill>
-            <StatPill icon={Globe} label="Total Availability">
-              <span>
-                {brand.availability.free} of {brand.availability.total} free
+            <StatPill
+              icon={Globe}
+              label="Total Availability"
+              title={`${brand.availability.settled} settled of ${brand.availability.total} checked`}
+            >
+              <span className="leading-tight">
+                {brand.availability.free} of {brand.availability.settled} free
+                {brand.availability.pending > 0 ? (
+                  <span className="text-zinc-500"> · {brand.availability.pending} pending</span>
+                ) : null}
               </span>
               <AvailabilityBar
-                ratio={coverageRatio(brand.availability.free, brand.availability.total)}
+                ratio={coverageRatio(brand.availability.free, brand.availability.settled)}
               />
             </StatPill>
             <StatPill icon={Type} label="Name Trait" title={brand.trait}>
-              <span className="truncate font-sans text-[12px] font-medium">{brand.trait}</span>
+              <span className="line-clamp-2 font-sans text-[11px] leading-snug font-medium break-words">
+                {brand.trait}
+              </span>
             </StatPill>
           </div>
         </div>

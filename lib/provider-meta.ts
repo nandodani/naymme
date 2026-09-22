@@ -98,6 +98,12 @@ export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
   },
 ];
 
+/** Every provider id across the four grid groups — the expected universe
+ * used to count in-flight checks against. */
+export const ALL_PROVIDER_IDS: readonly ProviderId[] = PROVIDER_GROUPS.flatMap((g) =>
+  g.providers.map((p) => p.id),
+);
+
 /** Look up a group by id — throws for unknown ids (ids are compile-time constants). */
 export function providerGroup(id: ProviderGroupId): ProviderGroup {
   const group = PROVIDER_GROUPS.find((g) => g.id === id);
