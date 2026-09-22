@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { Atom } from "loading-dev";
 
 import { nameSchema } from "@/src/schemas.js";
 import { scoreName, type NameScore } from "@/src/scoring/score.js";
@@ -204,8 +205,8 @@ export function NameChecker() {
                   results for <span className="text-zinc-300">{searchedName}</span>
                 </span>
                 {checking ? (
-                  <span className="inline-flex animate-pulse items-center gap-1.5 text-[11px] text-zinc-500">
-                    <span className="size-1.5 rounded-full bg-primary" />
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500">
+                    <Atom size={13} />
                     checking…
                   </span>
                 ) : availability !== null ? (
