@@ -43,8 +43,8 @@ export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
     id: "developer",
     title: "Developer platforms",
     providers: [
-      { id: "github:user", label: "GitHub (user)" },
-      { id: "github:org", label: "GitHub (org)" },
+      { id: "github:user", label: "GitHub (User)" },
+      { id: "github:org", label: "GitHub (Org)" },
       { id: "gitlab", label: "GitLab" },
       { id: "npm", label: "npm" },
       { id: "pypi", label: "PyPI" },
