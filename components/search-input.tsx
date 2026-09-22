@@ -17,9 +17,9 @@ interface SearchInputProps {
 
 /**
  * The name search control: a single hairline-bordered shell with a leading
- * search glyph, trailing ⌘K / "/" shortcut badges, and a tactile Search
- * button. Search only executes on explicit submit — Enter or the button —
- * never while typing. `/` and `⌘K` focus the input from anywhere (wired in
+ * search glyph and a tactile text-only Search button pinned inside the bar.
+ * Search only executes on explicit submit — Enter or the button — never
+ * while typing. `/` and `⌘K` focus the input from anywhere (wired in
  * NameChecker).
  */
 export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(function SearchInput(
@@ -54,7 +54,6 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
               onSubmit();
             }
           }}
-          placeholder="check a name…"
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="off"
@@ -64,39 +63,21 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
           className={cn(
             "w-full bg-transparent font-mono text-foreground outline-none placeholder:text-zinc-600",
             hero
-              ? "pr-24 pl-11 text-[15px] sm:pr-40 sm:pl-12 sm:text-base"
-              : "pr-24 pl-9 text-[13px] sm:pr-36",
+              ? "pr-24 pl-11 text-[15px] sm:pr-28 sm:pl-12 sm:text-base"
+              : "pr-20 pl-9 text-[13px] sm:pr-24",
           )}
         />
-        <span
-          className={cn("absolute flex items-center", hero ? "right-2 gap-2" : "right-1.5 gap-1.5")}
+        <button
+          type="button"
+          onClick={onSubmit}
+          className={cn(
+            "absolute flex items-center justify-center rounded-md bg-zinc-100 font-medium text-zinc-950 transition-all outline-none select-none",
+            "hover:bg-white active:translate-y-px focus-visible:ring-2 focus-visible:ring-ring",
+            hero ? "right-2 h-9 rounded-lg px-4 text-[13px]" : "right-1.5 h-7 px-3 text-[11px]",
+          )}
         >
-          <kbd className="hidden rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10px] text-zinc-500 sm:block">
-            ⌘K
-          </kbd>
-          <kbd
-            className={cn(
-              "rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10px] text-zinc-500",
-              "hidden sm:block",
-              !hero && "sm:hidden",
-            )}
-          >
-            /
-          </kbd>
-          <button
-            type="button"
-            onClick={onSubmit}
-            aria-label="Search"
-            className={cn(
-              "flex items-center gap-1.5 rounded-md bg-zinc-100 font-medium text-zinc-950 transition-all outline-none select-none",
-              "hover:bg-white active:translate-y-px focus-visible:ring-2 focus-visible:ring-ring",
-              hero ? "h-9 rounded-lg px-3.5 text-[12px]" : "h-7 px-2.5 text-[11px]",
-            )}
-          >
-            <Search aria-hidden="true" className={hero ? "size-3.5" : "size-3"} />
-            Search
-          </button>
-        </span>
+          Search
+        </button>
       </div>
       {value !== "" && !valid ? (
         <p role="status" className="mt-2 text-[11px] text-amber-300/90">
