@@ -11,16 +11,23 @@ interface RibbonEntry {
   icon: ComponentType<SVGProps<SVGSVGElement>>;
 }
 
-/** Every provider the search covers, flattened in card order — the marquee
+/** Every platform the search covers, flattened in card order — the marquee
  * always mirrors the active provider list, so a provider can never be
- * checked without also appearing here. */
-export const RIBBON: readonly RibbonEntry[] = PROVIDER_GROUPS.flatMap((group) =>
-  group.providers.map(({ id, label }) => ({
-    id,
-    label,
-    icon: BRAND_ICONS[id as keyof typeof BRAND_ICONS] ?? Globe,
-  })),
-);
+ * checked without also appearing here. Domain TLDs are skipped (they're
+ * extensions, not brands) and providers that only differ by a " (…)" label
+ * qualifier — e.g. GitHub (User) / GitHub (Org) — collapse into one entry. */
+export const RIBBON: readonly RibbonEntry[] = (() => {
+  const seen = new Set<string>();
+  const entries: RibbonEntry[] = [];
+  for (const { id, label } of PROVIDER_GROUPS.flatMap((group) => group.providers)) {
+    if (id.startsWith("domain:")) continue;
+    const name = label.replace(/\s*\(.*\)$/, "");
+    if (seen.has(name)) continue;
+    seen.add(name);
+    entries.push({ id, label: name, icon: BRAND_ICONS[id as keyof typeof BRAND_ICONS] ?? Globe });
+  }
+  return entries;
+})();
 
 function RibbonRow({ hidden }: { hidden: boolean }) {
   return (
