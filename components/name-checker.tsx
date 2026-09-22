@@ -229,7 +229,7 @@ export function NameChecker() {
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/45"
+                      className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-black/45"
                     >
                       <Atom size={44} className="text-zinc-300" />
                       <span className="sr-only">Checking availability…</span>
