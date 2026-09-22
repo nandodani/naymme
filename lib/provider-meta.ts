@@ -1,7 +1,7 @@
 import type { ProviderId } from "../src/schemas.js";
 
 /**
- * Display metadata for the availability grid — ordering, grouping and
+ * Display metadata for the availability matrix — ordering, grouping and
  * labels. Kept separate from the provider ids so the UI stays a dumb view
  * over the API's normalized results.
  */
@@ -12,13 +12,17 @@ export interface ProviderMeta {
   hint?: string;
 }
 
+export type ProviderGroupId = "domains" | "developer" | "socials";
+
 export interface ProviderGroup {
+  id: ProviderGroupId;
   title: string;
   providers: readonly ProviderMeta[];
 }
 
 export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
   {
+    id: "domains",
     title: "Domains",
     providers: [
       { id: "domain:com", label: ".com" },
@@ -35,14 +39,16 @@ export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
     ],
   },
   {
-    title: "Developer",
+    id: "developer",
+    title: "Developer platforms",
     providers: [
       { id: "github", label: "GitHub" },
       { id: "npm", label: "npm" },
     ],
   },
   {
-    title: "Socials",
+    id: "socials",
+    title: "Social media",
     providers: [
       { id: "social:x", label: "X" },
       { id: "social:bluesky", label: "Bluesky" },
