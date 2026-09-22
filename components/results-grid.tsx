@@ -91,7 +91,6 @@ export function ResultsGrid({
             name={name}
             resultsByProvider={resultsByProvider}
             pending={pending}
-            onCopy={onCopy}
             className="h-full"
           />
         </motion.div>
@@ -102,7 +101,6 @@ export function ResultsGrid({
             name={name}
             resultsByProvider={resultsByProvider}
             pending={pending}
-            onCopy={onCopy}
             className="h-full"
           />
         </motion.div>
@@ -116,7 +114,6 @@ export function ResultsGrid({
             name={name}
             resultsByProvider={resultsByProvider}
             pending={pending}
-            onCopy={onCopy}
             className="h-full"
           />
         </motion.div>

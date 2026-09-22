@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Check, CheckCircle2, Clock, Copy, ExternalLink, Globe, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, ExternalLink, Globe, XCircle } from "lucide-react";
 
 import { BRAND_ICONS } from "./brand-icons.js";
+import { RegistrarIcon } from "./registrar-icons.js";
 import { cn } from "@/lib/utils.js";
-import { platformLinks, REGISTRARS, tldPrices, type Registrar } from "@/lib/links.js";
+import { platformLinks, REGISTRARS, tldPrices } from "@/lib/links.js";
 import type { ProviderMeta } from "@/lib/provider-meta.js";
 import type { AvailabilityResult, AvailabilityStatus } from "@/src/types.js";
 
@@ -77,9 +77,9 @@ function PriceChips({ provider, subject }: { provider: string; subject: string }
           <span
             key={registrar.id}
             title={`${registrar.label} does not carry this TLD`}
-            className="inline-flex h-5 items-center gap-0.5 rounded border border-zinc-800/60 px-1 font-mono text-[9px] text-zinc-600"
+            className="inline-flex h-5 items-center gap-1 rounded border border-zinc-800/60 px-1.5 font-mono text-[9px] text-zinc-600"
           >
-            {registrar.short} —
+            <RegistrarIcon id={registrar.id} className="text-zinc-600" />—
           </span>
         ) : (
           <a
@@ -89,9 +89,10 @@ function PriceChips({ provider, subject }: { provider: string; subject: string }
             rel="noreferrer noopener"
             title={`~$${estimate}/yr at ${registrar.label} (estimate)`}
             aria-label={`Register ${subject} at ${registrar.label}, estimated ~$${estimate} per year`}
-            className="inline-flex h-5 items-center gap-0.5 rounded border border-zinc-700/40 bg-zinc-800/40 px-1 font-mono text-[9px] text-zinc-400 transition-colors outline-none hover:border-zinc-500/60 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-5 items-center gap-1 rounded border border-zinc-700/40 bg-zinc-800/40 px-1.5 font-mono text-[9px] text-zinc-400 transition-colors outline-none hover:border-zinc-500/60 hover:text-zinc-200 focus-visible:border-zinc-500/60 focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {registrar.short} ~${estimate}
+            <RegistrarIcon id={registrar.id} />
+            ~${estimate}
           </a>
         ),
       )}
@@ -107,57 +108,32 @@ interface ProviderRowProps {
   result: AvailabilityResult | undefined;
   /** A check is in flight and no (or stale) result exists for this row. */
   pending: boolean;
-  /** Registrar chosen for the current session (domain row targets). */
-  registrar?: Registrar;
-  /** Copy `subject` to the clipboard and fire the shared toast. */
-  onCopy: (text: string, label: string) => void;
 }
 
 /**
  * One result line. The whole row is the action — an anchor when the status
  * yields a target (register/claim for free names, live site/profile for
- * taken ones), a copy field otherwise. No labelled buttons; hover reveals a
- * discreet external-link arrow.
+ * taken ones), static text otherwise. No labelled buttons; hover reveals a
+ * discreet external-link arrow. Available domains link to the first
+ * registrar carrying the TLD while the price chips offer every registrar.
  */
-export function ProviderRow({
-  meta,
-  name,
-  result,
-  pending,
-  registrar = REGISTRARS[0],
-  onCopy,
-}: ProviderRowProps) {
-  const [copied, setCopied] = useState(false);
-  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(
-    () => () => {
-      if (copyTimer.current !== null) clearTimeout(copyTimer.current);
-    },
-    [],
-  );
-
+export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
   const isDomain = meta.id.startsWith("domain:");
   const subject =
     result?.subject ??
     (isDomain ? `${name}${meta.label}` : meta.id.startsWith("social:") ? `@${name}` : name);
   const status = result?.status;
   const links = platformLinks(meta.id);
-
-  const copy = () => {
-    onCopy(subject, `Copied ${subject}`);
-    setCopied(true);
-    if (copyTimer.current !== null) clearTimeout(copyTimer.current);
-    copyTimer.current = setTimeout(() => setCopied(false), 1400);
-  };
+  const prices = isDomain && status === "available" ? tldPrices(meta.id) : [];
 
   // The row's link target and its accessible label.
   let href: string | null = null;
   let actionLabel: string | null = null;
   if (status === "available") {
     if (isDomain) {
-      href = registrar.searchUrl(subject);
-      actionLabel = `Register ${subject} at ${registrar.label}`;
+      const carrier = prices.find((p) => p.estimate !== null)?.registrar ?? REGISTRARS[0];
+      href = carrier.searchUrl(subject);
+      actionLabel = `Register ${subject} at ${carrier.label}`;
     } else if (links !== null) {
       href = links.claim(name);
       actionLabel = `Claim ${subject} on ${meta.label}`;
@@ -172,37 +148,14 @@ export function ProviderRow({
     }
   }
 
-  const prices = isDomain && status === "available" ? tldPrices(meta.id) : [];
-  const showPrices = prices.length > 0;
-
   const sharedRowClasses = cn(
     "group relative flex h-10 items-center border-t border-border transition-colors first:border-t-0",
     href !== null && "cursor-pointer hover:bg-zinc-900/50",
   );
   const mainAreaClasses = cn(
     "flex min-w-0 flex-1 items-center gap-2.5 self-stretch px-3 text-left outline-none",
-    "focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-  );
-
-  const copyButton = (
-    <button
-      type="button"
-      onClick={copy}
-      aria-label={`Copy ${subject}`}
-      className={cn(
-        "flex size-6 shrink-0 items-center justify-center rounded transition-all outline-none",
-        "hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-ring",
-        copied
-          ? "text-emerald-300"
-          : "text-zinc-600 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-zinc-300",
-      )}
-    >
-      {copied ? (
-        <Check aria-hidden="true" className="size-3" />
-      ) : (
-        <Copy aria-hidden="true" className="size-3" />
-      )}
-    </button>
+    href !== null &&
+      "focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
   );
 
   const statusBadge =
@@ -241,15 +194,12 @@ export function ProviderRow({
           {identity}
         </a>
       ) : (
-        <button type="button" onClick={copy} className={mainAreaClasses}>
-          {identity}
-        </button>
+        <div className={mainAreaClasses}>{identity}</div>
       )}
 
       <span className="flex shrink-0 items-center gap-1.5 pr-3">
-        {showPrices ? <PriceChips provider={meta.id} subject={subject} /> : null}
+        {prices.length > 0 ? <PriceChips provider={meta.id} subject={subject} /> : null}
         {statusBadge}
-        {copyButton}
       </span>
     </li>
   );

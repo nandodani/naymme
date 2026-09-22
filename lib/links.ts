@@ -16,8 +16,6 @@ export type RegistrarId = "porkbun" | "cloudflare" | "namecheap" | "godaddy";
 export interface Registrar {
   id: RegistrarId;
   label: string;
-  /** Two-letter tag for the compact price-comparison chips. */
-  short: string;
   /** Registrar domain-search URL for a full domain like `acme.com`. */
   searchUrl: (domain: string) => string;
 }
@@ -26,32 +24,26 @@ export const REGISTRARS: readonly [Registrar, ...Registrar[]] = [
   {
     id: "porkbun",
     label: "Porkbun",
-    short: "PB",
     searchUrl: (domain) => `https://porkbun.com/checkout/search?q=${encodeURIComponent(domain)}`,
   },
   {
     id: "cloudflare",
     label: "Cloudflare",
-    short: "CF",
     searchUrl: (domain) => `https://domains.cloudflare.com/?domain=${encodeURIComponent(domain)}`,
   },
   {
     id: "namecheap",
     label: "Namecheap",
-    short: "NC",
     searchUrl: (domain) =>
       `https://www.namecheap.com/domains/registration/results/?domain=${encodeURIComponent(domain)}`,
   },
   {
     id: "godaddy",
     label: "GoDaddy",
-    short: "GD",
     searchUrl: (domain) =>
       `https://www.godaddy.com/domainsearch/find?domainToCheck=${encodeURIComponent(domain)}`,
   },
 ] as const;
-
-export const DEFAULT_REGISTRAR: RegistrarId = "porkbun";
 
 /**
  * Rough first-year USD estimate per TLD and registrar. `null` = registrar
