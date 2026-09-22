@@ -204,26 +204,39 @@ export function NameChecker() {
                 <span className="font-mono text-[11px] text-zinc-500">
                   results for <span className="text-zinc-300">{searchedName}</span>
                 </span>
-                {checking ? (
-                  <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500">
-                    <Atom size={13} />
-                    checking…
-                  </span>
-                ) : availability !== null ? (
+                {checking ? null : availability !== null ? (
                   <span className="font-mono text-[11px] text-zinc-500 tabular-nums">
                     {availability.summary.available} free · {availability.summary.taken} taken
                   </span>
                 ) : null}
               </div>
-              <ResultsGrid
-                name={searchedName}
-                score={score}
-                data={availability}
-                checking={checking}
-                error={error}
-                onRetry={retry}
-                onCopy={notify}
-              />
+              <div className="relative">
+                <ResultsGrid
+                  name={searchedName}
+                  score={score}
+                  data={availability}
+                  checking={checking}
+                  error={error}
+                  onRetry={retry}
+                  onCopy={notify}
+                />
+                <AnimatePresence>
+                  {checking ? (
+                    <motion.div
+                      key="checking-overlay"
+                      role="status"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/45"
+                    >
+                      <Atom size={44} className="text-zinc-300" />
+                      <span className="sr-only">Checking availability…</span>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </div>
             </motion.main>
           ) : (
             <motion.div

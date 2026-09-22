@@ -12,7 +12,6 @@ import { createGitHubLookup, createGitHubOrgAdapter, createGitHubUserAdapter } f
 import { createNpmAdapter } from "./npm.js";
 import {
   createBehanceAdapter,
-  createBentoAdapter,
   createCodePenAdapter,
   createDribbbleAdapter,
   createFigmaAdapter,
@@ -86,7 +85,6 @@ export function createAdapters(deps: ProviderDeps): Record<ProviderId, ProviderA
     figma: createFigmaAdapter(deps),
     dribbble: createDribbbleAdapter(deps),
     behance: createBehanceAdapter(deps),
-    bento: createBentoAdapter(deps),
     substack: createSubstackAdapter(deps),
     producthunt: createProductHuntAdapter(deps),
     telegram: createTelegramAdapter(deps),

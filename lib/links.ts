@@ -458,10 +458,6 @@ const PLATFORM_LINKS: Partial<Record<ProviderId, PlatformLinks>> = {
     claim: () => "https://www.behance.net/signup",
     profile: (name) => `https://www.behance.net/${name}`,
   },
-  bento: {
-    claim: () => "https://bento.me/en/home",
-    profile: (name) => `https://bento.me/${name}`,
-  },
   substack: {
     claim: () => "https://substack.com/signup",
     profile: (name) => `https://${name}.substack.com`,

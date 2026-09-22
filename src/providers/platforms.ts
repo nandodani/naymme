@@ -230,18 +230,6 @@ export function createBehanceAdapter(deps: ProviderDeps): ProviderAdapter {
   });
 }
 
-/** Bento profile check via `bento.me/{name}`: 200 → taken, 404 →
- * available. Bot-walled responses (403) report `unknown`. */
-export function createBentoAdapter(deps: ProviderDeps): ProviderAdapter {
-  return createPageCheck(deps, {
-    id: "bento",
-    pattern: GENERIC_HANDLE,
-    invalidDetail: "not a valid Bento username",
-    url: (n) => `https://bento.me/${encodeURIComponent(n)}`,
-    profile: (n) => `https://bento.me/${n}`,
-  });
-}
-
 /* ------------------------------------------------------------------ */
 /* Audience & community                                                */
 /* ------------------------------------------------------------------ */

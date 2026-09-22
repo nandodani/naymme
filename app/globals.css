@@ -150,7 +150,7 @@
   --font-geist: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-geist-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --animate-marquee: marquee 36s linear infinite;
+  --animate-marquee: marquee 160s linear infinite;
 
   @keyframes marquee {
     from {

@@ -1,33 +1,26 @@
 import type { ComponentType, SVGProps } from "react";
 
-import {
-  BlueskyIcon,
-  GitHubIcon,
-  InstagramIcon,
-  NpmIcon,
-  PorkbunIcon,
-  RedditIcon,
-  TikTokIcon,
-  XIcon,
-  YouTubeIcon,
-} from "./brand-icons.js";
+import { Globe } from "lucide-react";
+
+import { PROVIDER_GROUPS } from "../lib/provider-meta.js";
+import { BRAND_ICONS } from "./brand-icons.js";
 
 interface RibbonEntry {
+  id: string;
   label: string;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
 }
 
-const RIBBON: readonly RibbonEntry[] = [
-  { label: "GitHub", icon: GitHubIcon },
-  { label: "npm", icon: NpmIcon },
-  { label: "X", icon: XIcon },
-  { label: "Instagram", icon: InstagramIcon },
-  { label: "Bluesky", icon: BlueskyIcon },
-  { label: "Reddit", icon: RedditIcon },
-  { label: "Porkbun", icon: PorkbunIcon },
-  { label: "YouTube", icon: YouTubeIcon },
-  { label: "TikTok", icon: TikTokIcon },
-];
+/** Every provider the search covers, flattened in card order — the marquee
+ * always mirrors the active provider list, so a provider can never be
+ * checked without also appearing here. */
+export const RIBBON: readonly RibbonEntry[] = PROVIDER_GROUPS.flatMap((group) =>
+  group.providers.map(({ id, label }) => ({
+    id,
+    label,
+    icon: BRAND_ICONS[id as keyof typeof BRAND_ICONS] ?? Globe,
+  })),
+);
 
 function RibbonRow({ hidden }: { hidden: boolean }) {
   return (
@@ -36,9 +29,9 @@ function RibbonRow({ hidden }: { hidden: boolean }) {
       aria-hidden={hidden || undefined}
       className="flex shrink-0 items-center gap-8 pr-8"
     >
-      {RIBBON.map(({ label, icon: Icon }) => (
+      {RIBBON.map(({ id, label, icon: Icon }) => (
         <li
-          key={label}
+          key={id}
           className="flex items-center gap-2 text-zinc-600 transition-colors hover:text-zinc-400"
         >
           <Icon aria-hidden="true" className="size-4" />

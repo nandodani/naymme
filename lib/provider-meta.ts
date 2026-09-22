@@ -90,7 +90,6 @@ export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
       { id: "figma", label: "Figma" },
       { id: "dribbble", label: "Dribbble" },
       { id: "behance", label: "Behance" },
-      { id: "bento", label: "Bento" },
       { id: "substack", label: "Substack" },
       { id: "producthunt", label: "Product Hunt" },
       { id: "telegram", label: "Telegram" },

@@ -12,7 +12,7 @@ questions about a candidate name:
    (`.pt` / `.es` / `.de` / `.fr` / `.uk` / `.eu` / `.co` / `.me` / `.sh` /
    `.so`), as a GitHub user/org,
    as a package on npm/PyPI/NuGet/RubyGems/crates.io/Docker Hub/Homebrew, on
-   Hugging Face, CodePen, Replit, Figma, Dribbble, Behance, Bento, Substack,
+   Hugging Face, CodePen, Replit, Figma, Dribbble, Behance, Substack,
    Product Hunt, Telegram or Medium, and as a social handle on
    X, Bluesky, Instagram, Reddit, YouTube and TikTok?
 2. **`score_name`** — how good is it as a brand, deterministically scored
@@ -76,7 +76,7 @@ npm run check        # typecheck + lint + format:check + test + build
   `domain:space`, `github:user`, `github:org`,
   `gitlab`, `npm`, `pypi`, `crates`, `dockerhub`, `huggingface`, `nuget`,
   `rubygems`, `homebrew`, `codepen`, `replit`, `figma`, `dribbble`,
-  `behance`, `bento`, `substack`, `producthunt`, `telegram`, `medium`,
+  `behance`, `substack`, `producthunt`, `telegram`, `medium`,
   `social:x`, `social:bluesky`,
   `social:instagram`, `social:reddit`, `social:youtube`, `social:tiktok`,
   plus the aliases `domains` (the original four TLDs), `domains:all` (every
