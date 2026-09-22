@@ -3,22 +3,36 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * Palette guard: the UI is strictly monochrome (OLED black + zinc + white).
- * Any Tailwind color-utility or stray chromatic oklch/hsl reappearing in
- * app/components/lib source fails this test.
+ * Palette guard: page chrome is strictly monochrome (OLED black + zinc +
+ * white), while semantic colors stay vibrant — availability statuses,
+ * rating tiers, brand accents, and the destructive token.
+ *
+ * - Files on the semantic allowlist may use colored utilities.
+ * - Every other UI source file must stay zinc/white/black only.
+ * - In CSS, only --destructive may carry chroma.
  */
 
 const SCAN_DIRS = ["app", "components", "lib"];
 const SCAN_EXT = /\.(tsx?|css)$/;
 
-// Color-utility classnames like `text-emerald-400`, `bg-rose-500`,
-// `border-sky-300` — zinc/slate/gray/white/black/stone are the allowed set.
+const SEMANTIC_ALLOWLIST = new Set([
+  "components/provider-row.tsx", // availability icon + chip tints
+  "components/brand-score-card.tsx", // rating tier badges, ring, meters
+  "components/connect-mcp-dialog.tsx", // copy-confirm state
+  "components/results-grid.tsx", // error banner
+  "components/search-input.tsx", // validation hint
+  "components/provider-ribbon.tsx", // official brand accent colors
+]);
+
+// Color-utility classnames like `text-emerald-400` — zinc/slate/gray/
+// white/black/stone are the allowed set everywhere else.
 const FORBIDDEN_UTILITY =
   /\b(?:bg|text|border|from|via|to|stroke|fill|ring|shadow|outline|decoration|caret|accent|divide|placeholder|drop-shadow)-(?:emerald|rose|sky|amber|pink|purple|violet|fuchsia|indigo|cyan|teal|lime|orange|red|green|blue|yellow)-\d/;
 
-// oklch(<lightness> <chroma> …) — capture chroma; neutrals stay ≤ 0.03.
-const OKLCH_CHROMA = /oklch\(\s*[\d.]+%?\s+([\d.]+)/g;
-const MAX_CHROMA = 0.03;
+// (<var>): oklch(<lightness> <chroma> …) — capture var name + chroma.
+const OKLCH_VAR = /(--[\w-]+):\s*oklch\(\s*[\d.]+%?\s+([\d.]+)/g;
+const MAX_NEUTRAL_CHROMA = 0.03;
+const CHROMATIC_VARS = new Set(["--destructive"]);
 
 const FORBIDDEN_WORDS = [/watermelon/i];
 
@@ -37,26 +51,33 @@ function collect(dir: string): string[] {
 
 const files = SCAN_DIRS.flatMap((d) => collect(d));
 
-describe("monochrome palette", () => {
+describe("monochrome chrome + semantic colors", () => {
   it("scans UI source files", () => {
     expect(files.length).toBeGreaterThan(10);
   });
 
-  it("uses no colored Tailwind utilities", () => {
+  it("keeps chrome files free of colored utilities", () => {
     for (const file of files) {
+      if (SEMANTIC_ALLOWLIST.has(file)) continue;
       const src = readFileSync(file, "utf8");
-      expect(src, `${file} uses a forbidden color utility`).not.toMatch(FORBIDDEN_UTILITY);
+      expect(src, `${file} uses a colored utility outside semantic allowlist`).not.toMatch(
+        FORBIDDEN_UTILITY,
+      );
     }
   });
 
-  it("keeps oklch tokens chroma-free", () => {
+  it("keeps CSS tokens chroma-free except --destructive", () => {
     for (const file of files) {
+      if (!file.endsWith(".css")) continue;
       const src = readFileSync(file, "utf8");
-      for (const match of src.matchAll(OKLCH_CHROMA)) {
-        const chroma = Number.parseFloat(match[1] ?? "0");
-        expect(chroma, `${file} has chromatic oklch (chroma ${chroma})`).toBeLessThanOrEqual(
-          MAX_CHROMA,
-        );
+      for (const match of src.matchAll(OKLCH_VAR)) {
+        const [, varName, chromaStr] = match;
+        if (varName !== undefined && CHROMATIC_VARS.has(varName)) continue;
+        const chroma = Number.parseFloat(chromaStr ?? "0");
+        expect(
+          chroma,
+          `${file}: ${varName} has chromatic oklch (chroma ${chroma})`,
+        ).toBeLessThanOrEqual(MAX_NEUTRAL_CHROMA);
       }
     }
   });

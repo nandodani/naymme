@@ -15,20 +15,20 @@ import { Skeleton } from "./ui/skeleton.js";
 
 const TIER_STYLES: Record<RatingTier, { badge: string; ring: string }> = {
   Excellent: {
-    badge: "border-white/40 bg-white/10 text-zinc-50",
-    ring: "stroke-white",
+    badge: "border-emerald-400/40 bg-emerald-400/15 text-emerald-200",
+    ring: "stroke-emerald-400",
   },
   Strong: {
-    badge: "border-white/25 bg-white/[0.06] text-zinc-200",
-    ring: "stroke-zinc-300",
+    badge: "border-sky-400/40 bg-sky-400/15 text-sky-200",
+    ring: "stroke-sky-400",
   },
   Fair: {
-    badge: "border-zinc-700 bg-white/[0.03] text-zinc-400",
-    ring: "stroke-zinc-500",
+    badge: "border-amber-400/40 bg-amber-400/15 text-amber-200",
+    ring: "stroke-amber-400",
   },
   Contested: {
-    badge: "border-zinc-800 bg-transparent text-zinc-500",
-    ring: "stroke-zinc-600",
+    badge: "border-rose-400/40 bg-rose-400/15 text-rose-200",
+    ring: "stroke-rose-400",
   },
 };
 
@@ -128,7 +128,7 @@ function RatingGauge({ rating, tier }: { rating: number | null; tier: RatingTier
   );
 }
 
-/** Thin available-vs-taken meter: zinc fill on a zinc-800 track. */
+/** Thin available-vs-taken meter: emerald fill on a zinc-800 track. */
 function MiniMeter({ ratio, pending, label }: { ratio: number; pending: boolean; label: string }) {
   const reduceMotion = useReducedMotion();
   return (
@@ -139,7 +139,7 @@ function MiniMeter({ ratio, pending, label }: { ratio: number; pending: boolean;
     >
       {pending ? null : (
         <motion.span
-          className="block h-full rounded-full bg-zinc-200"
+          className="block h-full rounded-full bg-emerald-400/70"
           style={{ transformOrigin: "left" }}
           initial={{ scaleX: 0 }}
           animate={{ scaleX: ratio }}

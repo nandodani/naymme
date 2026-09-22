@@ -18,23 +18,23 @@ const STATUS_GLYPHS: Record<AvailabilityStatus, typeof CheckCircle2> = {
   invalid: XCircle,
 };
 
-/** Brand-icon tint keyed off availability — bright white when free,
- * progressively muted zinc otherwise. Brightness is never the only signal:
- * each row also carries a sr-only status text and the anchors include it
- * in their aria-label. */
+/** Brand-icon tint keyed off availability — green glow when free, muted
+ * red/amber/zinc otherwise. Color is never the only signal: each row also
+ * carries a sr-only status text and the anchors include it in their
+ * aria-label. */
 const ICON_TINTS: Record<AvailabilityStatus, string> = {
-  available: "text-zinc-50 drop-shadow-[0_0_6px_rgba(255,255,255,0.35)]",
-  taken: "text-zinc-500",
-  unknown: "text-zinc-600",
-  invalid: "text-zinc-700",
+  available: "text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.4)]",
+  taken: "text-red-400/70",
+  unknown: "text-amber-400/70",
+  invalid: "text-zinc-600",
 };
 
-/** Floating availability chip tint — matches the icon's status brightness. */
+/** Floating availability chip tint — matches the icon's status color. */
 const CHIP_TINTS: Record<AvailabilityStatus, string> = {
-  available: "border-white/30 bg-white/10 text-zinc-50",
-  taken: "border-zinc-700 bg-white/[0.04] text-zinc-400",
-  unknown: "border-zinc-800 bg-white/[0.02] text-zinc-500",
-  invalid: "border-zinc-800 bg-zinc-900 text-zinc-600",
+  available: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
+  taken: "border-red-400/30 bg-red-400/10 text-red-300",
+  unknown: "border-amber-400/30 bg-amber-400/10 text-amber-300",
+  invalid: "border-zinc-700/60 bg-zinc-800/60 text-zinc-400",
 };
 
 const MORPH_SPRING = { type: "spring", stiffness: 500, damping: 30 } as const;

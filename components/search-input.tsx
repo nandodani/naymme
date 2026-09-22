@@ -80,7 +80,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
         </button>
       </div>
       {value !== "" && !valid ? (
-        <p role="status" className="mt-2 text-[11px] text-zinc-500">
+        <p role="status" className="mt-2 text-[11px] text-amber-300/90">
           letters, digits, dots, hyphens or underscores — starting with a letter or digit
         </p>
       ) : null}

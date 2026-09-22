@@ -13,6 +13,7 @@ import {
 } from "motion/react";
 
 import { PROVIDER_GROUPS } from "../lib/provider-meta.js";
+import { cn } from "../lib/utils.js";
 import { BRAND_ICONS } from "./brand-icons.js";
 
 interface RibbonEntry {
@@ -38,6 +39,37 @@ export const RIBBON: readonly RibbonEntry[] = (() => {
   }
   return entries;
 })();
+
+/** Official brand accent colors for the marquee icons — identity only;
+ * labels stay zinc. Providers without a distinctive hue (GitHub, X,
+ * CodePen, Medium, TikTok) render near-white. */
+const BRAND_COLORS: Record<string, string> = {
+  "github:user": "text-zinc-50",
+  gitlab: "text-orange-500",
+  npm: "text-red-500",
+  pypi: "text-sky-500",
+  crates: "text-amber-600",
+  dockerhub: "text-sky-500",
+  huggingface: "text-amber-400",
+  nuget: "text-blue-400",
+  rubygems: "text-red-500",
+  homebrew: "text-amber-500",
+  codepen: "text-zinc-50",
+  replit: "text-orange-500",
+  figma: "text-red-400",
+  dribbble: "text-pink-500",
+  behance: "text-blue-500",
+  substack: "text-orange-500",
+  producthunt: "text-orange-500",
+  telegram: "text-sky-400",
+  medium: "text-zinc-50",
+  "social:x": "text-zinc-50",
+  "social:bluesky": "text-sky-400",
+  "social:instagram": "text-fuchsia-400",
+  "social:reddit": "text-orange-500",
+  "social:youtube": "text-red-500",
+  "social:tiktok": "text-zinc-50",
+};
 
 const SCROLL_PX_PER_S = 45;
 
@@ -69,7 +101,7 @@ function RibbonRow({
           key={id}
           className="flex items-center gap-2 text-zinc-600 transition-colors hover:text-zinc-400"
         >
-          <Icon aria-hidden="true" className="size-4" />
+          <Icon aria-hidden="true" className={cn("size-4", BRAND_COLORS[id] ?? "text-zinc-600")} />
           <span className="text-[12px] font-medium tracking-wide">{label}</span>
         </li>
       ))}

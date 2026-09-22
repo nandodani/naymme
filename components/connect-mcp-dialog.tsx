@@ -72,7 +72,7 @@ function CopyField({
         className={cn(
           "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-[12px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
           copied
-            ? "border-white/30 bg-white/10 text-zinc-50"
+            ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
             : "border-zinc-800 bg-white/[0.05] text-zinc-200 hover:border-zinc-700 hover:bg-white/[0.09]",
         )}
       >
