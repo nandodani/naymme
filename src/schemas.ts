@@ -20,6 +20,13 @@ export const PROVIDER_IDS = [
   "domain:sh",
   "domain:so",
   "domain:xyz",
+  "domain:design",
+  "domain:store",
+  "domain:work",
+  "domain:studio",
+  "domain:tech",
+  "domain:agency",
+  "domain:space",
   "github:user",
   "github:org",
   "gitlab",
@@ -104,6 +111,13 @@ export const DOMAIN_ALL_PROVIDER_IDS = [
   "domain:sh",
   "domain:so",
   "domain:xyz",
+  "domain:design",
+  "domain:store",
+  "domain:work",
+  "domain:studio",
+  "domain:tech",
+  "domain:agency",
+  "domain:space",
 ] as const satisfies readonly ProviderId[];
 
 /** Social-media handle providers covered by the `socials` alias. */

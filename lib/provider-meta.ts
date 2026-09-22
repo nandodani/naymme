@@ -43,6 +43,13 @@ export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
       { id: "domain:sh", label: ".sh" },
       { id: "domain:so", label: ".so" },
       { id: "domain:xyz", label: ".xyz" },
+      { id: "domain:design", label: ".design" },
+      { id: "domain:store", label: ".store" },
+      { id: "domain:work", label: ".work" },
+      { id: "domain:studio", label: ".studio" },
+      { id: "domain:tech", label: ".tech" },
+      { id: "domain:agency", label: ".agency" },
+      { id: "domain:space", label: ".space" },
     ],
   },
   {

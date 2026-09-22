@@ -77,6 +77,13 @@ describe("resolveProviderIds", () => {
       "domain:sh",
       "domain:so",
       "domain:xyz",
+      "domain:design",
+      "domain:store",
+      "domain:work",
+      "domain:studio",
+      "domain:tech",
+      "domain:agency",
+      "domain:space",
     ]);
   });
 

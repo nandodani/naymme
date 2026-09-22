@@ -130,7 +130,7 @@ describe("european ccTLD adapters — WHOIS + DNS fallback", () => {
 });
 
 describe("new TLD adapters — RDAP-first with WHOIS/DNS fallback", () => {
-  /** Bootstrap advertising the registries for the six new TLDs. */
+  /** Bootstrap advertising the registries for the new TLDs. */
   const NEW_BOOTSTRAP = {
     services: [
       [["co"], ["https://rdap.nic.co/"]],
@@ -138,6 +138,10 @@ describe("new TLD adapters — RDAP-first with WHOIS/DNS fallback", () => {
       [["org"], ["https://rdap.publicinterestregistry.org/rdap/"]],
       [["sh"], ["https://rdap.identitydigital.services/rdap/"]],
       [["xyz"], ["https://rdap.centralnic.com/xyz/"]],
+      [["design"], ["https://rdap.nic.design/"]],
+      [["work"], ["https://rdap.nic.work/"]],
+      [["agency", "studio"], ["https://rdap.identitydigital.services/rdap/"]],
+      [["space", "store", "tech"], ["https://rdap.radix.host/rdap/"]],
     ],
   };
   const rdapDeps = (status: number) =>
@@ -148,7 +152,20 @@ describe("new TLD adapters — RDAP-first with WHOIS/DNS fallback", () => {
       },
     });
 
-  for (const id of ["domain:co", "domain:me", "domain:org", "domain:sh", "domain:xyz"] as const) {
+  for (const id of [
+    "domain:co",
+    "domain:me",
+    "domain:org",
+    "domain:sh",
+    "domain:xyz",
+    "domain:design",
+    "domain:store",
+    "domain:work",
+    "domain:studio",
+    "domain:tech",
+    "domain:agency",
+    "domain:space",
+  ] as const) {
     it(`${id} maps RDAP 404 to available`, async () => {
       const r = await check(id, "acme", rdapDeps(404));
       expect(r).toMatchObject({ status: "available", available: true });
@@ -179,7 +196,21 @@ describe("new TLD adapters — RDAP-first with WHOIS/DNS fallback", () => {
 
   it("new TLDs are registered in createAdapters", () => {
     const adapters = createAdapters(makeDeps());
-    for (const id of ["co", "me", "org", "sh", "so", "xyz"]) {
+    for (const id of [
+      "co",
+      "me",
+      "org",
+      "sh",
+      "so",
+      "xyz",
+      "design",
+      "store",
+      "work",
+      "studio",
+      "tech",
+      "agency",
+      "space",
+    ]) {
       expect(adapters[`domain:${id}` as keyof typeof adapters]?.id).toBe(`domain:${id}`);
     }
   });
