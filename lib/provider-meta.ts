@@ -12,7 +12,7 @@ export interface ProviderMeta {
   hint?: string;
 }
 
-export type ProviderGroupId = "domains" | "developer" | "socials";
+export type ProviderGroupId = "domains" | "developer" | "socials" | "community";
 
 export interface ProviderGroup {
   id: ProviderGroupId;
@@ -50,6 +50,12 @@ export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
       { id: "pypi", label: "PyPI" },
       { id: "crates", label: "crates.io" },
       { id: "dockerhub", label: "Docker Hub" },
+      { id: "huggingface", label: "Hugging Face" },
+      { id: "nuget", label: "NuGet" },
+      { id: "rubygems", label: "RubyGems" },
+      { id: "homebrew", label: "Homebrew" },
+      { id: "codepen", label: "CodePen" },
+      { id: "replit", label: "Replit" },
     ],
   },
   {
@@ -62,6 +68,20 @@ export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
       { id: "social:reddit", label: "Reddit" },
       { id: "social:youtube", label: "YouTube" },
       { id: "social:tiktok", label: "TikTok" },
+    ],
+  },
+  {
+    id: "community",
+    title: "Creator & community",
+    providers: [
+      { id: "figma", label: "Figma" },
+      { id: "dribbble", label: "Dribbble" },
+      { id: "behance", label: "Behance" },
+      { id: "bento", label: "Bento" },
+      { id: "substack", label: "Substack" },
+      { id: "producthunt", label: "Product Hunt" },
+      { id: "telegram", label: "Telegram" },
+      { id: "medium", label: "Medium" },
     ],
   },
 ];

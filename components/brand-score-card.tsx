@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, ClipboardCopy, Code2, Globe, Share2, Users } from "lucide-react";
 
 import type { AvailabilityResponse } from "@/lib/availability.js";
@@ -25,13 +25,58 @@ function tierFor(rating: number): Tier {
   return "Contested";
 }
 
-function RatingGauge({ rating }: { rating: number }) {
+/**
+ * Ease-out count-up for the headline rating. Returns `null` while the
+ * checks are in flight so no partial score ever paints; once a rating
+ * resolves it rolls from the previous value on a 700ms cubic ease —
+ * skipped entirely under prefers-reduced-motion.
+ */
+function useCountUp(target: number | null): number | null {
+  const [display, setDisplay] = useState<number | null>(target);
+  const previous = useRef(0);
+  useEffect(() => {
+    if (target === null) {
+      setDisplay(null);
+      return;
+    }
+    const from = previous.current;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || from === target) {
+      previous.current = target;
+      setDisplay(target);
+      return;
+    }
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / 700);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplay(Math.round(from + (target - from) * eased));
+      if (t < 1) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        previous.current = target;
+      }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target]);
+  return display;
+}
+
+/**
+ * Circular rating gauge. `rating === null` means the availability checks
+ * are still in flight — the gauge renders an indeterminate `--` pulse and
+ * no arc fill rather than a misleading partial number.
+ */
+function RatingGauge({ rating }: { rating: number | null }) {
+  const display = useCountUp(rating);
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
-  const filled = (Math.min(100, Math.max(0, rating)) / 100) * circumference;
+  const filled = display === null ? 0 : (Math.min(100, Math.max(0, display)) / 100) * circumference;
   return (
-    <div className="glow-score relative size-24 shrink-0">
-      <svg viewBox="0 0 96 96" className="size-24 -rotate-90">
+    <div className="glow-score relative size-24 shrink-0" aria-busy={rating === null}>
+      <svg viewBox="0 0 96 96" className="size-24 -rotate-90" aria-hidden="true">
         <circle
           cx="48"
           cy="48"
@@ -52,14 +97,21 @@ function RatingGauge({ rating }: { rating: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-mono text-[26px] leading-none font-medium text-foreground">
-          {rating}
+        <span
+          className={cn(
+            "font-mono text-[26px] leading-none font-medium",
+            display === null ? "animate-pulse text-zinc-600" : "text-foreground",
+          )}
+        >
+          {display ?? "--"}
         </span>
         <span className="mt-0.5 text-[9px] font-medium tracking-[0.12em] text-zinc-600 uppercase">
           / 100
         </span>
       </div>
-      <span className="sr-only">Brand rating {rating} out of 100</span>
+      <span className="sr-only">
+        {rating === null ? "checking availability…" : `Brand rating ${rating} out of 100`}
+      </span>
     </div>
   );
 }
@@ -84,8 +136,10 @@ function CoverageRow({
     <div className="flex h-10 items-center gap-3 border-t border-white/5 px-4 first:border-t-0">
       <Icon aria-hidden="true" className="size-3.5 shrink-0 text-zinc-500" />
       <span className="flex-1 text-[12px] text-zinc-400">{label}</span>
-      {pending || free === null ? (
+      {pending ? (
         <Skeleton className="h-4 w-14" />
+      ) : free === null ? (
+        <span className="font-mono text-[11px] text-zinc-600 tabular-nums">—</span>
       ) : (
         <span className="font-mono text-[11px] text-zinc-300 tabular-nums">
           {free}/{total} <span className="text-zinc-500">{noun}</span>
@@ -169,12 +223,15 @@ export function BrandScoreCard({
   className?: string;
 }) {
   const stats = useMemo(() => availabilityStats(availability), [availability]);
-  const pendingCoverage = checking && availability === null;
+  const pendingCoverage = checking;
 
   // Brand rating = 60% deterministic name heuristics + 40% availability
-  // coverage; until coverage resolves the rating is the raw name score.
+  // coverage. While any checks are in flight the rating stays null (the
+  // gauge shows "--") so it never paints a partial score or jumps mid-load.
+  // If the availability request fails outright, the rating degrades to the
+  // deterministic name score rather than treating unknown as available.
   const rating =
-    score === null
+    score === null || checking
       ? null
       : stats === null
         ? score.total
@@ -224,7 +281,7 @@ export function BrandScoreCard({
         ) : null}
       </div>
 
-      {score === null || rating === null ? (
+      {score === null ? (
         <div className="px-4 py-6">
           <p className="text-[12px] leading-5 text-zinc-600">
             Search a name to score it out of 100 and measure its claim coverage across domains,
@@ -248,6 +305,7 @@ export function BrandScoreCard({
                   variant="outline"
                   size="xs"
                   onClick={copyReport}
+                  disabled={checking}
                   aria-label="Copy markdown summary to clipboard"
                 >
                   <ClipboardCopy aria-hidden="true" />

@@ -1,5 +1,9 @@
+import { providerGroup } from "./provider-meta.js";
 import type { CheckAvailabilityOutput } from "../src/schemas.js";
 import type { AvailabilityResult } from "../src/types.js";
+
+/** Creator/community platforms roll up with the social handles. */
+const COMMUNITY_IDS = new Set<string>(providerGroup("community").providers.map((p) => p.id));
 
 /**
  * Coverage rollups derived from normalized availability results — the
@@ -35,8 +39,15 @@ function count(results: readonly AvailabilityResult[], match: (id: string) => bo
 export function availabilityStats(data: CheckAvailabilityOutput | null): AvailabilityStats | null {
   if (data === null || data.results.length === 0) return null;
   const tld = count(data.results, (id) => id.startsWith("domain:"));
-  const social = count(data.results, (id) => id.startsWith("social:"));
-  const dev = count(data.results, (id) => !id.startsWith("domain:") && !id.startsWith("social:"));
+  const social = count(
+    data.results,
+    (id) => id.startsWith("social:") || COMMUNITY_IDS.has(id as never),
+  );
+  const dev = count(
+    data.results,
+    (id) =>
+      !id.startsWith("domain:") && !id.startsWith("social:") && !COMMUNITY_IDS.has(id as never),
+  );
   const fraction = (c: CategoryCount) => (c.total === 0 ? 0 : c.free / c.total);
   // .com anchors a brand, so it counts triple inside the composite rating
   // even though the displayed TLD metric is a plain count.

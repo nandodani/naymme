@@ -10,6 +10,22 @@ import {
 import { createDomainAdapter } from "./domain.js";
 import { createGitHubLookup, createGitHubOrgAdapter, createGitHubUserAdapter } from "./github.js";
 import { createNpmAdapter } from "./npm.js";
+import {
+  createBehanceAdapter,
+  createBentoAdapter,
+  createCodePenAdapter,
+  createDribbbleAdapter,
+  createFigmaAdapter,
+  createHomebrewAdapter,
+  createHuggingFaceAdapter,
+  createMediumAdapter,
+  createNuGetAdapter,
+  createProductHuntAdapter,
+  createReplitAdapter,
+  createRubyGemsAdapter,
+  createSubstackAdapter,
+  createTelegramAdapter,
+} from "./platforms.js";
 import { createRdapClient } from "./rdap.js";
 import {
   createBlueskyAdapter,
@@ -48,6 +64,20 @@ export function createAdapters(deps: ProviderDeps): Record<ProviderId, ProviderA
     pypi: createPyPiAdapter(deps),
     crates: createCratesAdapter(deps),
     dockerhub: createDockerHubAdapter(deps),
+    huggingface: createHuggingFaceAdapter(deps),
+    nuget: createNuGetAdapter(deps),
+    rubygems: createRubyGemsAdapter(deps),
+    homebrew: createHomebrewAdapter(deps),
+    codepen: createCodePenAdapter(deps),
+    replit: createReplitAdapter(deps),
+    figma: createFigmaAdapter(deps),
+    dribbble: createDribbbleAdapter(deps),
+    behance: createBehanceAdapter(deps),
+    bento: createBentoAdapter(deps),
+    substack: createSubstackAdapter(deps),
+    producthunt: createProductHuntAdapter(deps),
+    telegram: createTelegramAdapter(deps),
+    medium: createMediumAdapter(deps),
     "social:x": createXAdapter(deps),
     "social:bluesky": createBlueskyAdapter(deps),
     "social:instagram": createInstagramAdapter(deps),

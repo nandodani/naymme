@@ -32,7 +32,8 @@ const item = {
 /**
  * The searched state: a bento grid of the brand score card plus one card per
  * provider group. On xl, the Socials card anchors the right column; the score
- * and developer cards stack to its left and Domains spans underneath.
+ * and developer cards stack to its left, Domains spans underneath and the
+ * Creator & community card fills the bottom-right slot.
  */
 export function ResultsGrid({
   name,
@@ -50,6 +51,7 @@ export function ResultsGrid({
   const domains = providerGroup("domains");
   const developer = providerGroup("developer");
   const socials = providerGroup("socials");
+  const community = providerGroup("community");
 
   return (
     <div className="flex flex-col gap-3">
@@ -111,6 +113,19 @@ export function ResultsGrid({
         >
           <ProviderCard
             group={domains}
+            name={name}
+            resultsByProvider={resultsByProvider}
+            pending={pending}
+            className="h-full"
+          />
+        </motion.div>
+
+        <motion.div
+          variants={item}
+          className="md:col-start-1 md:row-start-3 xl:col-start-3 xl:row-start-2"
+        >
+          <ProviderCard
+            group={community}
             name={name}
             resultsByProvider={resultsByProvider}
             pending={pending}

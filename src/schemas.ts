@@ -21,6 +21,20 @@ export const PROVIDER_IDS = [
   "pypi",
   "crates",
   "dockerhub",
+  "huggingface",
+  "nuget",
+  "rubygems",
+  "homebrew",
+  "codepen",
+  "replit",
+  "figma",
+  "dribbble",
+  "behance",
+  "bento",
+  "substack",
+  "producthunt",
+  "telegram",
+  "medium",
   "social:x",
   "social:bluesky",
   "social:instagram",
@@ -106,7 +120,7 @@ export const nameSchema = z
 
 export const checkAvailabilityInputSchema = z.object({
   name: nameSchema.describe(
-    "Bare name to check, e.g. 'acme'. Checked as acme.com/acme.app/..., GitHub user/org 'acme', GitLab, npm/PyPI/crates.io/Docker Hub 'acme', social handle 'acme'.",
+    "Bare name to check, e.g. 'acme'. Checked as acme.com/acme.app/..., GitHub user/org 'acme', GitLab, npm/PyPI/crates.io/Docker Hub, Hugging Face, NuGet, RubyGems, Homebrew, CodePen, Replit, Figma, Dribbble, Behance, Bento, Substack, Product Hunt, Telegram, Medium and social handle 'acme'.",
   ),
   providers: z
     .array(providerSelectionSchema)

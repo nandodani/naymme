@@ -122,6 +122,62 @@ const PLATFORM_LINKS: Partial<Record<ProviderId, PlatformLinks>> = {
     claim: () => "https://hub.docker.com/signup",
     profile: (name) => `https://hub.docker.com/u/${name}`,
   },
+  huggingface: {
+    claim: () => "https://huggingface.co/join",
+    profile: (name) => `https://huggingface.co/${name}`,
+  },
+  nuget: {
+    claim: () => "https://www.nuget.org/packages/manage/upload",
+    profile: (name) => `https://www.nuget.org/packages/${name}`,
+  },
+  rubygems: {
+    claim: () => "https://rubygems.org/sign_up",
+    profile: (name) => `https://rubygems.org/gems/${name}`,
+  },
+  homebrew: {
+    claim: () => "https://docs.brew.sh/How-To-Open-a-Homebrew-Pull-Request",
+    profile: (name) => `https://formulae.brew.sh/formula/${name}`,
+  },
+  codepen: {
+    claim: () => "https://codepen.io/accounts/signup",
+    profile: (name) => `https://codepen.io/${name}`,
+  },
+  replit: {
+    claim: () => "https://replit.com/signup",
+    profile: (name) => `https://replit.com/@${name}`,
+  },
+  figma: {
+    claim: () => "https://www.figma.com/signup",
+    profile: (name) => `https://www.figma.com/@${name}`,
+  },
+  dribbble: {
+    claim: () => "https://dribbble.com/signup/new",
+    profile: (name) => `https://dribbble.com/${name}`,
+  },
+  behance: {
+    claim: () => "https://www.behance.net/signup",
+    profile: (name) => `https://www.behance.net/${name}`,
+  },
+  bento: {
+    claim: () => "https://bento.me/en/home",
+    profile: (name) => `https://bento.me/${name}`,
+  },
+  substack: {
+    claim: () => "https://substack.com/signup",
+    profile: (name) => `https://${name}.substack.com`,
+  },
+  producthunt: {
+    claim: () => "https://www.producthunt.com/newsletters",
+    profile: (name) => `https://www.producthunt.com/@${name}`,
+  },
+  telegram: {
+    claim: () => "https://telegram.org/",
+    profile: (name) => `https://t.me/${name}`,
+  },
+  medium: {
+    claim: () => "https://medium.com/",
+    profile: (name) => `https://medium.com/@${name}`,
+  },
   "social:x": {
     claim: () => "https://x.com/i/flow/signup",
     profile: (name) => `https://x.com/${name}`,
