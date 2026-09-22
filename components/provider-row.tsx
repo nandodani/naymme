@@ -257,11 +257,22 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
   );
 
   return (
-    // motion.li so the "Available only" filter can blur+scale+fade rows out
-    // (AnimatePresence in ProviderCard) and slide survivors into place.
+    // motion.li so the "Available only" filter can blur+scale+fade rows in
+    // and out (AnimatePresence in ProviderCard). Deliberately no `layout`:
+    // positional slides made re-entering rows collide with rows already at
+    // their final spot — fading in place can never overlap.
     <motion.li
-      layout
-      initial={false}
+      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.98, filter: "blur(3px)" }}
+      animate={
+        reduceMotion
+          ? { opacity: 1, transition: { duration: 0.12 } }
+          : {
+              opacity: 1,
+              scale: 1,
+              filter: "blur(0px)",
+              transition: { duration: 0.18, ease: "easeOut" },
+            }
+      }
       exit={
         reduceMotion
           ? { opacity: 0, transition: { duration: 0.12 } }
