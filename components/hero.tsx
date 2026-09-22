@@ -44,6 +44,7 @@ export function Hero({ value, onChange, onSubmit, valid, inputRef }: HeroProps) 
             variant="hero"
           />
         </div>
+        <p className="mt-12 text-[11px] tracking-wide text-zinc-600 uppercase">search on</p>
         <ProviderRibbon />
       </motion.div>
     </main>

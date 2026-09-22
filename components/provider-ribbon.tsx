@@ -120,7 +120,7 @@ export function ProviderRibbon() {
 
   return (
     <div
-      className="marquee-mask mt-12 w-full max-w-xl overflow-hidden"
+      className="marquee-mask mt-3 w-full max-w-xl overflow-hidden"
       onMouseEnter={() => {
         hovered.current = true;
       }}
