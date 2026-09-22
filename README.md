@@ -3,8 +3,8 @@
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/nandodani/name-check-mcp)
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/nandodani/name-check-mcp)
 
-An MCP (Model Context Protocol) server that answers two questions about a
-candidate name:
+A web app and MCP (Model Context Protocol) server that answers two
+questions about a candidate name:
 
 1. **`check_availability`** — is it free as a `.com` / `.gg` / `.dev` / `.io` /
    `.app` domain or European ccTLD (`.pt` / `.es` / `.de` / `.fr` / `.uk` /
@@ -13,10 +13,13 @@ candidate name:
 2. **`score_name`** — how good is it as a brand, deterministically scored
    out of 100?
 
-Runs both as a **stdio** server (Claude Desktop, Cursor, any local MCP
-client) and as an **HTTP** server (Streamable HTTP at `/mcp`, deployable to
-Vercel, Cloudflare Workers, or any Node host for remote clients like Poke;
-legacy SSE at `/sse` + `/messages` for older clients).
+The **Next.js app** at the repo root is both the web UI and the hosted MCP
+server: it serves a dark, high-density checker UI at `/` and the stateless
+Streamable-HTTP MCP endpoint at `/api/mcp` (aliases `/mcp`, `/health`).
+
+The MCP server also runs standalone: **stdio** (Claude Desktop, Cursor, any
+local MCP client), a **persistent Node HTTP** server (`/mcp` plus legacy SSE
+at `/sse` + `/messages`), and a **Cloudflare Worker**.
 
 ## Requirements
 
@@ -26,18 +29,23 @@ legacy SSE at `/sse` + `/messages` for older clients).
 
 ```bash
 npm install
-npm run build        # tsc → dist/
+npm run dev:web      # Next.js dev — UI at / and MCP at /api/mcp
+npm run build        # next build → .next/  +  tsc → dist/
 npm test             # vitest
 npm run check        # typecheck + lint + format:check + test + build
 ```
 
 | Script               | What it does                                  |
 | -------------------- | --------------------------------------------- |
+| `npm run dev:web`    | Next.js dev server — UI + `/api/mcp`          |
 | `npm run dev`        | stdio server via tsx (dev)                    |
 | `npm run dev:http`   | HTTP server via tsx on `$PORT` (default 3000) |
 | `npm run dev:worker` | Cloudflare Worker via wrangler dev            |
+| `npm run build`      | `next build` + `tsc` → `.next/` and `dist/`   |
+| `npm run build:core` | `tsc` → `dist/` only                          |
 | `npm start`          | stdio server from `dist/`                     |
 | `npm run start:http` | HTTP server from `dist/`                      |
+| `npm run start:web`  | `next start` (production build)               |
 | `npm run typecheck`  | `tsc --noEmit` (strict)                       |
 | `npm run lint`       | ESLint (typescript-eslint, type-checked)      |
 | `npm run format`     | Prettier                                      |
@@ -104,10 +112,27 @@ same answer:
 ## Architecture
 
 ```
+app/                    Next.js 16 App Router (React 19, Tailwind 4)
+  layout.tsx            dark shell, self-hosted Geist fonts
+  page.tsx              the checker UI
+  api/mcp/route.ts      POST /api/mcp — stateless Streamable HTTP (SDK
+                        WebStandard transport), GET status doc, OPTIONS CORS
+  api/availability/route.ts   GET ?name= → normalized results + `mode`
+  api/score/route.ts    GET ?name= → deterministic score JSON
+components/             client UI (debounced search ⌘K, score ring,
+                        availability grid, copy-config buttons)
+lib/
+  availability.ts       typed service boundary + request handler
+                        (live vs demo mode)
+  demo.ts               deterministic demo availability provider
+  mcp-web.ts            Web-standard Request/Response MCP handler
+                        (same transport shape as worker/index.ts)
+  mcp-config.ts         Cursor/Claude Desktop config generation
+  provider-meta.ts      grid ordering/grouping/labels
 src/
   index.ts              stdio entry (Claude Desktop / Cursor)
   http.ts               Node HTTP server: /mcp + /sse + /messages + /health
-  mcp-http.ts           stateless Streamable-HTTP handler (shared with Vercel)
+  mcp-http.ts           stateless Streamable-HTTP handler (Node req/res)
   server.ts             McpServer factory, tool registration
   schemas.ts            Zod input/output schemas, provider selection
   deps.ts               injectable ProviderDeps (fetch, whois, npm, timeout)
@@ -122,8 +147,6 @@ src/
     social.ts           X, Bluesky, Instagram, Reddit, YouTube, TikTok handles
   tools/checkAvailability.ts   Promise.allSettled runner + per-provider timeout
   scoring/score.ts      deterministic scoring formula
-api/
-  mcp.ts                Vercel serverless function (stateless /mcp only)
 worker/
   index.ts              Cloudflare Worker (stateless /mcp, portable deps)
 ```
@@ -140,6 +163,36 @@ interface ProviderAdapter {
 External calls (fetch/whois/DNS/npm-name) are injected via `ProviderDeps`,
 so tests substitute fakes instead of hitting the network — the suite never
 hardcodes live lookup results.
+
+## Web app & hosted MCP endpoint
+
+`npm run dev:web` starts the Next.js app (production: `npm run build` +
+`npm run start:web`). It serves:
+
+| Route                                          | What it does                                                                                               |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `GET /`                                        | Checker UI — debounced search (⌘K / Ctrl+K), score, availability grid, configs                             |
+| `POST /api/mcp`                                | Hosted MCP endpoint — stateless Streamable HTTP; SSE-framed unless client accepts JSON only. Alias: `/mcp` |
+| `GET /api/mcp`                                 | Status document (`/health` aliases here too)                                                               |
+| `GET /api/availability?name=<n>[&providers=…]` | Normalized availability JSON + `mode` (`live` \| `demo`)                                                   |
+| `GET /api/score?name=<n>`                      | Deterministic score JSON                                                                                   |
+
+The UI talks to `/api/availability` and `/api/score`; the same checks are
+exposed to MCP clients via `check_availability` / `score_name` on `/api/mcp`.
+
+Runtime caveat (same as serverless anywhere): only the **stateless
+Streamable HTTP** transport works per-request — there is no standalone GET
+SSE stream, matching the standalone server's contract. WHOIS opens raw TCP
+to port 43 and may be blocked on some serverless networks; affected TLDs
+report `unknown`.
+
+### Demo mode
+
+Set `LMKURNAME_AVAILABILITY_MODE=demo` to answer availability checks with
+**deterministic fixture data** (a pure function of provider + name — no
+network, no credentials). Every response then carries `"mode": "demo"` and
+the UI badges the grid as demo data. Default (unset or any other value) is
+`live`. Useful for offline development, previews without egress, and CI.
 
 ## Use it locally
 
@@ -177,26 +230,52 @@ hardcodes live lookup results.
 }
 ```
 
-## Deploy as a remote MCP server (Poke, other clients)
+## Connect to the hosted endpoint
 
-### Vercel — Streamable HTTP
+Point remote clients at `https://<your-deployment>/api/mcp` (the `/mcp`
+alias works too). The UI's **Connect a client** card copies these
+snippets for you.
 
-The repo ships `api/mcp.ts` + `vercel.json`. Deploy:
+### Cursor — `cursor_mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "lmkurname": {
+      "url": "https://<your-deployment>/api/mcp"
+    }
+  }
+}
+```
+
+### Claude Desktop — `claude_desktop_config.json`
+
+Claude Desktop's config speaks stdio only, so bridge through `mcp-remote`:
+
+```json
+{
+  "mcpServers": {
+    "lmkurname": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://<your-deployment>/api/mcp"]
+    }
+  }
+}
+```
+
+## Deploy
+
+### Vercel — web UI + MCP endpoint
+
+Deploying the repo root to Vercel builds the Next.js app — one deployment
+serves the UI at `/` and the MCP endpoint at `/api/mcp` (`/mcp`, `/health`
+rewrite to it). The “Deploy with Vercel” button picks this up
+automatically.
 
 ```bash
 npm i -g vercel
 vercel deploy --prod
 ```
-
-Your MCP endpoint is `https://<deployment>/mcp` (`POST`, Streamable HTTP,
-stateless). Point Poke or any remote MCP client at that URL. `/health` is a
-liveness probe.
-
-Runtime caveat: on serverless, only the **stateless Streamable HTTP**
-transport works — the legacy SSE transport holds in-memory sessions and
-cannot span invocations, so `/sse` is intentionally not exposed on Vercel.
-WHOIS lookups open raw TCP to port 43 and may also be blocked on some
-serverless networks; affected TLDs simply report `unknown`.
 
 ### Cloudflare Workers — Streamable HTTP
 
@@ -239,10 +318,11 @@ Works on Render/Fly.io/Railway/a VPS — anywhere a Node process stays alive.
 
 ## Environment variables
 
-| Var    | Default   | Used by                    |
-| ------ | --------- | -------------------------- |
-| `PORT` | `3000`    | HTTP server (`start:http`) |
-| `HOST` | `0.0.0.0` | HTTP server (`start:http`) |
+| Var                           | Default   | Used by                                 |
+| ----------------------------- | --------- | --------------------------------------- |
+| `PORT`                        | `3000`    | HTTP server (`start:http`)              |
+| `HOST`                        | `0.0.0.0` | HTTP server (`start:http`)              |
+| `LMKURNAME_AVAILABILITY_MODE` | `live`    | `/api/availability` (`demo` → fixtures) |
 
 No API keys required. GitHub checks run unauthenticated (60 req/hour per
 IP); the GitHub provider degrades to `unknown` when rate-limited.

@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+/* Self-hosted variable Geist (Vercel, OFL — see public/fonts/GEIST-LICENSE.txt). */
+@font-face {
+  font-family: "Geist";
+  src: url("/fonts/Geist-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/fonts/GeistMono-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --color-ink: #0a0a0b;
+  --color-panel: #0e0e10;
+  --color-hairline: rgb(255 255 255 / 0.08);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-ink);
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgb(255 255 255 / 0.14);
+}
+
+/* Quiet, Linear-style scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.12) transparent;
+}
+
+kbd {
+  font-family: var(--font-mono);
+}
+
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes shimmer {
+  0% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.45;
+  }
+}
+
+.loading-shimmer {
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* Subtle top glow, Vercel-esque */
+.page-glow::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 60% 40% at 50% -10%, rgb(99 102 241 / 0.07), transparent 70%);
+}
