@@ -9,7 +9,7 @@ import { ALL_PROVIDER_IDS, providerGroup } from "@/lib/provider-meta.js";
 import { resultCounts, type ResultFilter } from "@/lib/result-filter.js";
 import { cn } from "@/lib/utils.js";
 import type { AvailabilityResult } from "@/src/types.js";
-import { BrandScoreCard } from "./brand-score-card.js";
+import { OverallCard } from "./overall-card.js";
 import { ProviderCard } from "./provider-card.js";
 import { Button } from "./ui/button.js";
 
@@ -40,9 +40,9 @@ const FILTERS: readonly { id: ResultFilter; label: string }[] = [
 const EXPECTED_PROVIDER_IDS = ALL_PROVIDER_IDS;
 
 /**
- * The searched state: a bento grid of the brand score card plus one card per
- * provider group. DOM order is the same as reading order at every
- * breakpoint — score, Developer, Socials, Domains, Community — so the
+ * The searched state: a bento grid of the overall availability card plus
+ * one card per provider group. DOM order is the same as reading order at
+ * every breakpoint — Overall, Developer, Socials, Domains, Community — so the
  * stagger, tab order and screen-reader order all agree. On xl the score
  * anchors the left column, Developer and Socials fill out row one, Domains
  * spans underneath and Community fills the bottom-right slot.
@@ -145,7 +145,7 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
         className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
       >
         <motion.div variants={item} className="md:col-span-2 xl:col-span-1 xl:col-start-1">
-          <BrandScoreCard
+          <OverallCard
             availability={data}
             checking={checking}
             name={name}
