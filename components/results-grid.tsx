@@ -31,8 +31,8 @@ const item = {
 
 /**
  * The searched state: a bento grid of the brand score card plus one card per
- * provider group. On xl, the tall Domains card anchors the right column; the
- * score and developer cards stack to its left and Socials spans underneath.
+ * provider group. On xl, the Socials card anchors the right column; the score
+ * and developer cards stack to its left and Domains spans underneath.
  */
 export function ResultsGrid({
   name,
@@ -87,7 +87,7 @@ export function ResultsGrid({
           className="md:col-start-1 md:row-start-2 md:row-span-2 xl:col-start-3 xl:row-start-1"
         >
           <ProviderCard
-            group={domains}
+            group={socials}
             name={name}
             resultsByProvider={resultsByProvider}
             pending={pending}
@@ -110,7 +110,7 @@ export function ResultsGrid({
           className="md:col-start-2 md:row-start-3 xl:col-span-2 xl:col-start-1 xl:row-start-2"
         >
           <ProviderCard
-            group={socials}
+            group={domains}
             name={name}
             resultsByProvider={resultsByProvider}
             pending={pending}
