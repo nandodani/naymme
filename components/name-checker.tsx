@@ -242,22 +242,11 @@ export function NameChecker() {
           )}
         </AnimatePresence>
 
-        <footer className="flex min-h-10 shrink-0 flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t border-white/5 px-4 py-2 text-[11px] text-zinc-600 sm:px-6">
+        <footer className="flex h-10 shrink-0 items-center justify-center border-t border-white/5 px-4 text-[11px] text-zinc-600 sm:px-6">
           <span className="text-center">
             Scores are deterministic heuristics · availability is a best-effort snapshot, not a
             guarantee.
           </span>
-          <span aria-hidden="true" className="text-zinc-800">
-            ·
-          </span>
-          <a
-            href="https://nandodani.dev"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-zinc-500 transition-colors hover:text-zinc-300"
-          >
-            crafted by nandodani
-          </a>
         </footer>
 
         <CopyToast message={toast} />
