@@ -229,12 +229,12 @@ export function OverallCard({
     <section
       aria-labelledby="overall-title"
       aria-busy={overall === null && name !== ""}
-      className={cn("overflow-hidden rounded-xl border border-zinc-800 bg-black", className)}
+      className={cn("overflow-hidden rounded-xl border border-white/10 bg-card", className)}
     >
-      <div className="flex h-10 items-center justify-between gap-2 border-b border-zinc-800 px-4">
+      <div className="flex h-10 items-center justify-between gap-2 border-b border-white/5 px-4">
         <h2
           id="overall-title"
-          className="text-[11px] font-medium tracking-[0.08em] text-zinc-500 uppercase"
+          className="text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase"
         >
           Overall
         </h2>
