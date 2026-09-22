@@ -9,6 +9,8 @@ import { SearchInput } from "./search-input.js";
 interface HeroProps {
   value: string;
   onChange: (value: string) => void;
+  /** Runs the search — Enter or the in-bar Search button. */
+  onSubmit: () => void;
   valid: boolean;
   inputRef: RefObject<HTMLInputElement | null>;
 }
@@ -17,7 +19,7 @@ interface HeroProps {
  * Zero state: headline, center-stage search and the provider ribbon — nothing
  * else renders until a search executes.
  */
-export function Hero({ value, onChange, valid, inputRef }: HeroProps) {
+export function Hero({ value, onChange, onSubmit, valid, inputRef }: HeroProps) {
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-4 pb-16 sm:px-6">
       <motion.div
@@ -34,6 +36,7 @@ export function Hero({ value, onChange, valid, inputRef }: HeroProps) {
             ref={inputRef}
             value={value}
             onChange={onChange}
+            onSubmit={onSubmit}
             valid={valid}
             variant="hero"
           />

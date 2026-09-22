@@ -13,8 +13,6 @@ import { SearchInput } from "./search-input.js";
 import { CopyToast } from "./toast.js";
 import { TooltipProvider } from "./ui/tooltip.js";
 
-const DEBOUNCE_MS = 320;
-
 function normalize(raw: string): string {
   return raw.trim().toLowerCase();
 }
@@ -37,7 +35,8 @@ async function copyText(text: string): Promise<void> {
 
 export function NameChecker() {
   const [query, setQuery] = useState("");
-  const [debouncedName, setDebouncedName] = useState("");
+  /** The name a search was explicitly run for (Enter / Search button / ?q=). */
+  const [searchedName, setSearchedName] = useState("");
   const [availability, setAvailability] = useState<AvailabilityResponse | null>(null);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,12 +48,28 @@ export function NameChecker() {
 
   const name = normalize(query);
   const nameValid = name.length > 0 && nameSchema.safeParse(name).success;
+  // The score tracks the explicitly searched name so the bento stays
+  // consistent while the user drafts their next query.
   const score: NameScore | null = useMemo(
-    () => (nameValid ? scoreName(name) : null),
-    [nameValid, name],
+    () => (searchedName === "" ? null : scoreName(searchedName)),
+    [searchedName],
   );
 
-  const searched = debouncedName !== "";
+  const searched = searchedName !== "";
+
+  /** Explicit search — fires on Enter or the Search button, never on typing. */
+  const submitSearch = useCallback(() => {
+    if (!nameValid) {
+      setSearchedName("");
+      return;
+    }
+    if (name === searchedName) {
+      // Re-submitting the same name re-runs the check (fresh availability).
+      setReloadTick((tick) => tick + 1);
+      return;
+    }
+    setSearchedName(name);
+  }, [name, nameValid, searchedName]);
 
   const notify = useCallback((text: string, label: string) => {
     void copyText(text);
@@ -63,10 +78,13 @@ export function NameChecker() {
     toastTimer.current = setTimeout(() => setToast(null), 2200);
   }, []);
 
-  // Seed the query from ?q= on mount (shareable searches).
+  // Seed the query from ?q= on mount and run it (shareable searches).
   useEffect(() => {
     const initial = new URLSearchParams(window.location.search).get("q");
-    if (initial !== null && initial !== "") setQuery(initial);
+    if (initial === null || initial === "") return;
+    setQuery(initial);
+    const normalized = normalize(initial);
+    if (nameSchema.safeParse(normalized).success) setSearchedName(normalized);
   }, []);
 
   // Autofocus, ⌘K / Ctrl+K / "/" to refocus, and keep focus across the
@@ -101,32 +119,29 @@ export function NameChecker() {
   // Back/forward navigation re-reads ?q=.
   useEffect(() => {
     const onPopState = () => {
-      setQuery(new URLSearchParams(window.location.search).get("q") ?? "");
+      const raw = new URLSearchParams(window.location.search).get("q") ?? "";
+      setQuery(raw);
+      const normalized = normalize(raw);
+      setSearchedName(nameSchema.safeParse(normalized).success ? normalized : "");
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  // Debounce the validated name.
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedName(nameValid ? name : ""), DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-  }, [name, nameValid]);
-
-  // Keep ?q= in sync so searches are shareable.
+  // Keep ?q= in sync so executed searches are shareable.
   useEffect(() => {
     const url = new URL(window.location.href);
-    if (debouncedName === "") {
+    if (searchedName === "") {
       url.searchParams.delete("q");
     } else {
-      url.searchParams.set("q", debouncedName);
+      url.searchParams.set("q", searchedName);
     }
     window.history.replaceState(null, "", url);
-  }, [debouncedName]);
+  }, [searchedName]);
 
-  // Fetch availability whenever the debounced name changes.
+  // Fetch availability whenever the explicitly searched name changes.
   useEffect(() => {
-    if (debouncedName === "") {
+    if (searchedName === "") {
       setAvailability(null);
       setChecking(false);
       setError(null);
@@ -137,7 +152,7 @@ export function NameChecker() {
     setChecking(true);
     setError(null);
 
-    fetch(`/api/availability?name=${encodeURIComponent(debouncedName)}`, {
+    fetch(`/api/availability?name=${encodeURIComponent(searchedName)}`, {
       signal: controller.signal,
     })
       .then(async (res) => {
@@ -155,7 +170,7 @@ export function NameChecker() {
       });
 
     return () => controller.abort();
-  }, [debouncedName, reloadTick]);
+  }, [searchedName, reloadTick]);
 
   const retry = useCallback(() => setReloadTick((tick) => tick + 1), []);
 
@@ -179,13 +194,14 @@ export function NameChecker() {
                   ref={inputRef}
                   value={query}
                   onChange={setQuery}
+                  onSubmit={submitSearch}
                   valid={nameValid}
                   variant="compact"
                 />
               </div>
               <div className="mb-3 flex items-center justify-between gap-3">
                 <span className="font-mono text-[11px] text-zinc-500">
-                  results for <span className="text-zinc-300">{debouncedName}</span>
+                  results for <span className="text-zinc-300">{searchedName}</span>
                 </span>
                 {checking ? (
                   <span className="inline-flex animate-pulse items-center gap-1.5 text-[11px] text-zinc-500">
@@ -199,7 +215,7 @@ export function NameChecker() {
                 ) : null}
               </div>
               <ResultsGrid
-                name={debouncedName}
+                name={searchedName}
                 score={score}
                 data={availability}
                 checking={checking}
@@ -215,7 +231,13 @@ export function NameChecker() {
               transition={{ duration: 0.18 }}
               className="flex flex-1 flex-col"
             >
-              <Hero value={query} onChange={setQuery} valid={nameValid} inputRef={inputRef} />
+              <Hero
+                value={query}
+                onChange={setQuery}
+                onSubmit={submitSearch}
+                valid={nameValid}
+                inputRef={inputRef}
+              />
             </motion.div>
           )}
         </AnimatePresence>
