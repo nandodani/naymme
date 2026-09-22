@@ -1,4 +1,3 @@
-import { PROVIDER_IDS } from "../schemas.js";
 import type { AvailabilityResult } from "../types.js";
 
 /**
@@ -6,7 +5,7 @@ import type { AvailabilityResult } from "../types.js";
  * surface actually matters, modulated by a linguistic multiplier for the
  * name itself.
  *
- *   Tier 1 — Crown Jewels   50 pts  .com 15 · GitHub 12 · X 12 · npm/IG 11
+ *   Tier 1 — Crown Jewels   50 pts  .com 18 · GitHub 12 · X 10 · npm/IG 10
  *                                   (none free → base score capped at 50)
  *   Tier 2 — Core Web       35 pts  key TLDs 15 · core socials 12 · dev registries 8
  *   Tier 3 — Long-tail      15 pts  secondary TLDs + secondary platforms
@@ -19,6 +18,7 @@ import type { AvailabilityResult } from "../types.js";
 export type BrandVerdict =
   | "Uncontested · Prime Real Estate"
   | "Strong · Available on Key Platforms"
+  | "Partial · Key Ground Held"
   | "Contested · Crown Jewels Taken"
   | "Crowded · Heavily Taken";
 
@@ -67,17 +67,21 @@ const VOWELS = new Set(["a", "e", "i", "o", "u", "y"]);
 const isAlpha = (c: string) => c >= "a" && c <= "z";
 const isVowel = (c: string) => VOWELS.has(c);
 
-/** Tier-1 slots — fixed points each, always a denominator of 4. */
+/** Tier-1 slots — fixed points each, always a denominator of 4. .com
+ * carries the most weight: it is the default surface users try first. */
 const CROWN_SLOTS = [
-  { label: ".com", candidates: ["domain:com"], points: 15 },
+  { label: ".com", candidates: ["domain:com"], points: 18 },
   { label: "GitHub", candidates: ["github:user", "github:org"], points: 12 },
-  { label: "X", candidates: ["social:x"], points: 12 },
-  { label: "npm", altLabel: "IG", candidates: ["npm", "social:instagram"], points: 11 },
+  { label: "X", candidates: ["social:x"], points: 10 },
+  { label: "npm", altLabel: "IG", candidates: ["npm", "social:instagram"], points: 10 },
 ] as const;
 const CROWN_MAX = 50;
 
 /** Tier-2 groups — each group's points spread evenly across its slot universe. */
 const TIER2_TLDS = ["domain:dev", "domain:io", "domain:ai", "domain:co", "domain:app"];
+// Spec's core-social universe. Distribution divides by checked members, so
+// providers the registry doesn't offer (LinkedIn/Discord/Twitch today)
+// can't silently cap the group's 12 points.
 const TIER2_SOCIALS = [
   "social:linkedin",
   "social:reddit",
@@ -106,10 +110,23 @@ const TIER2_IDS: ReadonlySet<string> = new Set([
   ...TIER2_SOCIALS,
   ...TIER2_REGISTRIES,
 ]);
-/** Every known provider no earlier tier claims — the long-tail universe. */
-const TIER3_IDS: readonly string[] = PROVIDER_IDS.filter(
-  (id) => !TIER1_CANDIDATES.has(id) && !TIER2_IDS.has(id),
-);
+/**
+ * The long-tail universe is dynamic: every returned provider that no
+ * earlier tier claims, including secondaries the registry doesn't
+ * statically know (Dev.to-style platforms).
+ */
+function tier3Ids(results: readonly AvailabilityResult[]): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const r of results) {
+    if (seen.has(r.provider) || TIER1_CANDIDATES.has(r.provider) || TIER2_IDS.has(r.provider)) {
+      continue;
+    }
+    seen.add(r.provider);
+    ids.push(r.provider);
+  }
+  return ids;
+}
 
 interface CrownResolution {
   earned: number;
@@ -142,28 +159,27 @@ interface GroupResolution {
 }
 
 /**
- * Spread `maxPoints` evenly over the tier's full slot universe; each free
- * member earns its share. Slots that were never checked contribute nothing —
- * points are for observed availability, not for what might have been queried.
+ * Spread `maxPoints` evenly over the members of `ids` that were actually
+ * checked; each free member earns its share. Dividing by the checked set
+ * (not the full universe) means slots the registry doesn't offer — like
+ * LinkedIn/Discord/Twitch today — can't silently cap the group.
  */
 function resolveDistributed(
   byProvider: Map<string, AvailabilityResult>,
   ids: readonly string[],
   maxPoints: number,
 ): GroupResolution {
-  const share = ids.length === 0 ? 0 : maxPoints / ids.length;
+  const checked = ids.filter((id) => byProvider.has(id));
+  const share = checked.length === 0 ? 0 : maxPoints / checked.length;
   let earned = 0;
   let free = 0;
-  let checked = 0;
-  for (const id of ids) {
-    if (!byProvider.has(id)) continue;
-    checked += 1;
+  for (const id of checked) {
     if (byProvider.get(id)?.status === "available") {
       earned += share;
       free += 1;
     }
   }
-  return { earned, free, checked };
+  return { earned, free, checked: checked.length };
 }
 
 /** Longest run of consonant letters (non-letters break the run). */
@@ -236,10 +252,18 @@ export function linguisticAnalysis(normalized: string): LinguisticAnalysis {
   return { multiplier, flow, consonantRun: run, cleanAlpha, trait: parts.join(" · ") };
 }
 
-export function verdictFor(score: number): BrandVerdict {
+/**
+ * Verdict bands are crown-aware: "Crown Jewels Taken" is only claimed when
+ * the brand literally holds none of the four; holding some of them — even
+ * with mid overall coverage — reads as a partial claim, not a contested
+ * defeat.
+ */
+export function verdictFor(score: number, crownFree = 0): BrandVerdict {
   if (score >= 90) return "Uncontested · Prime Real Estate";
   if (score >= 75) return "Strong · Available on Key Platforms";
-  if (score >= 50) return "Contested · Crown Jewels Taken";
+  if (score >= 50) {
+    return crownFree === 0 ? "Contested · Crown Jewels Taken" : "Partial · Key Ground Held";
+  }
   return "Crowded · Heavily Taken";
 }
 
@@ -256,8 +280,9 @@ export function brandScore(name: string, results: readonly AvailabilityResult[])
   const socials = resolveDistributed(byProvider, TIER2_SOCIALS, 12);
   const registries = resolveDistributed(byProvider, TIER2_REGISTRIES, 8);
 
-  // Tier 3's universe is every known provider no earlier tier claims.
-  const longtail = resolveDistributed(byProvider, TIER3_IDS, TIER3_MAX);
+  // Tier 3 inherits every returned provider no earlier tier claims.
+  const tailIds = tier3Ids(results);
+  const longtail = resolveDistributed(byProvider, tailIds, TIER3_MAX);
 
   const core = {
     earned: tlds.earned + socials.earned + registries.earned,
@@ -271,7 +296,7 @@ export function brandScore(name: string, results: readonly AvailabilityResult[])
     max: TIER3_MAX,
     free: longtail.free,
     checked: longtail.checked,
-    slots: TIER3_IDS.length,
+    slots: tailIds.length,
   };
 
   let baseScore = crown.earned + core.earned + tail.earned;
@@ -289,7 +314,7 @@ export function brandScore(name: string, results: readonly AvailabilityResult[])
     baseScore,
     multiplier: linguistic.multiplier,
     score,
-    verdict: verdictFor(score),
+    verdict: verdictFor(score, crown.free),
     crownJewels: { free: crown.free, slots: crown.jewels },
     availability: {
       free: results.filter((r) => r.status === "available").length,

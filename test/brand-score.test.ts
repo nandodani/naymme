@@ -39,12 +39,12 @@ describe("brandScore tiers", () => {
   });
 
   it("awards each crown jewel its fixed points", () => {
-    // Only .com free → exactly 15 points of base score.
+    // Only .com free → exactly 18 points of base score.
     const b = brandScore("acme", [
       result("domain:com", "available"),
       ...allTaken.filter((r) => r.provider !== "domain:com"),
     ]);
-    expect(b.tiers.crown.earned).toBe(15);
+    expect(b.tiers.crown.earned).toBe(18);
     expect(b.crownJewels.free).toBe(1);
   });
 
@@ -60,7 +60,7 @@ describe("brandScore tiers", () => {
     const b = brandScore("acme", [result("social:instagram", "available")]);
     expect(b.crownJewels.slots[3]?.label).toBe("IG");
     expect(b.crownJewels.free).toBe(1);
-    expect(b.tiers.crown.earned).toBe(11);
+    expect(b.tiers.crown.earned).toBe(10);
   });
 
   it("caps the base score at 50 when no crown jewel is free", () => {
@@ -79,24 +79,34 @@ describe("brandScore tiers", () => {
     expect(b.verdict).toBe("Crowded · Heavily Taken");
   });
 
-  it("spreads key-TLD points as 3 each over the five fixed slots", () => {
-    const b = brandScore("acme", [result("domain:dev", "available")]);
+  it("spreads key-TLD points as 3 each over the five checked slots", () => {
+    const b = brandScore("acme", [
+      result("domain:dev", "available"),
+      result("domain:io", "taken"),
+      result("domain:ai", "taken"),
+      result("domain:co", "taken"),
+      result("domain:app", "taken"),
+    ]);
     expect(b.tiers.core.earned).toBeCloseTo(3);
   });
 
-  it("spreads core-social points across the five fixed slots", () => {
-    // Only reddit and bluesky exist in the registry today — each earns 12/5.
+  it("spreads core-social points across the checked slots", () => {
+    // LinkedIn/Discord/Twitch were never checked — the 12 points split
+    // across the two slots that were, so phantom providers can't cap it.
     const b = brandScore("acme", [
       result("social:reddit", "available"),
       result("social:bluesky", "available"),
     ]);
-    expect(b.tiers.core.earned).toBeCloseTo(24 / 5);
+    expect(b.tiers.core.earned).toBe(12);
   });
 
-  it("ignores providers outside every tier's universe", () => {
+  it("folds unknown secondaries into the long tail", () => {
+    // "devto" is no registered provider — a Dev.to-style secondary, so it
+    // lands in tier 3 instead of being silently ignored.
     const b = brandScore("acme", [result("devto", "available")]);
-    expect(b.baseScore).toBe(0);
-    // …but it still counts toward the raw availability tally the card shows.
+    expect(b.tiers.longtail).toMatchObject({ free: 1, checked: 1, slots: 1 });
+    expect(b.baseScore).toBe(15);
+    // …and it still counts toward the raw availability tally the card shows.
     expect(b.availability).toEqual({ free: 1, total: 1 });
   });
 
@@ -107,15 +117,71 @@ describe("brandScore tiers", () => {
     expect(b.tiers.longtail.free).toBe(28); // the full long-tail universe
   });
 
+  it("credits .com properly when two crown jewels and most of the web are free", () => {
+    // 31 of 54 checked slots free, crown jewels .com + npm free: the old
+    // blend sat at ~53, which read as "Contested · Crown Jewels Taken"
+    // despite two jewels held — an unfair, contradictory verdict.
+    const free = new Set([
+      "domain:com",
+      "npm",
+      "domain:dev",
+      "domain:io",
+      "domain:ai",
+      "domain:co",
+      "social:reddit",
+      "social:bluesky",
+      "social:discord",
+      "pypi",
+      "crates",
+      "dockerhub",
+      "gitlab",
+      "nuget",
+    ]);
+    // 17 long-tail frees to reach 31 free total (excludes every tier-1/2 id).
+    const tier2 = new Set([
+      "domain:dev",
+      "domain:io",
+      "domain:ai",
+      "domain:co",
+      "domain:app",
+      "social:linkedin",
+      "social:reddit",
+      "social:bluesky",
+      "social:discord",
+      "social:twitch",
+      "gitlab",
+      "pypi",
+      "crates",
+      "dockerhub",
+      "huggingface",
+      "nuget",
+      "rubygems",
+      "homebrew",
+      "codepen",
+      "replit",
+    ]);
+    const tail = UNIVERSE.filter(
+      (id) => !free.has(id) && !CROWN.includes(id) && !tier2.has(id),
+    ).slice(0, 17);
+    for (const id of tail) free.add(id);
+    const results = UNIVERSE.map((id) => result(id, free.has(id) ? "available" : "taken"));
+    const b = brandScore("acme", results);
+    expect(b.crownJewels.free).toBe(2);
+    expect(b.availability).toEqual({ free: 31, total: 54 });
+    expect(b.score).toBeGreaterThan(53);
+    expect(b.score).toBeLessThan(75);
+    expect(b.verdict).toBe("Partial · Key Ground Held");
+  });
+
   it("applies the linguistic multiplier to the base score", () => {
     // "acme": clean alpha, 4 chars → 1.10 premium, no phonetic adjustment.
     const b = brandScore("acme", [
       result("domain:com", "available"),
       result("domain:dev", "available"),
     ]);
-    expect(b.baseScore).toBe(18); // 15 crown + 3 tld share (15/5)
+    expect(b.baseScore).toBe(33); // 18 crown + 15 tld share (dev is the only TLD checked)
     expect(b.multiplier).toBe(1.1);
-    expect(b.score).toBe(Math.round(18 * 1.1));
+    expect(b.score).toBe(Math.round(33 * 1.1));
   });
 });
 
@@ -179,9 +245,18 @@ describe("score boundaries", () => {
 
 describe("verdictFor", () => {
   it("matches the documented verdict bands", () => {
-    expect(verdictFor(95)).toBe("Uncontested · Prime Real Estate");
-    expect(verdictFor(80)).toBe("Strong · Available on Key Platforms");
-    expect(verdictFor(60)).toBe("Contested · Crown Jewels Taken");
-    expect(verdictFor(30)).toBe("Crowded · Heavily Taken");
+    expect(verdictFor(95, 4)).toBe("Uncontested · Prime Real Estate");
+    expect(verdictFor(80, 3)).toBe("Strong · Available on Key Platforms");
+    expect(verdictFor(60, 0)).toBe("Contested · Crown Jewels Taken");
+    expect(verdictFor(30, 1)).toBe("Crowded · Heavily Taken");
+  });
+
+  it("only claims Crown Jewels Taken when literally none are free", () => {
+    expect(verdictFor(74, 0)).toBe("Contested · Crown Jewels Taken");
+    for (const held of [1, 2, 3, 4]) {
+      expect(verdictFor(74, held)).toBe("Partial · Key Ground Held");
+      expect(verdictFor(50, held)).toBe("Partial · Key Ground Held");
+    }
+    expect(verdictFor(50, 0)).toBe("Contested · Crown Jewels Taken");
   });
 });

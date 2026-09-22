@@ -5,12 +5,13 @@
 
 import type { BrandVerdict } from "../src/scoring/brand.js";
 
-export type VerdictTone = "uncontested" | "strong" | "contested" | "crowded";
+export type VerdictTone = "uncontested" | "strong" | "partial" | "contested" | "crowded";
 
 /** Maps a verdict label to its badge tone on the score card. */
 export function verdictTone(verdict: BrandVerdict): VerdictTone {
   if (verdict.startsWith("Uncontested")) return "uncontested";
   if (verdict.startsWith("Strong")) return "strong";
+  if (verdict.startsWith("Partial")) return "partial";
   if (verdict.startsWith("Contested")) return "contested";
   return "crowded";
 }

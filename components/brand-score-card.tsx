@@ -18,9 +18,13 @@ const TONE_STYLES: Record<VerdictTone, { badge: string; dot: string }> = {
     dot: "bg-emerald-400",
   },
   strong: { badge: "border-sky-400/40 bg-sky-400/10 text-sky-300", dot: "bg-sky-400" },
-  contested: {
+  partial: {
     badge: "border-amber-400/40 bg-amber-400/10 text-amber-300",
     dot: "bg-amber-400",
+  },
+  contested: {
+    badge: "border-orange-400/40 bg-orange-400/10 text-orange-300",
+    dot: "bg-orange-400",
   },
   crowded: { badge: "border-rose-400/40 bg-rose-400/10 text-rose-300", dot: "bg-rose-400" },
 };
@@ -64,7 +68,7 @@ function useCountUp(target: number | null): number | null {
   return display;
 }
 
-/** High-density stat row: icon, label, and a compact value. */
+/** High-density stat tile: icon + label on top, value centered below. */
 function StatPill({
   icon: Icon,
   label,
@@ -79,16 +83,14 @@ function StatPill({
   return (
     <div
       title={title}
-      className="flex min-w-0 items-center gap-2.5 rounded-lg border border-zinc-800 bg-white/[0.02] px-3 py-2.5"
+      className="flex h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-zinc-800 bg-white/[0.02] px-3 py-2 text-center"
     >
-      <Icon aria-hidden="true" className="size-3.5 shrink-0 text-zinc-500" />
-      <div className="min-w-0 flex-1">
-        <div className="text-[10px] font-medium tracking-[0.08em] text-zinc-500 uppercase">
-          {label}
-        </div>
-        <div className="mt-0.5 flex items-center gap-2 font-mono text-[12px] text-zinc-200 tabular-nums">
-          {children}
-        </div>
+      <div className="flex items-center gap-1.5 text-[10px] font-medium tracking-[0.08em] text-zinc-500 uppercase">
+        <Icon aria-hidden="true" className="size-3 shrink-0" />
+        <span className="truncate">{label}</span>
+      </div>
+      <div className="flex items-center justify-center gap-2 font-mono text-[12px] text-zinc-200 tabular-nums">
+        {children}
       </div>
     </div>
   );
@@ -111,17 +113,19 @@ function CrownDots({ brand }: { brand: BrandScore }) {
   );
 }
 
-/** Thin availability bar: emerald fill on a zinc-800 track. */
+/** Thin availability bar: emerald fill on a zinc-800 track. The track is a
+ * real inline-block box — an inline <span> ignores width/height and clips
+ * the fill to nothing. */
 function AvailabilityBar({ ratio }: { ratio: number }) {
   const reduceMotion = useReducedMotion();
   return (
     <span
       role="img"
       aria-label={`${Math.round(ratio * 100)}% available`}
-      className="h-1 w-16 shrink-0 overflow-hidden rounded-full bg-zinc-800"
+      className="relative inline-block h-1 w-14 shrink-0 overflow-hidden rounded-full bg-zinc-800 align-middle"
     >
       <motion.span
-        className="block h-full rounded-full bg-emerald-400/70"
+        className="absolute inset-y-0 left-0 block rounded-full bg-emerald-400/70"
         style={{ transformOrigin: "left" }}
         initial={{ scaleX: 0 }}
         animate={{ scaleX: ratio }}

@@ -9,18 +9,21 @@ describe("verdictFor", () => {
     expect(verdictFor(90)).toBe("Uncontested · Prime Real Estate");
     expect(verdictFor(89)).toBe("Strong · Available on Key Platforms");
     expect(verdictFor(75)).toBe("Strong · Available on Key Platforms");
-    expect(verdictFor(74)).toBe("Contested · Crown Jewels Taken");
-    expect(verdictFor(50)).toBe("Contested · Crown Jewels Taken");
-    expect(verdictFor(49)).toBe("Crowded · Heavily Taken");
+    expect(verdictFor(74, 0)).toBe("Contested · Crown Jewels Taken");
+    expect(verdictFor(74, 2)).toBe("Partial · Key Ground Held");
+    expect(verdictFor(50, 1)).toBe("Partial · Key Ground Held");
+    expect(verdictFor(50, 0)).toBe("Contested · Crown Jewels Taken");
+    expect(verdictFor(49, 3)).toBe("Crowded · Heavily Taken");
     expect(verdictFor(0)).toBe("Crowded · Heavily Taken");
   });
 });
 
 describe("verdictTone", () => {
   it("maps every verdict to a badge tone", () => {
-    expect(verdictTone(verdictFor(95))).toBe("uncontested");
-    expect(verdictTone(verdictFor(80))).toBe("strong");
-    expect(verdictTone(verdictFor(60))).toBe("contested");
+    expect(verdictTone(verdictFor(95, 4))).toBe("uncontested");
+    expect(verdictTone(verdictFor(80, 2))).toBe("strong");
+    expect(verdictTone(verdictFor(60, 2))).toBe("partial");
+    expect(verdictTone(verdictFor(60, 0))).toBe("contested");
     expect(verdictTone(verdictFor(10))).toBe("crowded");
   });
 });
