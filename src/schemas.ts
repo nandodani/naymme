@@ -14,8 +14,13 @@ export const PROVIDER_IDS = [
   "domain:fr",
   "domain:uk",
   "domain:eu",
-  "github",
+  "github:user",
+  "github:org",
+  "gitlab",
   "npm",
+  "pypi",
+  "crates",
+  "dockerhub",
   "social:x",
   "social:bluesky",
   "social:instagram",
@@ -101,7 +106,7 @@ export const nameSchema = z
 
 export const checkAvailabilityInputSchema = z.object({
   name: nameSchema.describe(
-    "Bare name to check, e.g. 'acme'. Checked as acme.com/acme.app/..., GitHub user 'acme', npm package 'acme', social handle 'acme'.",
+    "Bare name to check, e.g. 'acme'. Checked as acme.com/acme.app/..., GitHub user/org 'acme', GitLab, npm/PyPI/crates.io/Docker Hub 'acme', social handle 'acme'.",
   ),
   providers: z
     .array(providerSelectionSchema)

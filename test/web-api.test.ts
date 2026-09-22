@@ -62,11 +62,11 @@ describe("handleAvailabilityRequest", () => {
 
   it("honours the providers filter", async () => {
     const res = await handleAvailabilityRequest(
-      get("/api/availability?name=acme&providers=github,npm"),
+      get("/api/availability?name=acme&providers=github:user,npm"),
       demoAvailabilityService(),
     );
     const body = (await res.json()) as AvailabilityResponse;
-    expect(body.results.map((r) => r.provider).sort()).toEqual(["github", "npm"]);
+    expect(body.results.map((r) => r.provider).sort()).toEqual(["github:user", "npm"]);
   });
 
   it("502s when the service throws", async () => {
@@ -119,7 +119,7 @@ describe("demoCheckAvailability", () => {
     const { results } = demoCheckAvailability("acme");
     const byId = new Map(results.map((r) => [r.provider, r]));
     expect(byId.get("domain:com")?.subject).toBe("acme.com");
-    expect(byId.get("github")?.subject).toBe("acme");
+    expect(byId.get("github:user")?.subject).toBe("acme");
     expect(byId.get("social:x")?.subject).toBe("@acme");
   });
 });

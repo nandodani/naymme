@@ -4,9 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Check, CheckCircle2, Clock, Copy, ExternalLink, Globe, XCircle } from "lucide-react";
 
 import { BRAND_ICONS } from "./brand-icons.js";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip.js";
 import { cn } from "@/lib/utils.js";
-import { platformLinks, REGISTRARS, tldPriceEstimate, type Registrar } from "@/lib/links.js";
+import { platformLinks, REGISTRARS, tldPrices, type Registrar } from "@/lib/links.js";
 import type { ProviderMeta } from "@/lib/provider-meta.js";
 import type { AvailabilityResult, AvailabilityStatus } from "@/src/types.js";
 
@@ -63,6 +62,43 @@ function StatusBadge({ status }: { status: AvailabilityStatus }) {
   );
 }
 
+/**
+ * Compact per-registrar first-year price estimate for one TLD. Each chip is
+ * a real link to that registrar's domain search; `—` means the registrar
+ * doesn't carry the TLD. Prices are static estimates — no live pricing API.
+ */
+function PriceChips({ provider, subject }: { provider: string; subject: string }) {
+  const prices = tldPrices(provider as Parameters<typeof tldPrices>[0]);
+  if (prices.length === 0) return null;
+  return (
+    <span className="hidden items-center gap-1 lg:flex" aria-label="First-year price estimates">
+      {prices.map(({ registrar, estimate }) =>
+        estimate === null ? (
+          <span
+            key={registrar.id}
+            title={`${registrar.label} does not carry this TLD`}
+            className="inline-flex h-5 items-center gap-0.5 rounded border border-zinc-800/60 px-1 font-mono text-[9px] text-zinc-600"
+          >
+            {registrar.short} —
+          </span>
+        ) : (
+          <a
+            key={registrar.id}
+            href={registrar.searchUrl(subject)}
+            target="_blank"
+            rel="noreferrer noopener"
+            title={`~$${estimate}/yr at ${registrar.label} (estimate)`}
+            aria-label={`Register ${subject} at ${registrar.label}, estimated ~$${estimate} per year`}
+            className="inline-flex h-5 items-center gap-0.5 rounded border border-zinc-700/40 bg-zinc-800/40 px-1 font-mono text-[9px] text-zinc-400 transition-colors outline-none hover:border-zinc-500/60 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {registrar.short} ~${estimate}
+          </a>
+        ),
+      )}
+    </span>
+  );
+}
+
 interface ProviderRowProps {
   meta: ProviderMeta;
   /** The normalized name being checked — used for the prospective subject
@@ -71,12 +107,18 @@ interface ProviderRowProps {
   result: AvailabilityResult | undefined;
   /** A check is in flight and no (or stale) result exists for this row. */
   pending: boolean;
-  /** Registrar chosen for the current session (domains only). */
+  /** Registrar chosen for the current session (domain row targets). */
   registrar?: Registrar;
   /** Copy `subject` to the clipboard and fire the shared toast. */
   onCopy: (text: string, label: string) => void;
 }
 
+/**
+ * One result line. The whole row is the action — an anchor when the status
+ * yields a target (register/claim for free names, live site/profile for
+ * taken ones), a copy field otherwise. No labelled buttons; hover reveals a
+ * discreet external-link arrow.
+ */
 export function ProviderRow({
   meta,
   name,
@@ -109,105 +151,105 @@ export function ProviderRow({
     copyTimer.current = setTimeout(() => setCopied(false), 1400);
   };
 
-  let action: { href: string; label: string; primary: boolean } | null = null;
+  // The row's link target and its accessible label.
+  let href: string | null = null;
+  let actionLabel: string | null = null;
   if (status === "available") {
     if (isDomain) {
-      action = { href: registrar.searchUrl(subject), label: "Register", primary: true };
+      href = registrar.searchUrl(subject);
+      actionLabel = `Register ${subject} at ${registrar.label}`;
     } else if (links !== null) {
-      action = { href: links.claim(name), label: "Claim", primary: true };
+      href = links.claim(name);
+      actionLabel = `Claim ${subject} on ${meta.label}`;
     }
   } else if (status === "taken") {
     if (isDomain) {
-      action = { href: `https://${subject}`, label: "Visit", primary: false };
+      href = `https://${subject}`;
+      actionLabel = `Visit ${subject}`;
     } else if (links !== null) {
-      action = { href: links.profile(name), label: "Profile", primary: false };
+      href = links.profile(name);
+      actionLabel = `Open the ${meta.label} page for ${subject}`;
     }
   }
 
-  const price = status === "available" && isDomain ? tldPriceEstimate(meta.id) : null;
+  const prices = isDomain && status === "available" ? tldPrices(meta.id) : [];
+  const showPrices = prices.length > 0;
 
-  return (
-    <li
+  const sharedRowClasses = cn(
+    "group relative flex h-10 items-center border-t border-border transition-colors first:border-t-0",
+    href !== null && "cursor-pointer hover:bg-zinc-900/50",
+  );
+  const mainAreaClasses = cn(
+    "flex min-w-0 flex-1 items-center gap-2.5 self-stretch px-3 text-left outline-none",
+    "focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+  );
+
+  const copyButton = (
+    <button
+      type="button"
+      onClick={copy}
+      aria-label={`Copy ${subject}`}
       className={cn(
-        "group relative flex h-10 items-center gap-1.5 border-t border-border transition-colors first:border-t-0",
-        "hover:bg-zinc-900/50 hover:ring-1 hover:ring-inset hover:ring-zinc-700/60",
+        "flex size-6 shrink-0 items-center justify-center rounded transition-all outline-none",
+        "hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-ring",
+        copied
+          ? "text-emerald-300"
+          : "text-zinc-600 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-zinc-300",
       )}
     >
-      <button
-        type="button"
-        onClick={copy}
-        aria-label={`Copy ${subject}`}
-        className="flex min-w-0 flex-1 items-center gap-2.5 self-stretch px-3 text-left outline-none transition-colors focus-visible:bg-zinc-900/60"
-      >
-        <ProviderIcon id={meta.id} />
-        <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-zinc-300">
-          {subject}
-        </span>
-        <span
-          className={cn(
-            "flex size-5 shrink-0 items-center justify-center rounded transition-all",
-            copied ? "text-emerald-300" : "text-zinc-600 opacity-0 group-hover:opacity-100",
-          )}
+      {copied ? (
+        <Check aria-hidden="true" className="size-3" />
+      ) : (
+        <Copy aria-hidden="true" className="size-3" />
+      )}
+    </button>
+  );
+
+  const statusBadge =
+    pending || status === undefined ? (
+      <span className="inline-flex h-5 animate-pulse items-center gap-1 rounded-full border border-zinc-700/40 bg-zinc-800/40 px-1.5 text-[10px] font-medium text-zinc-500">
+        <Clock aria-hidden="true" className="size-3" />
+        checking…
+      </span>
+    ) : (
+      <StatusBadge status={status} />
+    );
+
+  const identity = (
+    <>
+      <ProviderIcon id={meta.id} />
+      <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-zinc-300">{subject}</span>
+      {href !== null ? (
+        <ExternalLink
+          aria-hidden="true"
+          className="size-3 shrink-0 text-zinc-600 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+        />
+      ) : null}
+    </>
+  );
+
+  return (
+    <li className={sharedRowClasses}>
+      {href !== null ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer noopener"
+          aria-label={actionLabel ?? undefined}
+          className={mainAreaClasses}
         >
-          {copied ? (
-            <Check aria-hidden="true" className="size-3" />
-          ) : (
-            <Copy aria-hidden="true" className="size-3" />
-          )}
-        </span>
-      </button>
+          {identity}
+        </a>
+      ) : (
+        <button type="button" onClick={copy} className={mainAreaClasses}>
+          {identity}
+        </button>
+      )}
 
       <span className="flex shrink-0 items-center gap-1.5 pr-3">
-        {price !== null ? (
-          <span
-            className="hidden rounded border border-zinc-700/40 bg-zinc-800/40 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400 sm:inline"
-            title="Estimated first-year price at the selected registrar"
-          >
-            {price}/yr
-          </span>
-        ) : null}
-
-        {pending || status === undefined ? (
-          <span className="inline-flex h-5 animate-pulse items-center gap-1 rounded-full border border-zinc-700/40 bg-zinc-800/40 px-1.5 text-[10px] font-medium text-zinc-500">
-            <Clock aria-hidden="true" className="size-3" />
-            checking…
-          </span>
-        ) : (
-          <StatusBadge status={status} />
-        )}
-
-        {action !== null ? (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <a
-                  href={action.href}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  aria-label={`${action.label} ${subject}`}
-                  onClick={(event) => event.stopPropagation()}
-                  className={cn(
-                    "inline-flex h-6 items-center gap-1 rounded-md border px-2 text-[11px] font-medium transition-colors outline-none",
-                    "focus-visible:ring-2 focus-visible:ring-ring",
-                    action.primary
-                      ? "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
-                      : "border-border bg-zinc-900/40 text-zinc-300 hover:border-zinc-600 hover:text-zinc-100",
-                  )}
-                >
-                  {action.label}
-                  <ExternalLink aria-hidden="true" className="size-3" />
-                </a>
-              }
-            />
-            <TooltipContent side="top">
-              {action.label === "Register"
-                ? `Register on ${registrar.label}`
-                : action.label === "Visit"
-                  ? `Open ${subject}`
-                  : `Open ${action.label.toLowerCase()} page`}
-            </TooltipContent>
-          </Tooltip>
-        ) : null}
+        {showPrices ? <PriceChips provider={meta.id} subject={subject} /> : null}
+        {statusBadge}
+        {copyButton}
       </span>
     </li>
   );

@@ -345,6 +345,120 @@ describe("social:tiktok adapter", () => {
   });
 });
 
+describe("gitlab adapter", () => {
+  const gitlabDeps = (usersBody: string | null, usersStatus = 200, groupsStatus = 404) =>
+    makeDeps({
+      fetch: async (input) => {
+        const url = urlOf(input);
+        if (url.includes("/api/v4/users")) return new Response(usersBody, { status: usersStatus });
+        if (url.includes("/api/v4/groups")) return new Response(null, { status: groupsStatus });
+        return new Response(null, { status: 500 });
+      },
+    });
+
+  it("maps an existing user to taken", async () => {
+    const r = await check("gitlab", "acme", gitlabDeps('[{"username":"acme"}]'));
+    expect(r).toMatchObject({ status: "taken", available: false });
+  });
+
+  it("maps an existing group to taken", async () => {
+    const r = await check("gitlab", "acme", gitlabDeps("[]", 200, 200));
+    expect(r).toMatchObject({ status: "taken", available: false });
+  });
+
+  it("maps a private group (403) to taken", async () => {
+    const r = await check("gitlab", "acme", gitlabDeps("[]", 200, 403));
+    expect(r).toMatchObject({ status: "taken", available: false });
+  });
+
+  it("maps no user and no group to available", async () => {
+    const r = await check("gitlab", "acme", gitlabDeps("[]"));
+    expect(r).toMatchObject({ status: "available", available: true });
+  });
+
+  it("maps API errors to unknown", async () => {
+    const r = await check("gitlab", "acme", gitlabDeps(null, 500));
+    expect(r).toMatchObject({ status: "unknown", available: null });
+  });
+
+  it("rejects names GitLab cannot host", async () => {
+    const r = await check("gitlab", "a b", makeDeps());
+    expect(r).toMatchObject({ status: "invalid", available: false });
+  });
+});
+
+describe("pypi adapter", () => {
+  it("maps 404 to available", async () => {
+    const r = await check("pypi", "acme", statusDeps(404));
+    expect(r).toMatchObject({ status: "available", available: true, subject: "acme" });
+  });
+
+  it("maps 200 to taken and normalizes separators", async () => {
+    const r = await check("pypi", "Acme_Lib", statusDeps(200));
+    expect(r).toMatchObject({ status: "taken", available: false, subject: "acme-lib" });
+  });
+
+  it("maps unexpected statuses to unknown", async () => {
+    const r = await check("pypi", "acme", statusDeps(500));
+    expect(r).toMatchObject({ status: "unknown", available: null });
+  });
+
+  it("rejects names PyPI cannot host", async () => {
+    const r = await check("pypi", "-acme", statusDeps(404));
+    expect(r).toMatchObject({ status: "invalid", available: false });
+  });
+});
+
+describe("crates adapter", () => {
+  it("maps 404 to available", async () => {
+    const r = await check("crates", "acme", statusDeps(404));
+    expect(r).toMatchObject({ status: "available", available: true });
+  });
+
+  it("maps 200 to taken", async () => {
+    const r = await check("crates", "acme", statusDeps(200));
+    expect(r).toMatchObject({ status: "taken", available: false });
+  });
+
+  it("maps unexpected statuses to unknown", async () => {
+    const r = await check("crates", "acme", statusDeps(429));
+    expect(r).toMatchObject({ status: "unknown", available: null });
+  });
+
+  it("rejects names crates.io cannot host", async () => {
+    const r = await check("crates", "acme.lib", statusDeps(404));
+    expect(r).toMatchObject({ status: "invalid", available: false });
+  });
+});
+
+describe("dockerhub adapter", () => {
+  it("maps 404 to available", async () => {
+    const r = await check("dockerhub", "acme", statusDeps(404));
+    expect(r).toMatchObject({ status: "available", available: true });
+  });
+
+  it("maps 200 to taken", async () => {
+    const r = await check("dockerhub", "acme", statusDeps(200));
+    expect(r).toMatchObject({ status: "taken", available: false });
+  });
+
+  it("maps unexpected statuses to unknown", async () => {
+    const r = await check("dockerhub", "acme", statusDeps(500));
+    expect(r).toMatchObject({ status: "unknown", available: null });
+  });
+
+  it("rejects too-short namespaces and uppercase names", async () => {
+    expect(await check("dockerhub", "abc", statusDeps(404))).toMatchObject({
+      status: "invalid",
+      available: false,
+    });
+    expect(await check("dockerhub", "Acme", statusDeps(404))).toMatchObject({
+      status: "invalid",
+      available: false,
+    });
+  });
+});
+
 describe("provider isolation across the new adapters", () => {
   it("a hung social fetch degrades to unknown inside the timeout", async () => {
     const deps = makeDeps({

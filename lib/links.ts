@@ -2,16 +2,22 @@ import type { ProviderId } from "../src/schemas.js";
 
 /**
  * Smart routing for the availability matrix: where each provider's
- * register/claim and view-profile actions should deep-link, plus rough
- * first-year price hints for domains (badge only — real prices live at the
- * registrar and change constantly).
+ * register/claim and view-profile targets deep-link, plus per-registrar
+ * first-year price estimates for domains.
+ *
+ * Prices are static published-rate estimates in USD — there is no live
+ * registrar pricing API wired in, so every chip renders `~` and is labelled
+ * an estimate. A `null` entry means the registrar does not offer that TLD
+ * (or no published rate is tracked), shown as `—` rather than invented.
  */
 
-export type RegistrarId = "porkbun" | "cloudflare" | "namecheap";
+export type RegistrarId = "porkbun" | "cloudflare" | "namecheap" | "godaddy";
 
 export interface Registrar {
   id: RegistrarId;
   label: string;
+  /** Two-letter tag for the compact price-comparison chips. */
+  short: string;
   /** Registrar domain-search URL for a full domain like `acme.com`. */
   searchUrl: (domain: string) => string;
 }
@@ -20,41 +26,72 @@ export const REGISTRARS: readonly [Registrar, ...Registrar[]] = [
   {
     id: "porkbun",
     label: "Porkbun",
+    short: "PB",
     searchUrl: (domain) => `https://porkbun.com/checkout/search?q=${encodeURIComponent(domain)}`,
   },
   {
     id: "cloudflare",
     label: "Cloudflare",
+    short: "CF",
     searchUrl: (domain) => `https://domains.cloudflare.com/?domain=${encodeURIComponent(domain)}`,
   },
   {
     id: "namecheap",
     label: "Namecheap",
+    short: "NC",
     searchUrl: (domain) =>
       `https://www.namecheap.com/domains/registration/results/?domain=${encodeURIComponent(domain)}`,
+  },
+  {
+    id: "godaddy",
+    label: "GoDaddy",
+    short: "GD",
+    searchUrl: (domain) =>
+      `https://www.godaddy.com/domainsearch/find?domainToCheck=${encodeURIComponent(domain)}`,
   },
 ] as const;
 
 export const DEFAULT_REGISTRAR: RegistrarId = "porkbun";
 
-/** Rough first-year USD price hints per TLD, shown as an `~$/yr` badge. */
-const TLD_PRICE_ESTIMATE: Partial<Record<ProviderId, string>> = {
-  "domain:com": "~$11",
-  "domain:dev": "~$12",
-  "domain:io": "~$34",
-  "domain:ai": "~$68",
-  "domain:gg": "~$68",
-  "domain:app": "~$14",
-  "domain:pt": "~$12",
-  "domain:es": "~$9",
-  "domain:de": "~$8",
-  "domain:fr": "~$10",
-  "domain:uk": "~$8",
-  "domain:eu": "~$9",
+/**
+ * Rough first-year USD estimate per TLD and registrar. `null` = registrar
+ * does not carry the TLD (Cloudflare Registrar, for example, only supports
+ * a subset of gTLDs and no ccTLDs) — rendered as an honest `—`.
+ */
+const TLD_PRICE_ESTIMATES: Partial<
+  Record<ProviderId, Partial<Record<RegistrarId, number | null>>>
+> = {
+  "domain:com": { porkbun: 11, cloudflare: 10, namecheap: 11, godaddy: 13 },
+  "domain:dev": { porkbun: 12, cloudflare: 13, namecheap: 13, godaddy: 17 },
+  "domain:io": { porkbun: 34, cloudflare: null, namecheap: 33, godaddy: 45 },
+  "domain:ai": { porkbun: 68, cloudflare: null, namecheap: 68, godaddy: 100 },
+  "domain:gg": { porkbun: 68, cloudflare: null, namecheap: 70, godaddy: 90 },
+  "domain:app": { porkbun: 14, cloudflare: 15, namecheap: 13, godaddy: 20 },
+  "domain:pt": { porkbun: 12, cloudflare: null, namecheap: 14, godaddy: 25 },
+  "domain:es": { porkbun: 9, cloudflare: null, namecheap: 10, godaddy: 12 },
+  "domain:de": { porkbun: 8, cloudflare: null, namecheap: 9, godaddy: 10 },
+  "domain:fr": { porkbun: 10, cloudflare: null, namecheap: 12, godaddy: 13 },
+  "domain:uk": { porkbun: 8, cloudflare: null, namecheap: 9, godaddy: 10 },
+  "domain:eu": { porkbun: 9, cloudflare: null, namecheap: 9, godaddy: 10 },
 };
 
-export function tldPriceEstimate(provider: ProviderId): string | null {
-  return TLD_PRICE_ESTIMATE[provider] ?? null;
+export interface RegistrarPrice {
+  registrar: Registrar;
+  /** USD first-year estimate, or null when the TLD is not carried. */
+  estimate: number | null;
+}
+
+/**
+ * Every registrar's estimate for a TLD, in REGISTRARS order. Returns `[]`
+ * for non-domain providers or TLDs with no tracked pricing.
+ */
+export function tldPrices(provider: ProviderId): readonly RegistrarPrice[] {
+  const table = TLD_PRICE_ESTIMATES[provider];
+  if (table === undefined) return [];
+  return REGISTRARS.map((registrar) => ({
+    registrar,
+    estimate: table[registrar.id] ?? null,
+  }));
 }
 
 interface PlatformLinks {
@@ -65,13 +102,33 @@ interface PlatformLinks {
 }
 
 const PLATFORM_LINKS: Partial<Record<ProviderId, PlatformLinks>> = {
-  github: {
+  "github:user": {
     claim: () => "https://github.com/signup",
     profile: (name) => `https://github.com/${name}`,
+  },
+  "github:org": {
+    claim: () => "https://github.com/account/organizations/new",
+    profile: (name) => `https://github.com/${name}`,
+  },
+  gitlab: {
+    claim: () => "https://gitlab.com/users/sign_up",
+    profile: (name) => `https://gitlab.com/${name}`,
   },
   npm: {
     claim: () => "https://www.npmjs.com/signup",
     profile: (name) => `https://www.npmjs.com/package/${name}`,
+  },
+  pypi: {
+    claim: () => "https://pypi.org/account/register/",
+    profile: (name) => `https://pypi.org/project/${name}`,
+  },
+  crates: {
+    claim: () => "https://crates.io/login",
+    profile: (name) => `https://crates.io/crates/${name}`,
+  },
+  dockerhub: {
+    claim: () => "https://hub.docker.com/signup",
+    profile: (name) => `https://hub.docker.com/u/${name}`,
   },
   "social:x": {
     claim: () => "https://x.com/i/flow/signup",

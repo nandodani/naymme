@@ -36,7 +36,7 @@ export function availabilityStats(data: CheckAvailabilityOutput | null): Availab
   if (data === null || data.results.length === 0) return null;
   const tld = count(data.results, (id) => id.startsWith("domain:"));
   const social = count(data.results, (id) => id.startsWith("social:"));
-  const dev = count(data.results, (id) => id === "github" || id === "npm");
+  const dev = count(data.results, (id) => !id.startsWith("domain:") && !id.startsWith("social:"));
   const fraction = (c: CategoryCount) => (c.total === 0 ? 0 : c.free / c.total);
   // .com anchors a brand, so it counts triple inside the composite rating
   // even though the displayed TLD metric is a plain count.

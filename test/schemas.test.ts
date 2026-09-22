@@ -82,8 +82,8 @@ describe("resolveProviderIds", () => {
   });
 
   it("de-duplicates while preserving order", () => {
-    expect(resolveProviderIds(["github", "domains", "github", "npm"])).toEqual([
-      "github",
+    expect(resolveProviderIds(["github:user", "domains", "github:user", "npm"])).toEqual([
+      "github:user",
       "domain:com",
       "domain:gg",
       "domain:dev",
@@ -118,9 +118,9 @@ describe("checkAvailabilityInputSchema", () => {
   it("accepts provider ids and aliases", () => {
     const parsed = checkAvailabilityInputSchema.parse({
       name: "acme",
-      providers: ["github", "domains"],
+      providers: ["github:user", "domains"],
     });
-    expect(parsed.providers).toEqual(["github", "domains"]);
+    expect(parsed.providers).toEqual(["github:user", "domains"]);
   });
 
   it("rejects unknown providers", () => {

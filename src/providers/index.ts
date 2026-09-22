@@ -1,8 +1,14 @@
 import type { ProviderDeps } from "../deps.js";
 import type { ProviderId } from "../schemas.js";
 import type { ProviderAdapter } from "../types.js";
+import {
+  createCratesAdapter,
+  createDockerHubAdapter,
+  createGitLabAdapter,
+  createPyPiAdapter,
+} from "./devplatforms.js";
 import { createDomainAdapter } from "./domain.js";
-import { createGitHubAdapter } from "./github.js";
+import { createGitHubLookup, createGitHubOrgAdapter, createGitHubUserAdapter } from "./github.js";
 import { createNpmAdapter } from "./npm.js";
 import { createRdapClient } from "./rdap.js";
 import {
@@ -20,6 +26,8 @@ import {
  */
 export function createAdapters(deps: ProviderDeps): Record<ProviderId, ProviderAdapter> {
   const rdap = createRdapClient(deps);
+  // One memoized /users lookup feeds both the GitHub user and org checks.
+  const githubLookup = createGitHubLookup(deps);
   return {
     "domain:com": createDomainAdapter("com", deps, rdap),
     "domain:gg": createDomainAdapter("gg", deps, rdap),
@@ -33,8 +41,13 @@ export function createAdapters(deps: ProviderDeps): Record<ProviderId, ProviderA
     "domain:fr": createDomainAdapter("fr", deps, rdap),
     "domain:uk": createDomainAdapter("uk", deps, rdap),
     "domain:eu": createDomainAdapter("eu", deps, rdap),
-    github: createGitHubAdapter(deps),
+    "github:user": createGitHubUserAdapter(githubLookup),
+    "github:org": createGitHubOrgAdapter(githubLookup),
+    gitlab: createGitLabAdapter(deps),
     npm: createNpmAdapter(deps),
+    pypi: createPyPiAdapter(deps),
+    crates: createCratesAdapter(deps),
+    dockerhub: createDockerHubAdapter(deps),
     "social:x": createXAdapter(deps),
     "social:bluesky": createBlueskyAdapter(deps),
     "social:instagram": createInstagramAdapter(deps),
