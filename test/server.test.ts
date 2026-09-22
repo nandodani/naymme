@@ -39,14 +39,14 @@ describe("MCP server (in-memory transport)", () => {
     const { client } = await makeClientServer();
     const res = await client.callTool({
       name: "check_availability",
-      arguments: { name: "acme", providers: ["github", "npm"] },
+      arguments: { name: "acme", providers: ["github:user", "npm"] },
     });
     const out = res.structuredContent as {
       name: string;
       results: Array<{ provider: string; status: string }>;
       summary: Record<string, number>;
     };
-    expect(out.results.map((r) => r.provider)).toEqual(["github", "npm"]);
+    expect(out.results.map((r) => r.provider)).toEqual(["github:user", "npm"]);
     expect(out.summary.available).toBe(2);
   });
 

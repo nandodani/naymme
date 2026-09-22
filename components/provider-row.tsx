@@ -1,64 +1,187 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Check, CheckCircle2, Clock, Copy, ExternalLink, Globe, XCircle } from "lucide-react";
+import { useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { CheckCircle2, Clock, Globe, XCircle } from "lucide-react";
 
 import { BRAND_ICONS } from "./brand-icons.js";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip.js";
+import { RegistrarIcon } from "./registrar-icons.js";
 import { cn } from "@/lib/utils.js";
-import { platformLinks, tldPriceEstimate, type Registrar } from "@/lib/links.js";
+import { platformLinks, REGISTRARS, tldPrices } from "@/lib/links.js";
 import type { ProviderMeta } from "@/lib/provider-meta.js";
 import type { AvailabilityResult, AvailabilityStatus } from "@/src/types.js";
 
-const STATUS_STYLES: Record<
-  AvailabilityStatus,
-  { badge: string; icon: typeof CheckCircle2; label: string }
-> = {
-  available: {
-    badge: "border-emerald-400/25 bg-emerald-400/10 text-emerald-300",
-    icon: CheckCircle2,
-    label: "available",
-  },
-  taken: {
-    badge: "border-zinc-500/25 bg-zinc-500/10 text-zinc-400",
-    icon: XCircle,
-    label: "taken",
-  },
-  unknown: {
-    badge: "border-amber-400/25 bg-amber-400/10 text-amber-300",
-    icon: Clock,
-    label: "unknown",
-  },
-  invalid: {
-    badge: "border-zinc-700/25 bg-zinc-700/10 text-zinc-500",
-    icon: XCircle,
-    label: "invalid",
-  },
+const STATUS_GLYPHS: Record<AvailabilityStatus, typeof CheckCircle2> = {
+  available: CheckCircle2,
+  taken: XCircle,
+  unknown: Clock,
+  invalid: XCircle,
 };
 
-function ProviderIcon({ id }: { id: string }) {
-  if (id.startsWith("domain:")) {
-    return <Globe aria-hidden="true" className="size-3.5 text-zinc-500" />;
+/** Brand-icon tint keyed off availability — green glow when free, muted
+ * red/amber/zinc otherwise. Color is never the only signal: each row also
+ * carries a sr-only status text and the anchors include it in their
+ * aria-label. */
+const ICON_TINTS: Record<AvailabilityStatus, string> = {
+  available: "text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.4)]",
+  taken: "text-red-400/70",
+  unknown: "text-amber-400/70",
+  invalid: "text-zinc-600",
+};
+
+/** Floating availability chip tint — matches the icon's status color. */
+const CHIP_TINTS: Record<AvailabilityStatus, string> = {
+  available: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
+  taken: "border-red-400/30 bg-red-400/10 text-red-300",
+  unknown: "border-amber-400/30 bg-amber-400/10 text-amber-300",
+  invalid: "border-zinc-700/60 bg-zinc-800/60 text-zinc-400",
+};
+
+const MORPH_SPRING = { type: "spring", stiffness: 500, damping: 30 } as const;
+const CHIP_SPRING = { type: "spring", stiffness: 420, damping: 28 } as const;
+
+/**
+ * Platform brand mark tinted by availability. While the icon's own hover /
+ * focus target is engaged (`revealed`) it springs out of the way — the
+ * status chip carries the glyph instead. Composited opacity/scale only,
+ * reduced to a plain fade under prefers-reduced-motion. During a pending
+ * check it pulses zinc.
+ */
+function RowIcon({
+  id,
+  status,
+  pending,
+  revealed,
+}: {
+  id: string;
+  status: AvailabilityStatus | undefined;
+  pending: boolean;
+  revealed: boolean;
+}) {
+  const reduce = useReducedMotion();
+  const Icon = BRAND_ICONS[id as keyof typeof BRAND_ICONS] ?? Globe;
+  if (pending || status === undefined) {
+    return (
+      <Icon
+        aria-hidden="true"
+        className={cn("size-3.5 shrink-0 text-zinc-600", pending && "animate-pulse")}
+      />
+    );
   }
-  const Icon = BRAND_ICONS[id as keyof typeof BRAND_ICONS];
-  if (Icon === undefined) {
-    return <Globe aria-hidden="true" className="size-3.5 text-zinc-500" />;
-  }
-  return <Icon aria-hidden="true" className="size-3.5 text-zinc-400" />;
+  const tint = ICON_TINTS[status];
+  return (
+    <span className="relative flex size-3.5 shrink-0 items-center" aria-hidden="true">
+      <motion.span
+        className="absolute inset-0 flex items-center justify-center"
+        initial={false}
+        animate={{
+          opacity: revealed ? 0 : 1,
+          scale: reduce ? 1 : revealed ? 0.75 : 1,
+        }}
+        transition={reduce ? { duration: 0.15 } : MORPH_SPRING}
+      >
+        <Icon className={cn("size-3.5", tint)} />
+      </motion.span>
+    </span>
+  );
 }
 
-function StatusBadge({ status }: { status: AvailabilityStatus }) {
-  const style = STATUS_STYLES[status];
-  const Icon = style.icon;
+/**
+ * Floating availability pill — status glyph + label as one unified chip.
+ * It swaps in at the icon slot when the icon target is hovered/focused,
+ * staying local to the start of the row on a z-raised layer with a 1px
+ * border and soft shadow. A marquee-style black gradient shade trails
+ * ~90px to the right, fading the row text behind it into the OLED
+ * background instead of blurring. pointer-events-none — it never
+ * intercepts the row's own click target; status stays in the a11y tree
+ * via sr-only text.
+ */
+function StatusChip({ status, visible }: { status: AvailabilityStatus; visible: boolean }) {
+  const reduce = useReducedMotion();
+  const Glyph = STATUS_GLYPHS[status];
   return (
     <span
-      className={cn(
-        "inline-flex h-5 shrink-0 items-center gap-1 rounded-full border px-1.5 text-[10px] font-medium",
-        style.badge,
-      )}
+      aria-hidden="true"
+      className="pointer-events-none absolute top-1/2 left-2 z-10 -translate-y-1/2"
     >
-      <Icon aria-hidden="true" className="size-3" />
-      {style.label}
+      <AnimatePresence>
+        {visible
+          ? [
+              <motion.span
+                key="shade"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, transition: { duration: 0.15, ease: "easeOut" } }}
+                transition={CHIP_SPRING}
+                className="absolute top-0 -left-2 h-9 w-44 -translate-y-1/2 bg-gradient-to-r from-black via-black/70 to-transparent"
+              />,
+              <motion.span
+                key="chip"
+                initial={{
+                  opacity: 0,
+                  x: reduce ? 0 : -4,
+                  scale: reduce ? 1 : 0.9,
+                }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{
+                  opacity: 0,
+                  x: reduce ? 0 : -4,
+                  scale: reduce ? 1 : 0.95,
+                  transition: { duration: 0.15, ease: "easeOut" },
+                }}
+                transition={reduce ? { duration: 0.15 } : CHIP_SPRING}
+                style={{ translate: "0 -50%", transformOrigin: "left center" }}
+                className={cn(
+                  "absolute top-0 left-0 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5",
+                  "text-[10px] font-medium tracking-[0.08em] uppercase",
+                  "shadow-2xl shadow-black backdrop-blur-md",
+                  CHIP_TINTS[status],
+                )}
+              >
+                <Glyph className="size-3" />
+                {status}
+              </motion.span>,
+            ]
+          : null}
+      </AnimatePresence>
+    </span>
+  );
+}
+
+/**
+ * Compact per-registrar first-year price estimate for one TLD. Each chip is
+ * a real link to that registrar's domain search; `—` means the registrar
+ * doesn't carry the TLD. Prices are static estimates — no live pricing API.
+ */
+function PriceChips({ provider, subject }: { provider: string; subject: string }) {
+  const prices = tldPrices(provider as Parameters<typeof tldPrices>[0]);
+  if (prices.length === 0) return null;
+  return (
+    <span className="hidden items-center gap-1 xl:flex" aria-label="First-year price estimates">
+      {prices.map(({ registrar, estimate }) =>
+        estimate === null ? (
+          <span
+            key={registrar.id}
+            title={`${registrar.label} does not carry this TLD`}
+            className="inline-flex h-5 items-center gap-1 rounded border border-zinc-800/60 px-1.5 font-mono text-[9px] text-zinc-600"
+          >
+            <RegistrarIcon id={registrar.id} className="text-zinc-600" />—
+          </span>
+        ) : (
+          <a
+            key={registrar.id}
+            href={registrar.searchUrl(subject)}
+            target="_blank"
+            rel="noreferrer noopener"
+            title={`~$${estimate}/yr at ${registrar.label} (estimate)`}
+            aria-label={`Register ${subject} at ${registrar.label}, estimated ~$${estimate} per year`}
+            className="inline-flex h-5 items-center gap-1 rounded border border-zinc-700/40 bg-zinc-800/40 px-1.5 font-mono text-[9px] text-zinc-400 transition-colors outline-none hover:border-zinc-500/60 hover:text-zinc-200 focus-visible:border-zinc-500/60 focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <RegistrarIcon id={registrar.id} />
+            ~${estimate}
+          </a>
+        ),
+      )}
     </span>
   );
 }
@@ -71,137 +194,119 @@ interface ProviderRowProps {
   result: AvailabilityResult | undefined;
   /** A check is in flight and no (or stale) result exists for this row. */
   pending: boolean;
-  /** Registrar chosen for the current session (domains only). */
-  registrar: Registrar;
-  /** Copy `subject` to the clipboard and fire the shared toast. */
-  onCopy: (text: string, label: string) => void;
 }
 
-export function ProviderRow({ meta, name, result, pending, registrar, onCopy }: ProviderRowProps) {
-  const [copied, setCopied] = useState(false);
-  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(
-    () => () => {
-      if (copyTimer.current !== null) clearTimeout(copyTimer.current);
-    },
-    [],
-  );
-
+/**
+ * One result line. The whole row is the action — an anchor when the status
+ * yields a target (register/claim for free names, live site/profile for
+ * taken ones), static text otherwise. Availability is expressed purely by
+ * icon tint (status text stays in the a11y tree via sr-only/aria-label).
+ * Only the icon is the status trigger: hovering/focusing it morphs the
+ * brand mark into the status glyph and pops the status chip right next to
+ * it — the rest of the row never triggers it. Available domains link to
+ * the first registrar carrying the TLD while the price chips offer every
+ * registrar.
+ */
+export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
+  const [revealed, setRevealed] = useState(false);
+  const reduceMotion = useReducedMotion();
   const isDomain = meta.id.startsWith("domain:");
   const subject =
     result?.subject ??
     (isDomain ? `${name}${meta.label}` : meta.id.startsWith("social:") ? `@${name}` : name);
   const status = result?.status;
+  const statusText = pending || status === undefined ? "checking" : status;
   const links = platformLinks(meta.id);
+  const prices = isDomain && status === "available" ? tldPrices(meta.id) : [];
 
-  const copy = () => {
-    onCopy(subject, `Copied ${subject}`);
-    setCopied(true);
-    if (copyTimer.current !== null) clearTimeout(copyTimer.current);
-    copyTimer.current = setTimeout(() => setCopied(false), 1400);
-  };
-
-  let action: { href: string; label: string; primary: boolean } | null = null;
+  // The row's link target and its accessible label.
+  let href: string | null = null;
+  let actionLabel: string | null = null;
   if (status === "available") {
     if (isDomain) {
-      action = { href: registrar.searchUrl(subject), label: "Register", primary: true };
+      const carrier = prices.find((p) => p.estimate !== null)?.registrar ?? REGISTRARS[0];
+      href = carrier.searchUrl(subject);
+      actionLabel = `Register ${subject} at ${carrier.label}`;
     } else if (links !== null) {
-      action = { href: links.claim(name), label: "Claim", primary: true };
+      href = links.claim(name);
+      actionLabel = `Claim ${subject} on ${meta.label}`;
     }
   } else if (status === "taken") {
     if (isDomain) {
-      action = { href: `https://${subject}`, label: "Visit", primary: false };
+      href = `https://${subject}`;
+      actionLabel = `Visit ${subject}`;
     } else if (links !== null) {
-      action = { href: links.profile(name), label: "Profile", primary: false };
+      href = links.profile(name);
+      actionLabel = `Open the ${meta.label} page for ${subject}`;
     }
   }
 
-  const price = status === "available" && isDomain ? tldPriceEstimate(meta.id) : null;
+  const sharedRowClasses = cn(
+    "group relative flex h-10 items-center border-t border-border transition-colors first:border-t-0",
+    href !== null && "cursor-pointer hover:bg-zinc-900/50",
+  );
+
+  const identity = (
+    <>
+      {isDomain ? null : (
+        <span className="shrink-0 text-[10px] font-medium text-zinc-600">{meta.label}</span>
+      )}
+      <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-zinc-300">{subject}</span>
+      <span className="sr-only">{statusText}</span>
+    </>
+  );
 
   return (
-    <li
-      className={cn(
-        "group relative flex h-9 items-center gap-1.5 border-t border-border transition-colors first:border-t-0",
-        "hover:bg-zinc-900/50 hover:ring-1 hover:ring-inset hover:ring-zinc-700/60",
-      )}
+    // motion.li so the "Available only" filter can blur+scale+fade rows out
+    // (AnimatePresence in ProviderCard) and slide survivors into place.
+    <motion.li
+      layout
+      initial={false}
+      exit={
+        reduceMotion
+          ? { opacity: 0, transition: { duration: 0.12 } }
+          : { opacity: 0, scale: 0.96, filter: "blur(4px)", transition: { duration: 0.16 } }
+      }
+      className={sharedRowClasses}
+      title={isDomain ? undefined : statusText}
     >
-      <button
-        type="button"
-        onClick={copy}
-        aria-label={`Copy ${subject}`}
-        className="flex min-w-0 flex-1 items-center gap-2.5 self-stretch px-3 text-left outline-none transition-colors focus-visible:bg-zinc-900/60"
+      {/* Icon-scoped status trigger: hover/focus on this target alone
+          reveals the chip — the rest of the row never does. */}
+      <span
+        tabIndex={0}
+        aria-label={`${meta.label} ${subject} — ${statusText}`}
+        onMouseEnter={() => setRevealed(true)}
+        onMouseLeave={() => setRevealed(false)}
+        onFocus={() => setRevealed(true)}
+        onBlur={() => setRevealed(false)}
+        className="flex shrink-0 cursor-default items-center self-stretch pr-1 pl-3 outline-none focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
-        <ProviderIcon id={meta.id} />
-        <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-zinc-300">
-          {subject}
-        </span>
-        <span
-          className={cn(
-            "flex size-5 shrink-0 items-center justify-center rounded transition-all",
-            copied ? "text-emerald-300" : "text-zinc-600 opacity-0 group-hover:opacity-100",
-          )}
-        >
-          {copied ? (
-            <Check aria-hidden="true" className="size-3" />
-          ) : (
-            <Copy aria-hidden="true" className="size-3" />
-          )}
-        </span>
-      </button>
-
-      <span className="flex shrink-0 items-center gap-1.5 pr-3">
-        {price !== null ? (
-          <span
-            className="hidden rounded border border-zinc-700/40 bg-zinc-800/40 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400 sm:inline"
-            title="Estimated first-year price at the selected registrar"
-          >
-            {price}/yr
-          </span>
-        ) : null}
-
-        {pending || status === undefined ? (
-          <span className="inline-flex h-5 animate-pulse items-center gap-1 rounded-full border border-zinc-700/40 bg-zinc-800/40 px-1.5 text-[10px] font-medium text-zinc-500">
-            <Clock aria-hidden="true" className="size-3" />
-            checking…
-          </span>
-        ) : (
-          <StatusBadge status={status} />
-        )}
-
-        {action !== null ? (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <a
-                  href={action.href}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  aria-label={`${action.label} ${subject}`}
-                  onClick={(event) => event.stopPropagation()}
-                  className={cn(
-                    "inline-flex h-6 items-center gap-1 rounded-md border px-2 text-[11px] font-medium transition-colors outline-none",
-                    "focus-visible:ring-2 focus-visible:ring-ring",
-                    action.primary
-                      ? "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
-                      : "border-border bg-zinc-900/40 text-zinc-300 hover:border-zinc-600 hover:text-zinc-100",
-                  )}
-                >
-                  {action.label}
-                  <ExternalLink aria-hidden="true" className="size-3" />
-                </a>
-              }
-            />
-            <TooltipContent side="top">
-              {action.label === "Register"
-                ? `Register on ${registrar.label}`
-                : action.label === "Visit"
-                  ? `Open ${subject}`
-                  : `Open ${action.label.toLowerCase()} page`}
-            </TooltipContent>
-          </Tooltip>
-        ) : null}
+        <RowIcon id={meta.id} status={status} pending={pending} revealed={revealed} />
       </span>
-    </li>
+
+      {href !== null ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer noopener"
+          aria-label={`${actionLabel ?? subject} — ${statusText}`}
+          className="flex min-w-0 flex-1 items-center gap-2.5 self-stretch pr-3 pl-1.5 text-left outline-none focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        >
+          {identity}
+        </a>
+      ) : (
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 self-stretch pr-3 pl-1.5 text-left">
+          {identity}
+        </div>
+      )}
+
+      {status !== undefined && !pending ? <StatusChip status={status} visible={revealed} /> : null}
+
+      {prices.length > 0 ? (
+        <span className="flex shrink-0 items-center gap-1.5 pr-3">
+          <PriceChips provider={meta.id} subject={subject} />
+        </span>
+      ) : null}
+    </motion.li>
   );
 }

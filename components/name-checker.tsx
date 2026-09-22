@@ -1,36 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Code2, Globe, LayoutGrid, Users } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { Atom } from "loading-dev";
 
 import { nameSchema } from "@/src/schemas.js";
 import { scoreName, type NameScore } from "@/src/scoring/score.js";
 import type { AvailabilityResponse } from "@/lib/availability.js";
-import { AvailabilityGrid, type AvailabilityFilter } from "./availability-grid.js";
-import { BrandScoreCard } from "./brand-score-card.js";
-import { ConfigCard } from "./config-card.js";
-import { CopyToast } from "./toast.js";
+import { Hero } from "./hero.js";
+import { Navbar } from "./navbar.js";
+import { ResultsGrid } from "./results-grid.js";
 import { SearchInput } from "./search-input.js";
-import { ContinuousTabs, type ContinuousTabItem } from "./watermelon/continuous-tabs.js";
+import Silk from "./silk.js";
+import { CopyToast } from "./toast.js";
 import { TooltipProvider } from "./ui/tooltip.js";
-
-const DEBOUNCE_MS = 320;
-
-const FILTER_TABS: ContinuousTabItem[] = [
-  { id: "all", label: "All", icon: <LayoutGrid aria-hidden="true" className="size-3.5" /> },
-  {
-    id: "available",
-    label: "Available",
-    icon: <CheckCircle2 aria-hidden="true" className="size-3.5" />,
-  },
-  { id: "domains", label: "Domains", icon: <Globe aria-hidden="true" className="size-3.5" /> },
-  { id: "socials", label: "Socials", icon: <Users aria-hidden="true" className="size-3.5" /> },
-  {
-    id: "developer",
-    label: "Developer",
-    icon: <Code2 aria-hidden="true" className="size-3.5" />,
-  },
-];
 
 function normalize(raw: string): string {
   return raw.trim().toLowerCase();
@@ -54,12 +37,12 @@ async function copyText(text: string): Promise<void> {
 
 export function NameChecker() {
   const [query, setQuery] = useState("");
-  const [debouncedName, setDebouncedName] = useState("");
+  /** The name a search was explicitly run for (Enter / Search button / ?q=). */
+  const [searchedName, setSearchedName] = useState("");
   const [availability, setAvailability] = useState<AvailabilityResponse | null>(null);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadTick, setReloadTick] = useState(0);
-  const [filter, setFilter] = useState<AvailabilityFilter>("all");
   const [toast, setToast] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const requestSeq = useRef(0);
@@ -67,10 +50,38 @@ export function NameChecker() {
 
   const name = normalize(query);
   const nameValid = name.length > 0 && nameSchema.safeParse(name).success;
+  // The score tracks the explicitly searched name so the bento stays
+  // consistent while the user drafts their next query.
   const score: NameScore | null = useMemo(
-    () => (nameValid ? scoreName(name) : null),
-    [nameValid, name],
+    () => (searchedName === "" ? null : scoreName(searchedName)),
+    [searchedName],
   );
+
+  const searched = searchedName !== "";
+  const reduceMotion = useReducedMotion();
+  /** hero → atom loader → sharp results; the loader replaces the view while
+   * checks are in flight so old results never peek through. */
+  const phase = !searched ? "hero" : checking ? "loading" : "results";
+  const blurOut = reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.98, filter: "blur(16px)" };
+  const blurIn = reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.98, filter: "blur(12px)" };
+  const sharp = reduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, filter: "blur(0px)" };
+
+  /** Explicit search — fires on Enter or the Search button, never on typing. */
+  const submitSearch = useCallback(() => {
+    if (!nameValid) {
+      setSearchedName("");
+      return;
+    }
+    // Flip to the loading phase in the same commit so the outgoing view
+    // blurs straight into the atom loader.
+    setChecking(true);
+    if (name === searchedName) {
+      // Re-submitting the same name re-runs the check (fresh availability).
+      setReloadTick((tick) => tick + 1);
+      return;
+    }
+    setSearchedName(name);
+  }, [name, nameValid, searchedName]);
 
   const notify = useCallback((text: string, label: string) => {
     void copyText(text);
@@ -79,13 +90,17 @@ export function NameChecker() {
     toastTimer.current = setTimeout(() => setToast(null), 2200);
   }, []);
 
-  // Seed the query from ?q= on mount (shareable searches).
+  // Seed the query from ?q= on mount and run it (shareable searches).
   useEffect(() => {
     const initial = new URLSearchParams(window.location.search).get("q");
-    if (initial !== null && initial !== "") setQuery(initial);
+    if (initial === null || initial === "") return;
+    setQuery(initial);
+    const normalized = normalize(initial);
+    if (nameSchema.safeParse(normalized).success) setSearchedName(normalized);
   }, []);
 
-  // Autofocus + ⌘K / Ctrl+K / "/" to refocus from anywhere.
+  // Autofocus, ⌘K / Ctrl+K / "/" to refocus, and keep focus across the
+  // hero → results transition (the input remounts into the compact variant).
   useEffect(() => {
     inputRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
@@ -109,35 +124,36 @@ export function NameChecker() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [searched, phase]);
+
   // Back/forward navigation re-reads ?q=.
   useEffect(() => {
     const onPopState = () => {
-      setQuery(new URLSearchParams(window.location.search).get("q") ?? "");
+      const raw = new URLSearchParams(window.location.search).get("q") ?? "";
+      setQuery(raw);
+      const normalized = normalize(raw);
+      setSearchedName(nameSchema.safeParse(normalized).success ? normalized : "");
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  // Debounce the validated name.
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedName(nameValid ? name : ""), DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-  }, [name, nameValid]);
-
-  // Keep ?q= in sync so searches are shareable.
+  // Keep ?q= in sync so executed searches are shareable.
   useEffect(() => {
     const url = new URL(window.location.href);
-    if (debouncedName === "") {
+    if (searchedName === "") {
       url.searchParams.delete("q");
     } else {
-      url.searchParams.set("q", debouncedName);
+      url.searchParams.set("q", searchedName);
     }
     window.history.replaceState(null, "", url);
-  }, [debouncedName]);
+  }, [searchedName]);
 
-  // Fetch availability whenever the debounced name changes.
+  // Fetch availability whenever the explicitly searched name changes.
   useEffect(() => {
-    if (debouncedName === "") {
+    if (searchedName === "") {
       setAvailability(null);
       setChecking(false);
       setError(null);
@@ -148,7 +164,7 @@ export function NameChecker() {
     setChecking(true);
     setError(null);
 
-    fetch(`/api/availability?name=${encodeURIComponent(debouncedName)}`, {
+    fetch(`/api/availability?name=${encodeURIComponent(searchedName)}`, {
       signal: controller.signal,
     })
       .then(async (res) => {
@@ -166,100 +182,98 @@ export function NameChecker() {
       });
 
     return () => controller.abort();
-  }, [debouncedName, reloadTick]);
+  }, [searchedName, reloadTick]);
 
   const retry = useCallback(() => setReloadTick((tick) => tick + 1), []);
 
   return (
     <TooltipProvider>
       <div className="flex min-h-screen flex-col">
-        <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
-          <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4 sm:px-6">
-            <a
-              href="/"
-              aria-label="lmkurname home"
-              className="flex shrink-0 items-center gap-2.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10">
+          <Silk speed={5.4} scale={0.5} color="#262626" noiseIntensity={2.7} rotation={0} />
+        </div>
+        <Navbar onCopy={notify} />
+
+        <AnimatePresence mode="wait" initial={false}>
+          {phase === "hero" ? (
+            <motion.div
+              key="hero"
+              exit={blurOut}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+              className="flex flex-1 flex-col"
             >
-              <span className="flex size-6 items-center justify-center rounded-md border border-border bg-zinc-900">
-                <span className="size-1.5 rounded-full bg-primary" />
-              </span>
-              <span className="hidden text-[13px] font-semibold tracking-tight text-foreground sm:inline">
-                lmkurname
-              </span>
-            </a>
-            <div className="min-w-0 flex-1 sm:max-w-md">
-              <SearchInput ref={inputRef} value={query} onChange={setQuery} valid={nameValid} />
-            </div>
-            <div className="ml-auto flex shrink-0 items-center gap-2">
-              {availability?.mode === "demo" ? (
-                <span className="rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
-                  demo data
-                </span>
-              ) : null}
-              <span className="hidden items-center rounded-md border border-border bg-zinc-900/60 px-2 py-1 font-mono text-[10px] text-zinc-400 md:inline-flex">
-                POST /api/mcp
-              </span>
-            </div>
-          </div>
-        </header>
-
-        <main className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 gap-3 px-4 py-5 sm:px-6 lg:grid-cols-[400px_1fr]">
-          <div className="flex flex-col gap-3">
-            <BrandScoreCard
-              score={score}
-              availability={availability}
-              checking={checking}
-              name={debouncedName || name}
-              onCopy={notify}
-            />
-            <ConfigCard onCopy={notify} />
-          </div>
-
-          <div className="flex min-w-0 flex-col gap-3">
-            <div className="flex items-center justify-between gap-3">
-              <ContinuousTabs
-                id="availability-filter"
-                aria-label="Filter availability results"
-                tabs={FILTER_TABS}
-                value={filter}
-                onChange={(id) => setFilter(id as AvailabilityFilter)}
+              <Hero
+                value={query}
+                onChange={setQuery}
+                onSubmit={submitSearch}
+                valid={nameValid}
+                inputRef={inputRef}
               />
-              <div className="flex shrink-0 items-center gap-2">
-                {checking ? (
-                  <span className="inline-flex animate-pulse items-center gap-1 text-[11px] text-zinc-500">
-                    <span className="size-1.5 rounded-full bg-primary" />
-                    checking…
-                  </span>
-                ) : availability !== null ? (
-                  <span className="text-[11px] text-zinc-500 tabular-nums">
+            </motion.div>
+          ) : phase === "loading" ? (
+            <motion.div
+              key="loading"
+              role="status"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black"
+            >
+              <Atom size={44} className="text-zinc-300" />
+              <span className="sr-only">Checking availability…</span>
+            </motion.div>
+          ) : (
+            <motion.main
+              key="results"
+              initial={blurIn}
+              animate={sharp}
+              exit={blurOut}
+              transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
+              className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 sm:px-6"
+            >
+              <div className="mx-auto max-w-xl pt-7 pb-8">
+                <SearchInput
+                  ref={inputRef}
+                  value={query}
+                  onChange={setQuery}
+                  onSubmit={submitSearch}
+                  valid={nameValid}
+                  variant="compact"
+                />
+              </div>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <span className="font-mono text-[11px] text-zinc-500">
+                  results for <span className="text-zinc-300">{searchedName}</span>
+                </span>
+                {availability !== null ? (
+                  <span className="font-mono text-[11px] text-zinc-500 tabular-nums">
                     {availability.summary.available} free · {availability.summary.taken} taken
                   </span>
                 ) : null}
               </div>
-            </div>
+              <ResultsGrid
+                name={searchedName}
+                score={score}
+                data={availability}
+                checking={checking}
+                error={error}
+                onRetry={retry}
+                onCopy={notify}
+              />
+            </motion.main>
+          )}
+        </AnimatePresence>
 
-            <AvailabilityGrid
-              name={debouncedName}
-              data={availability}
-              checking={checking}
-              error={error}
-              onRetry={retry}
-              filter={filter}
-              onCopy={notify}
-            />
-          </div>
-        </main>
-
-        <footer className="flex h-10 shrink-0 items-center justify-between gap-3 border-t border-border px-4 text-[11px] text-zinc-600 sm:px-6">
+        <footer className="flex shrink-0 flex-col items-center justify-center gap-0.5 border-t border-white/5 px-4 py-2.5 text-center text-[11px] text-zinc-600 sm:px-6">
           <span>
+            Independent project. Not affiliated with, endorsed by, or associated with any brands,
+            platforms, or registries displayed.
+          </span>
+          <span className="text-zinc-700">
             Scores are deterministic heuristics · availability is a best-effort snapshot, not a
             guarantee.
           </span>
-          {availability?.mode === "demo" ? (
-            <span className="rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 font-medium text-amber-300">
-              demo data
-            </span>
-          ) : null}
         </footer>
 
         <CopyToast message={toast} />

@@ -50,6 +50,10 @@ describe("resolveProviderIds", () => {
       "domain:fr",
       "domain:uk",
       "domain:eu",
+      "domain:co",
+      "domain:me",
+      "domain:sh",
+      "domain:so",
     ]);
   });
 
@@ -59,6 +63,7 @@ describe("resolveProviderIds", () => {
       "domain:gg",
       "domain:dev",
       "domain:io",
+      "domain:ai",
       "domain:app",
       "domain:pt",
       "domain:es",
@@ -66,6 +71,19 @@ describe("resolveProviderIds", () => {
       "domain:fr",
       "domain:uk",
       "domain:eu",
+      "domain:co",
+      "domain:me",
+      "domain:org",
+      "domain:sh",
+      "domain:so",
+      "domain:xyz",
+      "domain:design",
+      "domain:store",
+      "domain:work",
+      "domain:studio",
+      "domain:tech",
+      "domain:agency",
+      "domain:space",
     ]);
   });
 
@@ -81,8 +99,8 @@ describe("resolveProviderIds", () => {
   });
 
   it("de-duplicates while preserving order", () => {
-    expect(resolveProviderIds(["github", "domains", "github", "npm"])).toEqual([
-      "github",
+    expect(resolveProviderIds(["github:user", "domains", "github:user", "npm"])).toEqual([
+      "github:user",
       "domain:com",
       "domain:gg",
       "domain:dev",
@@ -103,6 +121,10 @@ describe("resolveProviderIds", () => {
       "domain:fr",
       "domain:uk",
       "domain:eu",
+      "domain:co",
+      "domain:me",
+      "domain:sh",
+      "domain:so",
       "social:x",
     ]);
   });
@@ -117,9 +139,9 @@ describe("checkAvailabilityInputSchema", () => {
   it("accepts provider ids and aliases", () => {
     const parsed = checkAvailabilityInputSchema.parse({
       name: "acme",
-      providers: ["github", "domains"],
+      providers: ["github:user", "domains"],
     });
-    expect(parsed.providers).toEqual(["github", "domains"]);
+    expect(parsed.providers).toEqual(["github:user", "domains"]);
   });
 
   it("rejects unknown providers", () => {

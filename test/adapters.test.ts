@@ -112,32 +112,59 @@ describe("domain adapter — WHOIS fallback", () => {
   });
 });
 
-describe("github adapter", () => {
-  const deps = (status: number) => makeDeps({ fetch: async () => new Response(null, { status }) });
-
-  it("maps 404 to available", async () => {
-    expect(await check("github", "acme", deps(404))).toMatchObject({
-      status: "available",
-      available: true,
+describe("github:user and github:org adapters", () => {
+  const deps = (status: number, body: unknown = null) =>
+    makeDeps({
+      fetch: async () => new Response(body === null ? null : JSON.stringify(body), { status }),
     });
+
+  for (const id of ["github:user", "github:org"] as const) {
+    it(`maps 404 to available for ${id}`, async () => {
+      expect(await check(id, "acme", deps(404))).toMatchObject({
+        status: "available",
+        available: true,
+      });
+    });
+
+    it(`maps 200 to taken for ${id}`, async () => {
+      expect(await check(id, "acme", deps(200))).toMatchObject({
+        status: "taken",
+        available: false,
+      });
+    });
+
+    it(`rejects names GitHub cannot host for ${id}`, async () => {
+      const r = await check(id, "a--b", deps(404));
+      expect(r).toMatchObject({ status: "invalid", available: false });
+    });
+  }
+
+  it("reports which namespace kind holds the name", async () => {
+    const orgDeps = deps(200, { type: "Organization" });
+    expect((await check("github:user", "acme", orgDeps)).detail).toMatch(/organization/i);
+    const userDeps = deps(200, { type: "User" });
+    expect((await check("github:org", "acme", userDeps)).detail).toMatch(/personal account/i);
   });
 
-  it("maps 200 to taken", async () => {
-    expect(await check("github", "acme", deps(200))).toMatchObject({
-      status: "taken",
-      available: false,
+  it("shares one fetch between the user and org checks", async () => {
+    let calls = 0;
+    const shared = makeDeps({
+      fetch: async () => {
+        calls += 1;
+        return new Response(JSON.stringify({ type: "Organization" }), { status: 200 });
+      },
     });
+    const adapters = createAdapters(shared);
+    const signal = new AbortController().signal;
+    await adapters["github:user"].check("acme", signal);
+    await adapters["github:org"].check("acme", signal);
+    expect(calls).toBe(1);
   });
 
   it("maps rate-limit 403 to unknown", async () => {
-    const r = await check("github", "acme", deps(403));
+    const r = await check("github:user", "acme", deps(403));
     expect(r).toMatchObject({ status: "unknown", available: null });
     expect(r.detail).toMatch(/rate limit/i);
-  });
-
-  it("rejects names GitHub cannot host", async () => {
-    const r = await check("github", "a--b", deps(404));
-    expect(r).toMatchObject({ status: "invalid", available: false });
   });
 });
 
@@ -195,9 +222,11 @@ describe("runAvailabilityChecks — timeout & failure isolation", () => {
       },
       npmNameAvailable: async () => true,
     });
-    const results = await runAvailabilityChecks("acme", ["github", "npm", "domain:com"], deps);
+    const results = await runAvailabilityChecks("acme", ["github:user", "npm", "domain:com"], deps);
     expect(results).toHaveLength(3);
-    expect(results.find((r) => r.provider === "github")).toMatchObject({ status: "unknown" });
+    expect(results.find((r) => r.provider === "github:user")).toMatchObject({
+      status: "unknown",
+    });
     expect(results.find((r) => r.provider === "npm")).toMatchObject({ status: "available" });
     expect(results.find((r) => r.provider === "domain:com")).toMatchObject({
       status: "available",
@@ -208,13 +237,13 @@ describe("runAvailabilityChecks — timeout & failure isolation", () => {
 describe("checkAvailability", () => {
   it("returns results for each selected provider plus a summary", async () => {
     const out = await checkAvailability(
-      { name: "acme", providers: ["github", "npm"] },
+      { name: "acme", providers: ["github:user", "npm"] },
       makeDeps({
         fetch: async () => new Response(null, { status: 404 }),
         npmNameAvailable: async () => false,
       }),
     );
-    expect(out.results.map((r) => r.provider)).toEqual(["github", "npm"]);
+    expect(out.results.map((r) => r.provider)).toEqual(["github:user", "npm"]);
     expect(out.summary).toEqual({ available: 1, taken: 1, unknown: 0, invalid: 0 });
   });
 });

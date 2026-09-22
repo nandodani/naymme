@@ -6,7 +6,7 @@
 export type AvailabilityStatus = "available" | "taken" | "unknown" | "invalid";
 
 export interface AvailabilityResult {
-  /** Provider identifier, e.g. "domain:com", "github", "npm". */
+  /** Provider identifier, e.g. "domain:com", "github:user", "npm". */
   provider: string;
   status: AvailabilityStatus;
   /** The concrete identifier that was checked, e.g. "acme.com" or "acme". */

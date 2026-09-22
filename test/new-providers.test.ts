@@ -129,6 +129,93 @@ describe("european ccTLD adapters — WHOIS + DNS fallback", () => {
   });
 });
 
+describe("new TLD adapters — RDAP-first with WHOIS/DNS fallback", () => {
+  /** Bootstrap advertising the registries for the new TLDs. */
+  const NEW_BOOTSTRAP = {
+    services: [
+      [["co"], ["https://rdap.nic.co/"]],
+      [["me"], ["https://rdap.identitydigital.services/rdap/"]],
+      [["org"], ["https://rdap.publicinterestregistry.org/rdap/"]],
+      [["sh"], ["https://rdap.identitydigital.services/rdap/"]],
+      [["xyz"], ["https://rdap.centralnic.com/xyz/"]],
+      [["design"], ["https://rdap.nic.design/"]],
+      [["work"], ["https://rdap.nic.work/"]],
+      [["agency", "studio"], ["https://rdap.identitydigital.services/rdap/"]],
+      [["space", "store", "tech"], ["https://rdap.radix.host/rdap/"]],
+    ],
+  };
+  const rdapDeps = (status: number) =>
+    makeDeps({
+      fetch: async (input) => {
+        if (urlOf(input).includes("iana.org")) return jsonResponse(NEW_BOOTSTRAP);
+        return new Response(null, { status });
+      },
+    });
+
+  for (const id of [
+    "domain:co",
+    "domain:me",
+    "domain:org",
+    "domain:sh",
+    "domain:xyz",
+    "domain:design",
+    "domain:store",
+    "domain:work",
+    "domain:studio",
+    "domain:tech",
+    "domain:agency",
+    "domain:space",
+  ] as const) {
+    it(`${id} maps RDAP 404 to available`, async () => {
+      const r = await check(id, "acme", rdapDeps(404));
+      expect(r).toMatchObject({ status: "available", available: true });
+      expect(r.detail).toContain("rdap:");
+    });
+
+    it(`${id} maps RDAP 200 to taken`, async () => {
+      const r = await check(id, "acme", rdapDeps(200));
+      expect(r).toMatchObject({ status: "taken", available: false });
+    });
+  }
+
+  it("domain:so (no RDAP service) falls back to WHOIS", async () => {
+    const r = await check(
+      "domain:so",
+      "acme",
+      makeDeps({
+        fetch: async (input) => {
+          if (urlOf(input).includes("iana.org")) return jsonResponse(NEW_BOOTSTRAP);
+          return new Response(null, { status: 500 });
+        },
+        whoisDomain: async () => ({ "whois.nic.so": { __raw: "Not found" } }),
+      }),
+    );
+    expect(r).toMatchObject({ status: "available", available: true });
+    expect(r.detail).toContain("whois fallback");
+  });
+
+  it("new TLDs are registered in createAdapters", () => {
+    const adapters = createAdapters(makeDeps());
+    for (const id of [
+      "co",
+      "me",
+      "org",
+      "sh",
+      "so",
+      "xyz",
+      "design",
+      "store",
+      "work",
+      "studio",
+      "tech",
+      "agency",
+      "space",
+    ]) {
+      expect(adapters[`domain:${id}` as keyof typeof adapters]?.id).toBe(`domain:${id}`);
+    }
+  });
+});
+
 describe("social:x adapter", () => {
   it("maps 404 to available", async () => {
     expect(await check("social:x", "acme_co", statusDeps(404))).toMatchObject({
@@ -339,6 +426,120 @@ describe("social:tiktok adapter", () => {
 
   it("rejects one-character handles", async () => {
     expect(await check("social:tiktok", "a", statusDeps(200))).toMatchObject({
+      status: "invalid",
+      available: false,
+    });
+  });
+});
+
+describe("gitlab adapter", () => {
+  const gitlabDeps = (usersBody: string | null, usersStatus = 200, groupsStatus = 404) =>
+    makeDeps({
+      fetch: async (input) => {
+        const url = urlOf(input);
+        if (url.includes("/api/v4/users")) return new Response(usersBody, { status: usersStatus });
+        if (url.includes("/api/v4/groups")) return new Response(null, { status: groupsStatus });
+        return new Response(null, { status: 500 });
+      },
+    });
+
+  it("maps an existing user to taken", async () => {
+    const r = await check("gitlab", "acme", gitlabDeps('[{"username":"acme"}]'));
+    expect(r).toMatchObject({ status: "taken", available: false });
+  });
+
+  it("maps an existing group to taken", async () => {
+    const r = await check("gitlab", "acme", gitlabDeps("[]", 200, 200));
+    expect(r).toMatchObject({ status: "taken", available: false });
+  });
+
+  it("maps a private group (403) to taken", async () => {
+    const r = await check("gitlab", "acme", gitlabDeps("[]", 200, 403));
+    expect(r).toMatchObject({ status: "taken", available: false });
+  });
+
+  it("maps no user and no group to available", async () => {
+    const r = await check("gitlab", "acme", gitlabDeps("[]"));
+    expect(r).toMatchObject({ status: "available", available: true });
+  });
+
+  it("maps API errors to unknown", async () => {
+    const r = await check("gitlab", "acme", gitlabDeps(null, 500));
+    expect(r).toMatchObject({ status: "unknown", available: null });
+  });
+
+  it("rejects names GitLab cannot host", async () => {
+    const r = await check("gitlab", "a b", makeDeps());
+    expect(r).toMatchObject({ status: "invalid", available: false });
+  });
+});
+
+describe("pypi adapter", () => {
+  it("maps 404 to available", async () => {
+    const r = await check("pypi", "acme", statusDeps(404));
+    expect(r).toMatchObject({ status: "available", available: true, subject: "acme" });
+  });
+
+  it("maps 200 to taken and normalizes separators", async () => {
+    const r = await check("pypi", "Acme_Lib", statusDeps(200));
+    expect(r).toMatchObject({ status: "taken", available: false, subject: "acme-lib" });
+  });
+
+  it("maps unexpected statuses to unknown", async () => {
+    const r = await check("pypi", "acme", statusDeps(500));
+    expect(r).toMatchObject({ status: "unknown", available: null });
+  });
+
+  it("rejects names PyPI cannot host", async () => {
+    const r = await check("pypi", "-acme", statusDeps(404));
+    expect(r).toMatchObject({ status: "invalid", available: false });
+  });
+});
+
+describe("crates adapter", () => {
+  it("maps 404 to available", async () => {
+    const r = await check("crates", "acme", statusDeps(404));
+    expect(r).toMatchObject({ status: "available", available: true });
+  });
+
+  it("maps 200 to taken", async () => {
+    const r = await check("crates", "acme", statusDeps(200));
+    expect(r).toMatchObject({ status: "taken", available: false });
+  });
+
+  it("maps unexpected statuses to unknown", async () => {
+    const r = await check("crates", "acme", statusDeps(429));
+    expect(r).toMatchObject({ status: "unknown", available: null });
+  });
+
+  it("rejects names crates.io cannot host", async () => {
+    const r = await check("crates", "acme.lib", statusDeps(404));
+    expect(r).toMatchObject({ status: "invalid", available: false });
+  });
+});
+
+describe("dockerhub adapter", () => {
+  it("maps 404 to available", async () => {
+    const r = await check("dockerhub", "acme", statusDeps(404));
+    expect(r).toMatchObject({ status: "available", available: true });
+  });
+
+  it("maps 200 to taken", async () => {
+    const r = await check("dockerhub", "acme", statusDeps(200));
+    expect(r).toMatchObject({ status: "taken", available: false });
+  });
+
+  it("maps unexpected statuses to unknown", async () => {
+    const r = await check("dockerhub", "acme", statusDeps(500));
+    expect(r).toMatchObject({ status: "unknown", available: null });
+  });
+
+  it("rejects too-short namespaces and uppercase names", async () => {
+    expect(await check("dockerhub", "abc", statusDeps(404))).toMatchObject({
+      status: "invalid",
+      available: false,
+    });
+    expect(await check("dockerhub", "Acme", statusDeps(404))).toMatchObject({
       status: "invalid",
       available: false,
     });
