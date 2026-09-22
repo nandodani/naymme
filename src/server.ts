@@ -1,0 +1,65 @@
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { defaultDeps, type ProviderDeps } from "./deps.js";
+import { scoreName } from "./scoring/score.js";
+import {
+  checkAvailabilityInputSchema,
+  checkAvailabilityOutputSchema,
+  scoreNameInputSchema,
+  scoreNameOutputSchema,
+} from "./schemas.js";
+import { checkAvailability } from "./tools/checkAvailability.js";
+
+export const SERVER_NAME = "name-check-mcp";
+export const SERVER_VERSION = "0.1.0";
+
+/**
+ * Build a configured MCP server. One instance is created per transport —
+ * and in stateless HTTP mode, per request.
+ */
+export function createNameCheckServer(deps: ProviderDeps = defaultDeps()): McpServer {
+  const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
+
+  server.registerTool(
+    "check_availability",
+    {
+      title: "Check name availability",
+      description:
+        "Check whether a bare name is available across domain TLDs (.com, .gg, .dev, .io), " +
+        "GitHub (user/org namespace) and npm. Providers run concurrently with an independent " +
+        "5-second timeout each; a provider that fails or is inconclusive reports status " +
+        "'unknown' rather than failing the request. 'available'/'taken' are best-effort " +
+        "registrations snapshots — always re-confirm before buying or registering.",
+      inputSchema: checkAvailabilityInputSchema,
+      outputSchema: checkAvailabilityOutputSchema,
+    },
+    async (input) => {
+      const result = await checkAvailability(input, deps);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        structuredContent: result,
+      };
+    },
+  );
+
+  server.registerTool(
+    "score_name",
+    {
+      title: "Score a name for brand quality",
+      description:
+        "Deterministically score a name out of 100 for brand quality: punchiness (length), " +
+        "estimated syllables, pronounceability, uniqueness and cleanliness. Pure heuristic — " +
+        "no lookups, same input always gives the same score.",
+      inputSchema: scoreNameInputSchema,
+      outputSchema: scoreNameOutputSchema,
+    },
+    async (input) => {
+      const result = scoreName(input.name);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        structuredContent: result,
+      };
+    },
+  );
+
+  return server;
+}
