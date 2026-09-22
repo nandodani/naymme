@@ -86,7 +86,7 @@ export function ResultsGrid({
 
         <motion.div
           variants={item}
-          className="md:col-start-1 md:row-start-2 md:row-span-2 xl:col-start-3 xl:row-start-1"
+          className="md:col-start-1 md:row-start-2 xl:col-start-3 xl:row-start-1"
         >
           <ProviderCard
             group={socials}
