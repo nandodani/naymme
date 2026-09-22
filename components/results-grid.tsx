@@ -1,9 +1,13 @@
 "use client";
 
-import { motion } from "motion/react";
+import { useState } from "react";
+import { SearchX } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 
 import type { AvailabilityResponse } from "@/lib/availability.js";
 import { providerGroup } from "@/lib/provider-meta.js";
+import { resultCounts, type ResultFilter } from "@/lib/result-filter.js";
+import { cn } from "@/lib/utils.js";
 import type { AvailabilityResult } from "@/src/types.js";
 import type { NameScore } from "@/src/scoring/score.js";
 import { BrandScoreCard } from "./brand-score-card.js";
@@ -29,11 +33,18 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] as const } },
 };
 
+const FILTERS: readonly { id: ResultFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "available", label: "Available only" },
+];
+
 /**
  * The searched state: a bento grid of the brand score card plus one card per
- * provider group. On xl, the Socials card anchors the right column; the score
- * and developer cards stack to its left, Domains spans underneath and the
- * Creator & community card fills the bottom-right slot.
+ * provider group. DOM order is the same as reading order at every
+ * breakpoint — score, Developer, Socials, Domains, Community — so the
+ * stagger, tab order and screen-reader order all agree. On xl the score
+ * anchors the left column, Developer and Socials fill out row one, Domains
+ * spans underneath and Community fills the bottom-right slot.
  */
 export function ResultsGrid({
   name,
@@ -44,10 +55,15 @@ export function ResultsGrid({
   onRetry,
   onCopy,
 }: ResultsGridProps) {
+  const [filter, setFilter] = useState<ResultFilter>("all");
+  const reduceMotion = useReducedMotion();
   const resultsByProvider = new Map<string, AvailabilityResult>(
     (data?.results ?? []).map((r) => [r.provider, r]),
   );
   const pending = checking;
+  const counts = resultCounts(data?.results ?? []);
+  const emptyFiltered = filter === "available" && counts.available === 0 && !checking;
+
   const domains = providerGroup("domains");
   const developer = providerGroup("developer");
   const socials = providerGroup("socials");
@@ -67,6 +83,40 @@ export function ResultsGrid({
         </div>
       ) : null}
 
+      <div
+        role="tablist"
+        aria-label="Filter results by availability"
+        className="inline-flex w-fit items-center rounded-full border border-zinc-800 bg-zinc-950/80 p-0.5"
+      >
+        {FILTERS.map(({ id, label }) => {
+          const active = filter === id;
+          const count = id === "all" ? counts.resolved : counts.available;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setFilter(id)}
+              className="relative rounded-full px-3 py-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {active ? (
+                <motion.span
+                  layoutId="activeFilter"
+                  transition={
+                    reduceMotion ? { duration: 0 } : { type: "spring", bounce: 0.2, duration: 0.4 }
+                  }
+                  className="absolute inset-0 rounded-full border border-zinc-700 bg-white/10"
+                />
+              ) : null}
+              <span className={cn("relative", active ? "text-zinc-100" : "text-zinc-500")}>
+                {label} ({count})
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       <motion.div
         variants={container}
         initial="hidden"
@@ -84,54 +134,73 @@ export function ResultsGrid({
           />
         </motion.div>
 
-        <motion.div
-          variants={item}
-          className="md:col-start-1 md:row-start-2 xl:col-start-3 xl:row-start-1"
-        >
-          <ProviderCard
-            group={socials}
-            name={name}
-            resultsByProvider={resultsByProvider}
-            pending={pending}
-            className="h-full"
-          />
-        </motion.div>
+        {emptyFiltered ? (
+          <motion.div
+            variants={item}
+            className="flex items-center justify-center gap-2.5 rounded-xl border border-zinc-800 bg-card px-4 py-10 md:col-span-2 xl:col-span-2"
+          >
+            <SearchX aria-hidden="true" className="size-4 text-zinc-600" />
+            <p className="text-[12px] text-zinc-500">No available handles found for this search.</p>
+          </motion.div>
+        ) : (
+          <>
+            <motion.div
+              variants={item}
+              className="md:col-start-1 md:row-start-2 xl:col-start-2 xl:row-start-1"
+            >
+              <ProviderCard
+                group={developer}
+                name={name}
+                resultsByProvider={resultsByProvider}
+                pending={pending}
+                filter={filter}
+                className="h-full"
+              />
+            </motion.div>
 
-        <motion.div variants={item} className="md:col-start-2 md:row-start-2 xl:row-start-1">
-          <ProviderCard
-            group={developer}
-            name={name}
-            resultsByProvider={resultsByProvider}
-            pending={pending}
-            className="h-full"
-          />
-        </motion.div>
+            <motion.div
+              variants={item}
+              className="md:col-start-2 md:row-start-2 xl:col-start-3 xl:row-start-1"
+            >
+              <ProviderCard
+                group={socials}
+                name={name}
+                resultsByProvider={resultsByProvider}
+                pending={pending}
+                filter={filter}
+                className="h-full"
+              />
+            </motion.div>
 
-        <motion.div
-          variants={item}
-          className="md:col-start-2 md:row-start-3 xl:col-span-2 xl:col-start-1 xl:row-start-2"
-        >
-          <ProviderCard
-            group={domains}
-            name={name}
-            resultsByProvider={resultsByProvider}
-            pending={pending}
-            className="h-full"
-          />
-        </motion.div>
+            <motion.div
+              variants={item}
+              className="md:col-start-1 md:row-start-3 xl:col-span-2 xl:col-start-1 xl:row-start-2"
+            >
+              <ProviderCard
+                group={domains}
+                name={name}
+                resultsByProvider={resultsByProvider}
+                pending={pending}
+                filter={filter}
+                className="h-full"
+              />
+            </motion.div>
 
-        <motion.div
-          variants={item}
-          className="md:col-start-1 md:row-start-3 xl:col-start-3 xl:row-start-2"
-        >
-          <ProviderCard
-            group={community}
-            name={name}
-            resultsByProvider={resultsByProvider}
-            pending={pending}
-            className="h-full"
-          />
-        </motion.div>
+            <motion.div
+              variants={item}
+              className="md:col-start-2 md:row-start-3 xl:col-start-3 xl:row-start-2"
+            >
+              <ProviderCard
+                group={community}
+                name={name}
+                resultsByProvider={resultsByProvider}
+                pending={pending}
+                filter={filter}
+                className="h-full"
+              />
+            </motion.div>
+          </>
+        )}
       </motion.div>
     </div>
   );

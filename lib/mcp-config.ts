@@ -10,7 +10,7 @@
 
 export interface McpClientConfig {
   /** Stable client id, also used as a React key. */
-  id: "cursor" | "claude-desktop" | "windsurf" | "claude-code";
+  id: "cursor" | "claude-desktop" | "windsurf" | "vscode" | "claude-code";
   /** Short client label for the UI. */
   label: string;
   /** Where the snippet belongs: a config file path or "terminal". */
@@ -47,6 +47,11 @@ export function buildWindsurfConfig(endpoint: string): Record<string, unknown> {
   return { mcpServers: { [SERVER_KEY]: { serverUrl: endpoint } } };
 }
 
+/** VS Code reads remote HTTP servers from a `servers` map in mcp.json. */
+export function buildVsCodeConfig(endpoint: string): Record<string, unknown> {
+  return { servers: { [SERVER_KEY]: { type: "http", url: endpoint } } };
+}
+
 /** One-liner that registers the hosted server with the Claude Code CLI. */
 export function claudeCodeCommand(endpoint: string): string {
   return `claude mcp add --transport http ${SERVER_KEY} ${endpoint}`;
@@ -77,6 +82,13 @@ export function buildMcpConfigs(baseUrl: string): McpConfigs {
         destination: "~/.codeium/windsurf/mcp_config.json",
         language: "json",
         snippet: `${JSON.stringify(buildWindsurfConfig(endpoint), null, 2)}\n`,
+      },
+      {
+        id: "vscode",
+        label: "VS Code",
+        destination: ".vscode/mcp.json",
+        language: "json",
+        snippet: `${JSON.stringify(buildVsCodeConfig(endpoint), null, 2)}\n`,
       },
       {
         id: "claude-code",

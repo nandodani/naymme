@@ -1,30 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType, type SVGProps } from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import {
-  Check,
-  ChevronDown,
-  Copy,
-  MousePointer2,
-  Plug,
-  Sparkles,
-  SquareTerminal,
-  Wind,
-  X,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { Check, ChevronDown, Copy, Plug, SquareTerminal, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import { buildMcpConfigs, type McpClientConfig } from "@/lib/mcp-config.js";
-import { buildClientGuides } from "@/lib/mcp-guides.js";
+import { buildClientGuides, type ClientGuideId } from "@/lib/mcp-guides.js";
 import { cn } from "@/lib/utils.js";
+import { AnthropicIcon, CursorIcon, VsCodeIcon, WindsurfIcon } from "./brand-icons.js";
 
-const CLIENT_ICONS: Record<McpClientConfig["id"], LucideIcon> = {
-  "claude-desktop": Sparkles,
-  cursor: MousePointer2,
-  windsurf: Wind,
+/** Official brand marks per client tab; Claude Code gets a terminal glyph
+ * since it's the CLI, "other" a generic plug. */
+const CLIENT_ICONS: Record<ClientGuideId, ComponentType<SVGProps<SVGSVGElement>>> = {
+  "claude-desktop": AnthropicIcon,
+  cursor: CursorIcon,
+  windsurf: WindsurfIcon,
+  vscode: VsCodeIcon,
   "claude-code": SquareTerminal,
+  other: Plug,
 };
 
 /** Read-only input row + one-click copy button with checkmark feedback. */
@@ -129,7 +123,7 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
  */
 export function ConnectMcpDialog({ onCopy }: { onCopy: (text: string, label: string) => void }) {
   const [origin, setOrigin] = useState<string | null>(null);
-  const [selected, setSelected] = useState<McpClientConfig["id"]>("claude-desktop");
+  const [selected, setSelected] = useState<ClientGuideId>("claude-desktop");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const reduceMotion = useReducedMotion();
 
@@ -183,7 +177,7 @@ export function ConnectMcpDialog({ onCopy }: { onCopy: (text: string, label: str
             <div
               role="tablist"
               aria-label="Choose your client"
-              className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+              className="grid grid-cols-3 gap-2 sm:grid-cols-6"
             >
               {guides.map((g) => {
                 const Icon = CLIENT_ICONS[g.id];
@@ -196,14 +190,14 @@ export function ConnectMcpDialog({ onCopy }: { onCopy: (text: string, label: str
                     aria-selected={active}
                     onClick={() => setSelected(g.id)}
                     className={cn(
-                      "flex flex-col items-center gap-2 rounded-xl border px-2 py-3 text-[12px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      "flex flex-col items-center gap-2 rounded-xl border px-2 py-3 text-[11px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       active
                         ? "border-zinc-700 bg-white/[0.07] text-zinc-100"
                         : "border-zinc-800 bg-transparent text-zinc-500 hover:border-zinc-700 hover:text-zinc-300",
                     )}
                   >
                     <Icon aria-hidden="true" className="size-5" />
-                    {configs?.clients.find((c) => c.id === g.id)?.label ?? g.id}
+                    {g.label}
                   </button>
                 );
               })}
@@ -219,73 +213,92 @@ export function ConnectMcpDialog({ onCopy }: { onCopy: (text: string, label: str
                   transition={{ duration: 0.16, ease: "easeOut" }}
                   className="mt-4 flex flex-col gap-3.5"
                 >
-                  <Step n={1} title="Open settings">
-                    {guide.openSettings}
-                  </Step>
-                  <Step n={2} title={`Copy the ${guide.copyLabel.toLowerCase()}`}>
-                    <div className="mt-1">
+                  {guide.mode === "simple" ? (
+                    <>
+                      <p className="text-[12px] leading-5 text-zinc-500">{guide.openSettings}</p>
                       <CopyField
                         value={guide.copyValue}
                         copyLabel={guide.copyLabel}
                         toastLabel={guide.copyToast}
                         onCopy={onCopy}
                       />
-                    </div>
-                  </Step>
-                  <Step n={3} title="Paste and save">
-                    {guide.pasteAndSave}
-                  </Step>
+                    </>
+                  ) : (
+                    <>
+                      <Step n={1} title="Open settings">
+                        {guide.openSettings}
+                      </Step>
+                      <Step n={2} title={`Copy the ${guide.copyLabel.toLowerCase()}`}>
+                        <div className="mt-1">
+                          <CopyField
+                            value={guide.copyValue}
+                            copyLabel={guide.copyLabel}
+                            toastLabel={guide.copyToast}
+                            onCopy={onCopy}
+                          />
+                        </div>
+                      </Step>
+                      <Step n={3} title="Paste and save">
+                        {guide.pasteAndSave}
+                      </Step>
+                    </>
+                  )}
                 </motion.div>
               </AnimatePresence>
             ) : null}
 
-            <div className="mt-4 border-t border-white/5 pt-3">
-              <button
-                type="button"
-                onClick={() => setAdvancedOpen((open) => !open)}
-                aria-expanded={advancedOpen}
-                className="flex w-full items-center justify-between rounded-md px-1 py-1 text-[12px] font-medium text-zinc-500 transition-colors outline-none hover:text-zinc-300 focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                Need raw config JSON?
-                <ChevronDown
-                  aria-hidden="true"
-                  className={cn(
-                    "size-4 transition-transform duration-200",
-                    advancedOpen ? "rotate-180" : "",
-                  )}
-                />
-              </button>
-              <AnimatePresence initial={false}>
-                {advancedOpen && activeConfig !== undefined ? (
-                  <motion.div
-                    key="advanced"
-                    initial={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
-                    animate={reduceMotion ? { opacity: 1 } : { height: "auto", opacity: 1 }}
-                    exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="overflow-hidden"
-                  >
-                    <div className="pt-3">
-                      <p className="mb-2 text-[11px] leading-4 text-zinc-600">
-                        Paste this into{" "}
-                        <span className="font-mono text-zinc-400">{activeConfig.destination}</span>:
-                      </p>
-                      <SnippetBlock config={activeConfig} />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onCopy(activeConfig.snippet, `Copied ${activeConfig.label} config`)
-                        }
-                        className="mt-2 inline-flex h-7 items-center gap-1.5 rounded-md border border-zinc-800 bg-white/[0.03] px-2.5 text-[11px] font-medium text-zinc-400 transition-colors outline-none hover:border-zinc-700 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <Copy aria-hidden="true" className="size-3" />
-                        Copy JSON
-                      </button>
-                    </div>
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
-            </div>
+            {activeConfig !== undefined ? (
+              <div className="mt-4 border-t border-white/5 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setAdvancedOpen((open) => !open)}
+                  aria-expanded={advancedOpen}
+                  className="flex w-full items-center justify-between rounded-md px-1 py-1 text-[12px] font-medium text-zinc-500 transition-colors outline-none hover:text-zinc-300 focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Need raw config JSON?
+                  <ChevronDown
+                    aria-hidden="true"
+                    className={cn(
+                      "size-4 transition-transform duration-200",
+                      advancedOpen ? "rotate-180" : "",
+                    )}
+                  />
+                </button>
+                <AnimatePresence initial={false}>
+                  {advancedOpen && activeConfig !== undefined ? (
+                    <motion.div
+                      key="advanced"
+                      initial={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                      animate={reduceMotion ? { opacity: 1 } : { height: "auto", opacity: 1 }}
+                      exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className="overflow-hidden"
+                    >
+                      <div className="pt-3">
+                        <p className="mb-2 text-[11px] leading-4 text-zinc-600">
+                          Paste this into{" "}
+                          <span className="font-mono text-zinc-400">
+                            {activeConfig.destination}
+                          </span>
+                          :
+                        </p>
+                        <SnippetBlock config={activeConfig} />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onCopy(activeConfig.snippet, `Copied ${activeConfig.label} config`)
+                          }
+                          className="mt-2 inline-flex h-7 items-center gap-1.5 rounded-md border border-zinc-800 bg-white/[0.03] px-2.5 text-[11px] font-medium text-zinc-400 transition-colors outline-none hover:border-zinc-700 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <Copy aria-hidden="true" className="size-3" />
+                          Copy JSON
+                        </button>
+                      </div>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </div>
+            ) : null}
           </div>
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>

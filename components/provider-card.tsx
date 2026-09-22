@@ -1,6 +1,9 @@
 "use client";
 
+import { AnimatePresence } from "motion/react";
+
 import type { ProviderGroup } from "@/lib/provider-meta.js";
+import { rowVisible, type ResultFilter } from "@/lib/result-filter.js";
 import { cn } from "@/lib/utils.js";
 import type { AvailabilityResult } from "@/src/types.js";
 import { ProviderRow } from "./provider-row.js";
@@ -33,12 +36,15 @@ export function ProviderCard({
   name,
   resultsByProvider,
   pending,
+  filter,
   className,
 }: {
   group: ProviderGroup;
   name: string;
   resultsByProvider: Map<string, AvailabilityResult>;
   pending: boolean;
+  /** "available" hides taken/unknown/pending rows with an exit animation. */
+  filter: ResultFilter;
   className?: string;
 }) {
   const available = group.providers.filter(
@@ -46,6 +52,9 @@ export function ProviderCard({
   ).length;
   const resolved = group.providers.filter((meta) => resultsByProvider.has(meta.id)).length;
   const showSkeleton = pending && resolved === 0;
+  const visibleProviders = group.providers.filter((meta) =>
+    rowVisible(resultsByProvider.get(meta.id), filter),
+  );
 
   return (
     <section
@@ -72,15 +81,22 @@ export function ProviderCard({
         <SkeletonRows count={group.providers.length} />
       ) : (
         <ul>
-          {group.providers.map((meta) => (
-            <ProviderRow
-              key={meta.id}
-              meta={meta}
-              name={name}
-              result={resultsByProvider.get(meta.id)}
-              pending={pending && !resultsByProvider.has(meta.id)}
-            />
-          ))}
+          <AnimatePresence initial={false}>
+            {visibleProviders.map((meta) => (
+              <ProviderRow
+                key={meta.id}
+                meta={meta}
+                name={name}
+                result={resultsByProvider.get(meta.id)}
+                pending={pending && !resultsByProvider.has(meta.id)}
+              />
+            ))}
+          </AnimatePresence>
+          {visibleProviders.length === 0 ? (
+            <li className="px-4 py-6 text-[12px] text-zinc-600">
+              {pending ? "Checking…" : `No available ${group.title.toLowerCase()} found.`}
+            </li>
+          ) : null}
         </ul>
       )}
     </section>

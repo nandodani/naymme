@@ -21,7 +21,6 @@ const SEMANTIC_ALLOWLIST = new Set([
   "components/connect-mcp-dialog.tsx", // copy-confirm state
   "components/results-grid.tsx", // error banner
   "components/search-input.tsx", // validation hint
-  "components/provider-ribbon.tsx", // official brand accent colors
 ]);
 
 // Color-utility classnames like `text-emerald-400` — zinc/slate/gray/

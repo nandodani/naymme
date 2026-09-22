@@ -3,6 +3,7 @@ import {
   buildClaudeConfig,
   buildCursorConfig,
   buildMcpConfigs,
+  buildVsCodeConfig,
   buildWindsurfConfig,
   claudeCodeCommand,
   mcpEndpointUrl,
@@ -19,11 +20,12 @@ describe("buildMcpConfigs", () => {
   const configs = buildMcpConfigs("https://lmkurname.example");
   const endpoint = "https://lmkurname.example/api/mcp";
 
-  it("covers Cursor, Claude Desktop, Windsurf and Claude Code", () => {
+  it("covers Cursor, Claude Desktop, Windsurf, VS Code and Claude Code", () => {
     expect(configs.clients.map((c) => c.id)).toEqual([
       "cursor",
       "claude-desktop",
       "windsurf",
+      "vscode",
       "claude-code",
     ]);
     for (const client of configs.clients) {
@@ -34,7 +36,7 @@ describe("buildMcpConfigs", () => {
 
   it("emits valid pretty-printed JSON for the JSON-file clients", () => {
     const jsonClients = configs.clients.filter((c) => c.language === "json");
-    expect(jsonClients.length).toBe(3);
+    expect(jsonClients.length).toBe(4);
     for (const client of jsonClients) {
       expect(() => JSON.parse(client.snippet)).not.toThrow();
       expect(client.snippet).toContain("\n  ");
@@ -61,6 +63,13 @@ describe("buildMcpConfigs", () => {
     expect(buildWindsurfConfig(endpoint)).toEqual({
       mcpServers: { lmkurname: { serverUrl: endpoint } },
     });
+  });
+
+  it("registers VS Code via the servers map in .vscode/mcp.json", () => {
+    expect(buildVsCodeConfig(endpoint)).toEqual({
+      servers: { lmkurname: { type: "http", url: endpoint } },
+    });
+    expect(configs.clients.find((c) => c.id === "vscode")?.destination).toBe(".vscode/mcp.json");
   });
 
   it("emits the Claude Code CLI registration command", () => {

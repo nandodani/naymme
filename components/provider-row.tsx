@@ -209,6 +209,7 @@ interface ProviderRowProps {
  */
 export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
   const [revealed, setRevealed] = useState(false);
+  const reduceMotion = useReducedMotion();
   const isDomain = meta.id.startsWith("domain:");
   const subject =
     result?.subject ??
@@ -256,7 +257,19 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
   );
 
   return (
-    <li className={sharedRowClasses} title={isDomain ? undefined : statusText}>
+    // motion.li so the "Available only" filter can blur+scale+fade rows out
+    // (AnimatePresence in ProviderCard) and slide survivors into place.
+    <motion.li
+      layout
+      initial={false}
+      exit={
+        reduceMotion
+          ? { opacity: 0, transition: { duration: 0.12 } }
+          : { opacity: 0, scale: 0.96, filter: "blur(4px)", transition: { duration: 0.16 } }
+      }
+      className={sharedRowClasses}
+      title={isDomain ? undefined : statusText}
+    >
       {/* Icon-scoped status trigger: hover/focus on this target alone
           reveals the chip — the rest of the row never does. */}
       <span
@@ -294,6 +307,6 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
           <PriceChips provider={meta.id} subject={subject} />
         </span>
       ) : null}
-    </li>
+    </motion.li>
   );
 }
