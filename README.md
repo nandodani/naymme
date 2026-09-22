@@ -1,10 +1,12 @@
-# name-check-mcp
+# lmkurname
 
 An MCP (Model Context Protocol) server that answers two questions about a
 candidate name:
 
-1. **`check_availability`** — is it free as a `.com` / `.gg` / `.dev` / `.io`
-   domain, as a GitHub user/org, and as an npm package?
+1. **`check_availability`** — is it free as a `.com` / `.gg` / `.dev` / `.io` /
+   `.app` domain or European ccTLD (`.pt` / `.es` / `.de` / `.fr` / `.uk` /
+   `.eu`), as a GitHub user/org, as an npm package, and as a social handle on
+   X, Bluesky, Instagram, Reddit, YouTube and TikTok?
 2. **`score_name`** — how good is it as a brand, deterministically scored
    out of 100?
 
@@ -49,8 +51,13 @@ npm run check        # typecheck + lint + format:check + test + build
 - `name` — the bare name, no TLD/scope. Letters, digits, `.`, `-`, `_`,
   ≤63 chars, must start with a letter or digit.
 - `providers` — subset of:
-  `domain:com`, `domain:gg`, `domain:dev`, `domain:io`, `github`, `npm`,
-  plus the aliases `domains` (all four TLDs) and `all`. Default: `all`.
+  `domain:com`, `domain:gg`, `domain:dev`, `domain:io`, `domain:app`,
+  `domain:pt`, `domain:es`, `domain:de`, `domain:fr`, `domain:uk`,
+  `domain:eu`, `github`, `npm`, `social:x`, `social:bluesky`,
+  `social:instagram`, `social:reddit`, `social:youtube`, `social:tiktok`,
+  plus the aliases `domains` (the original four TLDs), `domains:all` (every
+  TLD), `domains:cctld` (the ccTLDs), `socials` (all social providers) and
+  `all`. Default: `all`.
 
 Each provider returns a normalized result:
 
@@ -105,8 +112,10 @@ src/
     domain.ts           TLD adapter: RDAP first, WHOIS fallback
     rdap.ts             IANA bootstrap → per-TLD RDAP client (cached)
     whois.ts            whoiser wrapper + text normalization
+    dns.ts              NS-record signal after inconclusive WHOIS
     github.ts           GET api.github.com/users/{name}
     npm.ts              npm-name wrapper
+    social.ts           X, Bluesky, Instagram, Reddit, YouTube, TikTok handles
   tools/checkAvailability.ts   Promise.allSettled runner + per-provider timeout
   scoring/score.ts      deterministic scoring formula
 api/
@@ -122,8 +131,8 @@ interface ProviderAdapter {
 }
 ```
 
-External calls (fetch/whois/npm-name) are injected via `ProviderDeps`, so
-tests substitute fakes instead of hitting the network — the suite never
+External calls (fetch/whois/DNS/npm-name) are injected via `ProviderDeps`,
+so tests substitute fakes instead of hitting the network — the suite never
 hardcodes live lookup results.
 
 ## Use it locally
@@ -135,7 +144,7 @@ hardcodes live lookup results.
 ```json
 {
   "mcpServers": {
-    "name-check": {
+    "lmkurname": {
       "command": "node",
       "args": ["/absolute/path/to/name-check-mcp/dist/index.js"]
     }
@@ -154,7 +163,7 @@ hardcodes live lookup results.
 ```json
 {
   "mcpServers": {
-    "name-check": {
+    "lmkurname": {
       "command": "node",
       "args": ["/absolute/path/to/name-check-mcp/dist/index.js"]
     }
@@ -210,19 +219,36 @@ IP); the GitHub provider degrades to `unknown` when rate-limited.
 
 - **Domains**: looked up via [RDAP](https://www.rfc-editor.org/rfc/rfc7484)
   when the IANA bootstrap registry lists a service for the TLD (today:
-  `.com`, `.dev`), otherwise via raw **WHOIS** (`whoiser`) — `.gg`, `.io`.
+  `.com`, `.dev`, `.app` via the Google Registry, `.fr`, `.uk`), otherwise
+  via raw **WHOIS** (`whoiser`) — `.gg`, `.io`, `.pt`, `.es`, `.de`, `.eu`.
   RDAP `404` → `available`, `200` → `taken`; WHOIS is normalized by text
-  matching ("no match", registrar fields) and is inherently fuzzy —
-  inconclusive output is `unknown`.
+  matching ("no match", registrar fields) and is inherently fuzzy. When
+  WHOIS is inconclusive a **DNS NS-record** check runs as a last resort —
+  delegated name servers prove `taken`, while their absence stays `unknown`.
 - **GitHub**: `GET api.github.com/users/{name}`; usernames and orgs share
   one namespace.
 - **npm**: `npm-name` against the public registry.
+- **Social handles** — all unauthenticated, best-effort:
+  - **X** (`social:x`): `x.com/{handle}` — `404`/`200`. Suspended accounts
+    also answer `404`, so `available` is not a guarantee.
+  - **Bluesky** (`social:bluesky`): `com.atproto.identity.resolveHandle` on
+    `public.api.bsky.app` for `{name}.bsky.social` — `200` → `taken`,
+    `400` → `available`. Deactivated/reserved handles report `available`.
+  - **Instagram** (`social:instagram`): the app's `web_profile_info`
+    endpoint — `200`/`404`. Instagram requires authentication on most IPs,
+    so anonymous checks commonly degrade to `unknown`.
+  - **Reddit** (`social:reddit`): `api/username_available.json` — a bare
+    JSON boolean. Rate-limited/blocked responses report `unknown`.
+  - **YouTube** (`social:youtube`): `youtube.com/@{handle}` — `404`/`200`.
+  - **TikTok** (`social:tiktok`): `tiktok.com/@{user}` — the embedded
+    `statusCode` marker (`0` → `taken`, `10202`/`10221`/`10245` →
+    `available`); pages without it report `unknown`.
 - Results are **snapshots, not guarantees**. Registries can lag, names can
   be taken between the check and your registration, and reserved names may
   report `available` but still be unregisterable. Re-confirm at the
   registrar/registry before committing.
 - `unknown` ≠ `taken` — it means the provider could not give a definitive
-  answer (timeout, rate limit, inconclusive WHOIS).
+  answer (timeout, rate limit, blocked endpoint, inconclusive WHOIS/DNS).
 
 ## License
 

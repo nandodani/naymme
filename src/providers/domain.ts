@@ -1,5 +1,6 @@
 import type { ProviderDeps } from "../deps.js";
 import type { ProviderAdapter, ProviderOutcome } from "../types.js";
+import { dnsNsVerdict } from "./dns.js";
 import type { RdapClient } from "./rdap.js";
 import { whoisLookup } from "./whois.js";
 
@@ -9,9 +10,11 @@ const DOMAIN_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i;
  * Domain availability adapter for one TLD.
  *
  * Strategy: RDAP first (the IANA bootstrap registry tells us whether the TLD
- * has an RDAP service — e.g. .com and .dev do). For TLDs without RDAP
- * (e.g. .gg, .io), fall back to a raw WHOIS lookup via `whoiser`, which is
- * inherently fuzzier — inconclusive responses come back as `unknown`.
+ * has an RDAP service — e.g. .com, .dev, .app, .fr and .uk do). For TLDs
+ * without RDAP (e.g. .gg, .io, .pt, .es, .de, .eu), fall back to a raw WHOIS
+ * lookup via `whoiser`, which is inherently fuzzier. When WHOIS is
+ * inconclusive, a DNS NS check supplies a final signal: delegated name
+ * servers prove the domain is registered.
  */
 export function createDomainAdapter(
   tld: string,
@@ -48,7 +51,10 @@ export function createDomainAdapter(
         };
       }
 
-      const verdict = await whoisLookup(fqdn, deps);
+      let verdict = await whoisLookup(fqdn, deps);
+      if (verdict === "unknown") {
+        verdict = await dnsNsVerdict(fqdn, deps);
+      }
       return {
         status: verdict,
         subject: fqdn,
