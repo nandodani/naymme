@@ -1,29 +1,36 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, ClipboardCopy, Code2, Globe, Share2, Users } from "lucide-react";
+import { ClipboardCopy, Code2, Globe, Share2, Users } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 
 import type { AvailabilityResponse } from "@/lib/availability.js";
 import { availabilityStats, type AvailabilityStats } from "@/lib/stats.js";
 import { providerGroup, PROVIDER_GROUPS } from "@/lib/provider-meta.js";
-import type { NameScore, ScoreComponent } from "@/src/scoring/score.js";
+import { coverageRatio, ratingTier, syllableBand, type RatingTier } from "@/lib/score-display.js";
+import type { NameScore, ScoreComponent, SyllableComponent } from "@/src/scoring/score.js";
 import { cn } from "@/lib/utils.js";
 import { Button } from "./ui/button.js";
 import { Skeleton } from "./ui/skeleton.js";
 
-type Tier = "Flawless" | "Strong" | "Contested";
-
-const TIER_STYLES: Record<Tier, string> = {
-  Flawless: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
-  Strong: "border-sky-400/30 bg-sky-400/10 text-sky-300",
-  Contested: "border-amber-400/30 bg-amber-400/10 text-amber-300",
+const TIER_STYLES: Record<RatingTier, { badge: string; ring: string }> = {
+  Excellent: {
+    badge: "border-emerald-400/40 bg-emerald-400/15 text-emerald-200",
+    ring: "stroke-emerald-400",
+  },
+  Strong: {
+    badge: "border-sky-400/40 bg-sky-400/15 text-sky-200",
+    ring: "stroke-sky-400",
+  },
+  Fair: {
+    badge: "border-amber-400/40 bg-amber-400/15 text-amber-200",
+    ring: "stroke-amber-400",
+  },
+  Contested: {
+    badge: "border-rose-400/40 bg-rose-400/15 text-rose-200",
+    ring: "stroke-rose-400",
+  },
 };
-
-function tierFor(rating: number): Tier {
-  if (rating >= 90) return "Flawless";
-  if (rating >= 75) return "Strong";
-  return "Contested";
-}
 
 /**
  * Ease-out count-up for the headline rating. Returns `null` while the
@@ -67,9 +74,11 @@ function useCountUp(target: number | null): number | null {
 /**
  * Circular rating gauge. `rating === null` means the availability checks
  * are still in flight — the gauge renders an indeterminate `--` pulse and
- * no arc fill rather than a misleading partial number.
+ * no arc fill rather than a misleading partial number. The arc is driven
+ * by the same eased count-up as the number, so it draws on as the score
+ * settles and is tinted by the resolved tier.
  */
-function RatingGauge({ rating }: { rating: number | null }) {
+function RatingGauge({ rating, tier }: { rating: number | null; tier: RatingTier | null }) {
   const display = useCountUp(rating);
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
@@ -93,13 +102,16 @@ function RatingGauge({ rating }: { rating: number | null }) {
           strokeWidth="5"
           strokeLinecap="round"
           strokeDasharray={`${filled} ${circumference - filled}`}
-          className="stroke-primary transition-[stroke-dasharray] duration-700"
+          className={cn(
+            "transition-[stroke-dasharray] duration-700",
+            tier === null ? "stroke-zinc-500" : TIER_STYLES[tier].ring,
+          )}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span
           className={cn(
-            "font-mono text-[26px] leading-none font-medium",
+            "font-mono text-[26px] leading-none font-semibold tracking-tight",
             display === null ? "animate-pulse text-zinc-600" : "text-foreground",
           )}
         >
@@ -113,6 +125,30 @@ function RatingGauge({ rating }: { rating: number | null }) {
         {rating === null ? "checking availability…" : `Brand rating ${rating} out of 100`}
       </span>
     </div>
+  );
+}
+
+/** Thin available-vs-taken meter: emerald fill on a zinc track. */
+function MiniMeter({ ratio, pending, label }: { ratio: number; pending: boolean; label: string }) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      className="h-1 min-w-16 flex-1 overflow-hidden rounded-full bg-zinc-800"
+    >
+      {pending ? null : (
+        <motion.span
+          className="block h-full rounded-full bg-emerald-400/70"
+          style={{ transformOrigin: "left" }}
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: ratio }}
+          transition={
+            reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 30 }
+          }
+        />
+      )}
+    </span>
   );
 }
 
@@ -135,39 +171,76 @@ function CoverageRow({
   return (
     <div className="flex h-10 items-center gap-3 border-t border-white/5 px-4 first:border-t-0">
       <Icon aria-hidden="true" className="size-3.5 shrink-0 text-zinc-500" />
-      <span className="flex-1 text-[12px] text-zinc-400">{label}</span>
+      <span className="w-24 shrink-0 text-[11px] font-medium tracking-[0.08em] text-zinc-500 uppercase">
+        {label}
+      </span>
       {pending ? (
-        <Skeleton className="h-4 w-14" />
+        <Skeleton className="h-1 flex-1" />
       ) : free === null ? (
         <span className="font-mono text-[11px] text-zinc-600 tabular-nums">—</span>
       ) : (
-        <span className="font-mono text-[11px] text-zinc-300 tabular-nums">
-          {free}/{total} <span className="text-zinc-500">{noun}</span>
-        </span>
+        <>
+          <MiniMeter
+            ratio={coverageRatio(free, total)}
+            pending={pending}
+            label={`${free} of ${total} ${noun.toLowerCase()}`}
+          />
+          <span className="shrink-0 font-mono text-[11px] text-zinc-300 tabular-nums">
+            {free}/{total} <span className="text-zinc-500">{noun.toLowerCase()}</span>
+          </span>
+        </>
       )}
     </div>
   );
 }
 
-function ComponentRow({ label, component }: { label: string; component: ScoreComponent }) {
-  const pct = component.max === 0 ? 0 : Math.round((component.value / component.max) * 100);
+/** Compact metric tile with a spring micro-meter for continuous scores. */
+function MetricTile({ label, component }: { label: string; component: ScoreComponent }) {
+  const reduceMotion = useReducedMotion();
+  const pct = component.max === 0 ? 0 : component.value / component.max;
   return (
     <li
-      className="flex h-8 items-center gap-3 border-t border-white/5 px-4 first:border-t-0"
       title={component.detail}
+      className="flex flex-col gap-2 rounded-lg border border-zinc-800 bg-white/[0.02] p-3"
     >
-      <span className="w-24 shrink-0 text-[10px] font-medium tracking-[0.08em] text-zinc-500 uppercase">
+      <span className="text-[10px] font-medium tracking-[0.1em] text-zinc-500 uppercase">
         {label}
       </span>
-      <span className="h-1 flex-1 overflow-hidden rounded-full bg-zinc-800">
-        <span
-          className="block h-full rounded-full bg-zinc-300 transition-[width] duration-300"
-          style={{ width: `${pct}%` }}
+      <span className="font-mono text-[14px] leading-none font-medium text-zinc-200 tabular-nums">
+        {component.value}
+        <span className="text-[11px] text-zinc-600">/{component.max}</span>
+      </span>
+      <span className="h-1 overflow-hidden rounded-full bg-zinc-800">
+        <motion.span
+          className="block h-full rounded-full bg-zinc-300"
+          style={{ transformOrigin: "left" }}
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: pct }}
+          transition={
+            reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 30 }
+          }
         />
       </span>
-      <span className="w-10 shrink-0 text-right font-mono text-[11px] text-zinc-400 tabular-nums">
-        {component.value}
-        <span className="text-zinc-600">/{component.max}</span>
+    </li>
+  );
+}
+
+/** Syllables render discrete data — a crisp badge, not a progress bar. */
+function SyllableTile({ component }: { component: SyllableComponent }) {
+  const band = syllableBand(component);
+  return (
+    <li
+      title={component.detail}
+      className="flex flex-col gap-2 rounded-lg border border-zinc-800 bg-white/[0.02] p-3"
+    >
+      <span className="text-[10px] font-medium tracking-[0.1em] text-zinc-500 uppercase">
+        Syllables
+      </span>
+      <span className="inline-flex w-fit items-center rounded-full border border-zinc-700 bg-white/[0.05] px-2 py-0.5 font-mono text-[11px] font-medium text-zinc-200 tabular-nums">
+        {component.count} · {band}
+      </span>
+      <span className="font-mono text-[10px] text-zinc-600 tabular-nums">
+        {component.value}/{component.max} pts
       </span>
     </li>
   );
@@ -177,7 +250,7 @@ function markdownSummary(
   name: string,
   score: NameScore,
   rating: number,
-  tier: Tier,
+  tier: RatingTier,
   stats: AvailabilityStats | null,
   availability: AvailabilityResponse | null,
   url: string,
@@ -236,7 +309,7 @@ export function BrandScoreCard({
       : stats === null
         ? score.total
         : Math.round(0.6 * score.total + 0.4 * stats.composite * 100);
-  const tier = rating === null ? null : tierFor(rating);
+  const tier = rating === null ? null : ratingTier(rating);
 
   const copyReport = () => {
     if (score === null || rating === null || tier === null) return;
@@ -268,16 +341,6 @@ export function BrandScoreCard({
           <span className="rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
             demo data
           </span>
-        ) : tier !== null ? (
-          <span
-            className={cn(
-              "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-[0.06em] uppercase",
-              TIER_STYLES[tier],
-            )}
-          >
-            <CheckCircle2 aria-hidden="true" className="size-3" />
-            {tier}
-          </span>
         ) : null}
       </div>
 
@@ -291,14 +354,29 @@ export function BrandScoreCard({
       ) : (
         <>
           <div className="flex items-center gap-4 border-b border-white/5 px-4 py-4">
-            <RatingGauge rating={rating} />
+            <RatingGauge rating={rating} tier={tier} />
             <div className="min-w-0 flex-1">
               <div className="truncate font-mono text-[16px] font-medium text-foreground">
                 {score.normalized}
               </div>
-              <div className="mt-1 text-[11px] leading-5 text-zinc-500">
-                {score.syllables.count} syllable{score.syllables.count === 1 ? "" : "s"} · name
-                score {score.total}/100 ({score.grade})
+              <div className="mt-1.5 flex items-center gap-2">
+                {tier !== null ? (
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] uppercase",
+                      TIER_STYLES[tier].badge,
+                    )}
+                  >
+                    {tier}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center rounded-full border border-zinc-800 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-zinc-600 uppercase">
+                    Scoring
+                  </span>
+                )}
+              </div>
+              <div className="mt-2 text-[11px] font-medium tracking-[0.08em] text-zinc-600 uppercase">
+                deterministic heuristic · name score {score.total}/100 ({score.grade})
               </div>
               <div className="mt-2.5 flex gap-1.5">
                 <Button
@@ -327,7 +405,7 @@ export function BrandScoreCard({
           <div className="border-b border-white/5" aria-label="Availability coverage">
             <CoverageRow
               icon={Globe}
-              label="TLD availability"
+              label="TLDs"
               free={stats?.tld.free ?? null}
               total={stats?.tld.total ?? providerGroup("domains").providers.length}
               noun="Free"
@@ -343,7 +421,7 @@ export function BrandScoreCard({
             />
             <CoverageRow
               icon={Code2}
-              label="Dev footprint"
+              label="Dev"
               free={stats?.dev.free ?? null}
               total={stats?.dev.total ?? providerGroup("developer").providers.length}
               noun="Clean"
@@ -351,12 +429,15 @@ export function BrandScoreCard({
             />
           </div>
 
-          <ul aria-label="Name score breakdown">
-            <ComponentRow label="Punchiness" component={score.punchiness} />
-            <ComponentRow label="Syllables" component={score.syllables} />
-            <ComponentRow label="Pronounce" component={score.pronounceability} />
-            <ComponentRow label="Uniqueness" component={score.uniqueness} />
-            <ComponentRow label="Cleanliness" component={score.cleanliness} />
+          <ul
+            aria-label="Name score breakdown"
+            className="grid grid-cols-2 gap-2 px-4 py-3 sm:grid-cols-3"
+          >
+            <MetricTile label="Punchiness" component={score.punchiness} />
+            <SyllableTile component={score.syllables} />
+            <MetricTile label="Pronounce" component={score.pronounceability} />
+            <MetricTile label="Uniqueness" component={score.uniqueness} />
+            <MetricTile label="Cleanliness" component={score.cleanliness} />
           </ul>
         </>
       )}
