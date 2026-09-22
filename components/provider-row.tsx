@@ -41,9 +41,10 @@ const CHIP_SPRING = { type: "spring", stiffness: 420, damping: 28 } as const;
 
 /**
  * Platform brand mark tinted by availability. While the icon's own hover /
- * focus target is engaged (`revealed`) it springs into the matching status
- * glyph — a composited opacity/scale morph, reduced to a plain crossfade
- * under prefers-reduced-motion. During a pending check it pulses zinc.
+ * focus target is engaged (`revealed`) it springs out of the way — the
+ * status chip carries the glyph instead. Composited opacity/scale only,
+ * reduced to a plain fade under prefers-reduced-motion. During a pending
+ * check it pulses zinc.
  */
 function RowIcon({
   id,
@@ -66,7 +67,6 @@ function RowIcon({
       />
     );
   }
-  const Glyph = STATUS_GLYPHS[status];
   const tint = ICON_TINTS[status];
   return (
     <span className="relative flex size-3.5 shrink-0 items-center" aria-hidden="true">
@@ -81,35 +81,32 @@ function RowIcon({
       >
         <Icon className={cn("size-3.5", tint)} />
       </motion.span>
-      <motion.span
-        className="absolute inset-0 flex items-center justify-center"
-        initial={false}
-        animate={{
-          opacity: revealed ? 1 : 0,
-          scale: reduce ? 1 : revealed ? 1 : 0.75,
-        }}
-        transition={reduce ? { duration: 0.15 } : MORPH_SPRING}
-      >
-        <Glyph className={cn("size-3.5", tint)} />
-      </motion.span>
     </span>
   );
 }
 
 /**
- * Floating availability pill that swaps in next to the row's icon when the
- * icon target is hovered/focused. It stays local — anchored just right of
- * the icon on a z-raised, backdrop-blurred layer over the row content —
- * springing from opacity/scale/a few px of translate, never traversing the
- * row. pointer-events-none — it never intercepts the row's own click
+ * Feathered blur halo behind the chip: a radially-masked backdrop-blur
+ * layer extending ~15px past the pill so row text behind/around it is
+ * softly blurred without clashing.
+ */
+const HALO_MASK = "radial-gradient(closest-side, rgba(0,0,0,0.95) 35%, transparent 100%)";
+
+/**
+ * Floating availability pill — status glyph + label as one unified chip.
+ * It swaps in at the icon slot when the icon target is hovered/focused,
+ * staying local to the start of the row on a z-raised layer with a 1px
+ * border, soft shadow and a ~15px feathered blur halo; it never traverses
+ * the row. pointer-events-none — it never intercepts the row's own click
  * target; status stays in the a11y tree via sr-only text.
  */
 function StatusChip({ status, visible }: { status: AvailabilityStatus; visible: boolean }) {
   const reduce = useReducedMotion();
+  const Glyph = STATUS_GLYPHS[status];
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute top-1/2 left-7 z-10 -translate-y-1/2"
+      className="pointer-events-none absolute top-1/2 left-2 z-10 -translate-y-1/2"
     >
       <AnimatePresence>
         {visible ? (
@@ -117,26 +114,32 @@ function StatusChip({ status, visible }: { status: AvailabilityStatus; visible: 
             key="chip"
             initial={{
               opacity: 0,
-              x: reduce ? 0 : -6,
-              scale: reduce ? 1 : 0.92,
+              x: reduce ? 0 : -4,
+              scale: reduce ? 1 : 0.9,
             }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{
               opacity: 0,
-              x: reduce ? 0 : -6,
-              scale: reduce ? 1 : 0.96,
+              x: reduce ? 0 : -4,
+              scale: reduce ? 1 : 0.95,
               transition: { duration: 0.15, ease: "easeOut" },
             }}
             transition={reduce ? { duration: 0.15 } : CHIP_SPRING}
             style={{ transformOrigin: "left center" }}
             className={cn(
-              "inline-flex items-center rounded-full border px-2 py-0.5",
+              "relative inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5",
               "text-[10px] font-medium tracking-[0.08em] uppercase",
-              "shadow-lg shadow-black/50 backdrop-blur-md",
+              "shadow-lg shadow-black/50",
               CHIP_TINTS[status],
             )}
           >
-            {status}
+            <span
+              aria-hidden="true"
+              className="absolute -inset-[15px] rounded-full backdrop-blur-md"
+              style={{ maskImage: HALO_MASK, WebkitMaskImage: HALO_MASK }}
+            />
+            <Glyph className="relative size-3" />
+            <span className="relative">{status}</span>
           </motion.span>
         ) : null}
       </AnimatePresence>
