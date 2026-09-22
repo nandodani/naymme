@@ -87,18 +87,20 @@ function RowIcon({
 
 /**
  * Feathered blur halo behind the chip: a radially-masked backdrop-blur
- * layer extending ~15px past the pill so row text behind/around it is
+ * layer weighted to the right of the pill so row text behind/around it is
  * softly blurred without clashing.
  */
-const HALO_MASK = "radial-gradient(closest-side, rgba(0,0,0,0.95) 35%, transparent 100%)";
+const HALO_MASK = "radial-gradient(130% 200% at 30% 50%, rgba(0,0,0,0.95) 40%, transparent 78%)";
 
 /**
  * Floating availability pill — status glyph + label as one unified chip.
  * It swaps in at the icon slot when the icon target is hovered/focused,
  * staying local to the start of the row on a z-raised layer with a 1px
- * border, soft shadow and a ~15px feathered blur halo; it never traverses
- * the row. pointer-events-none — it never intercepts the row's own click
- * target; status stays in the a11y tree via sr-only text.
+ * border, soft shadow and a feathered blur halo reaching ~25px right of
+ * the pill; it never traverses the row. The halo animates its own
+ * backdrop-filter so the blur fades in with the chip rather than popping
+ * after the spring settles. pointer-events-none — it never intercepts the
+ * row's own click target; status stays in the a11y tree via sr-only text.
  */
 function StatusChip({ status, visible }: { status: AvailabilityStatus; visible: boolean }) {
   const reduce = useReducedMotion();
@@ -109,39 +111,49 @@ function StatusChip({ status, visible }: { status: AvailabilityStatus; visible: 
       className="pointer-events-none absolute top-1/2 left-2 z-10 -translate-y-1/2"
     >
       <AnimatePresence>
-        {visible ? (
-          <motion.span
-            key="chip"
-            initial={{
-              opacity: 0,
-              x: reduce ? 0 : -4,
-              scale: reduce ? 1 : 0.9,
-            }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{
-              opacity: 0,
-              x: reduce ? 0 : -4,
-              scale: reduce ? 1 : 0.95,
-              transition: { duration: 0.15, ease: "easeOut" },
-            }}
-            transition={reduce ? { duration: 0.15 } : CHIP_SPRING}
-            style={{ transformOrigin: "left center" }}
-            className={cn(
-              "relative inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5",
-              "text-[10px] font-medium tracking-[0.08em] uppercase",
-              "shadow-lg shadow-black/50",
-              CHIP_TINTS[status],
-            )}
-          >
-            <span
-              aria-hidden="true"
-              className="absolute -inset-[15px] rounded-full backdrop-blur-md"
-              style={{ maskImage: HALO_MASK, WebkitMaskImage: HALO_MASK }}
-            />
-            <Glyph className="relative size-3" />
-            <span className="relative">{status}</span>
-          </motion.span>
-        ) : null}
+        {visible
+          ? [
+              <motion.span
+                key="halo"
+                initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
+                animate={{ opacity: 1, backdropFilter: "blur(12px)" }}
+                exit={{
+                  opacity: 0,
+                  backdropFilter: "blur(0px)",
+                  transition: { duration: 0.15, ease: "easeOut" },
+                }}
+                transition={CHIP_SPRING}
+                style={{ maskImage: HALO_MASK, WebkitMaskImage: HALO_MASK }}
+                className="absolute top-0 -left-3 h-9 w-[190px] -translate-y-1/2 rounded-full backdrop-blur-md"
+              />,
+              <motion.span
+                key="chip"
+                initial={{
+                  opacity: 0,
+                  x: reduce ? 0 : -4,
+                  scale: reduce ? 1 : 0.9,
+                }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{
+                  opacity: 0,
+                  x: reduce ? 0 : -4,
+                  scale: reduce ? 1 : 0.95,
+                  transition: { duration: 0.15, ease: "easeOut" },
+                }}
+                transition={reduce ? { duration: 0.15 } : CHIP_SPRING}
+                style={{ translate: "0 -50%", transformOrigin: "left center" }}
+                className={cn(
+                  "absolute top-0 left-0 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5",
+                  "text-[10px] font-medium tracking-[0.08em] uppercase",
+                  "shadow-lg shadow-black/50",
+                  CHIP_TINTS[status],
+                )}
+              >
+                <Glyph className="size-3" />
+                {status}
+              </motion.span>,
+            ]
+          : null}
       </AnimatePresence>
     </span>
   );
