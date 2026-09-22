@@ -90,7 +90,7 @@ function RowIcon({
  * layer weighted to the right of the pill so row text behind/around it is
  * softly blurred without clashing.
  */
-const HALO_MASK = "radial-gradient(130% 200% at 30% 50%, rgba(0,0,0,0.95) 40%, transparent 78%)";
+const HALO_MASK = "radial-gradient(140% 220% at 30% 50%, rgba(0,0,0,0.75) 30%, transparent 70%)";
 
 /**
  * Floating availability pill — status glyph + label as one unified chip.
@@ -116,7 +116,7 @@ function StatusChip({ status, visible }: { status: AvailabilityStatus; visible: 
               <motion.span
                 key="halo"
                 initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
-                animate={{ opacity: 1, backdropFilter: "blur(12px)" }}
+                animate={{ opacity: 1, backdropFilter: "blur(6px)" }}
                 exit={{
                   opacity: 0,
                   backdropFilter: "blur(0px)",
@@ -124,7 +124,7 @@ function StatusChip({ status, visible }: { status: AvailabilityStatus; visible: 
                 }}
                 transition={CHIP_SPRING}
                 style={{ maskImage: HALO_MASK, WebkitMaskImage: HALO_MASK }}
-                className="absolute top-0 -left-3 h-9 w-[190px] -translate-y-1/2 rounded-full backdrop-blur-md"
+                className="absolute top-0 -left-3 h-9 w-[190px] -translate-y-1/2 rounded-full backdrop-blur-sm"
               />,
               <motion.span
                 key="chip"
