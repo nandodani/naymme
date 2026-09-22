@@ -133,7 +133,7 @@ function StatusChip({ status, visible }: { status: AvailabilityStatus; visible: 
                 className={cn(
                   "absolute top-0 left-0 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5",
                   "text-[10px] font-medium tracking-[0.08em] uppercase",
-                  "shadow-xl shadow-black/80 backdrop-blur-md",
+                  "shadow-2xl shadow-black backdrop-blur-md",
                   CHIP_TINTS[status],
                 )}
               >
