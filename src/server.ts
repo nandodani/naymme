@@ -1,5 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { defaultDeps, type ProviderDeps } from "./deps.js";
+import type { ProviderDeps } from "./deps.js";
 import { scoreName } from "./scoring/score.js";
 import {
   checkAvailabilityInputSchema,
@@ -16,7 +16,7 @@ export const SERVER_VERSION = "0.1.0";
  * Build a configured MCP server. One instance is created per transport —
  * and in stateless HTTP mode, per request.
  */
-export function createNameCheckServer(deps: ProviderDeps = defaultDeps()): McpServer {
+export function createNameCheckServer(deps: ProviderDeps): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
 
   server.registerTool(

@@ -1,5 +1,4 @@
 import type { ProviderDeps } from "../deps.js";
-import { defaultDeps } from "../deps.js";
 import type { CheckAvailabilityInput, CheckAvailabilityOutput } from "../schemas.js";
 import { resolveProviderIds } from "../schemas.js";
 import { selectAdapters } from "../providers/index.js";
@@ -56,7 +55,7 @@ async function checkWithTimeout(
 export async function runAvailabilityChecks(
   name: string,
   adapterSelection: readonly string[] | undefined,
-  deps: ProviderDeps = defaultDeps(),
+  deps: ProviderDeps,
 ): Promise<AvailabilityResult[]> {
   const adapters = selectAdapters(resolveProviderIds(adapterSelection), deps);
   const settled = await Promise.allSettled(
@@ -77,7 +76,7 @@ export async function runAvailabilityChecks(
 
 export async function checkAvailability(
   input: CheckAvailabilityInput,
-  deps: ProviderDeps = defaultDeps(),
+  deps: ProviderDeps,
 ): Promise<CheckAvailabilityOutput> {
   const results = await runAvailabilityChecks(input.name, input.providers, deps);
   const summary = { available: 0, taken: 0, unknown: 0, invalid: 0 };

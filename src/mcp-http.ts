@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { defaultDeps } from "./deps.js";
 import { createNameCheckServer } from "./server.js";
 
 /** Read and JSON-parse a request body. Empty body → undefined. */
@@ -41,7 +42,7 @@ export async function handleStatelessMcpRequest(
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<void> {
-  const server = createNameCheckServer();
+  const server = createNameCheckServer(defaultDeps());
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
 
   res.on("close", () => {
