@@ -17,5 +17,5 @@
     "sourceMap": true,
     "noEmit": true
   },
-  "include": ["src", "test", "api", "vitest.config.ts", "eslint.config.js"]
+  "include": ["src", "test", "api", "worker", "vitest.config.ts", "eslint.config.js"]
 }

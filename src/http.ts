@@ -1,6 +1,7 @@
 import http from "node:http";
 import { pathToFileURL } from "node:url";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { defaultDeps } from "./deps.js";
 import { handleStatelessMcpRequest, readJsonBody, sendJson, setCorsHeaders } from "./mcp-http.js";
 import { createNameCheckServer, SERVER_NAME, SERVER_VERSION } from "./server.js";
 
@@ -52,7 +53,7 @@ export function createHttpServer(): http.Server {
       }
 
       if (url.pathname === "/sse" && req.method === "GET") {
-        const server = createNameCheckServer();
+        const server = createNameCheckServer(defaultDeps());
         const transport = new SSEServerTransport("/messages", res);
         sseSessions.set(transport.sessionId, { server, transport });
         res.on("close", () => {

@@ -1,5 +1,8 @@
 # lmkurname
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/nandodani/name-check-mcp)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/nandodani/name-check-mcp)
+
 An MCP (Model Context Protocol) server that answers two questions about a
 candidate name:
 
@@ -12,8 +15,8 @@ candidate name:
 
 Runs both as a **stdio** server (Claude Desktop, Cursor, any local MCP
 client) and as an **HTTP** server (Streamable HTTP at `/mcp`, deployable to
-Vercel/any Node host for remote clients like Poke; legacy SSE at `/sse` +
-`/messages` for older clients).
+Vercel, Cloudflare Workers, or any Node host for remote clients like Poke;
+legacy SSE at `/sse` + `/messages` for older clients).
 
 ## Requirements
 
@@ -32,6 +35,7 @@ npm run check        # typecheck + lint + format:check + test + build
 | -------------------- | --------------------------------------------- |
 | `npm run dev`        | stdio server via tsx (dev)                    |
 | `npm run dev:http`   | HTTP server via tsx on `$PORT` (default 3000) |
+| `npm run dev:worker` | Cloudflare Worker via wrangler dev            |
 | `npm start`          | stdio server from `dist/`                     |
 | `npm run start:http` | HTTP server from `dist/`                      |
 | `npm run typecheck`  | `tsc --noEmit` (strict)                       |
@@ -120,6 +124,8 @@ src/
   scoring/score.ts      deterministic scoring formula
 api/
   mcp.ts                Vercel serverless function (stateless /mcp only)
+worker/
+  index.ts              Cloudflare Worker (stateless /mcp, portable deps)
 ```
 
 Every provider implements
@@ -191,6 +197,32 @@ transport works — the legacy SSE transport holds in-memory sessions and
 cannot span invocations, so `/sse` is intentionally not exposed on Vercel.
 WHOIS lookups open raw TCP to port 43 and may also be blocked on some
 serverless networks; affected TLDs simply report `unknown`.
+
+### Cloudflare Workers — Streamable HTTP
+
+The repo ships `worker/index.ts` + `wrangler.toml` (also what the
+“Deploy to Cloudflare Workers” button uses). Deploy:
+
+```bash
+npx wrangler deploy        # or: npm run deploy:worker
+```
+
+Your MCP endpoint is `https://<worker>.<account>.workers.dev/mcp` (`POST`,
+Streamable HTTP, stateless). `/health` is a liveness probe. Try it locally
+with `npm run dev:worker`.
+
+Worker caveats:
+
+- **Port 43 / WHOIS**: Workers can't open raw TCP connections the way
+  `whoiser` needs, so WHOIS is not run at all. For TLDs without an RDAP
+  service (`.gg`, `.io`, `.pt`, `.es`, `.de`, `.eu`) the check falls through
+  to the **DNS NS lookup** — reimplemented over DNS-over-HTTPS — and
+  otherwise reports `unknown`.
+- **npm**: `npm-name` reads local npm config (`~/.npmrc`), which doesn't
+  exist on Workers, so the check uses direct `HEAD` requests against
+  `registry.npmjs.org` — exact name plus the same punctuation-variant
+  probes. Best-effort, same semantics.
+- Stateless `/mcp` only, same as Vercel — no `/sse`.
 
 ### Any persistent Node host — both transports
 
