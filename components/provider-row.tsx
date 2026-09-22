@@ -97,19 +97,19 @@ function RowIcon({
 }
 
 /**
- * Floating availability pill that emerges when the row's icon target is
- * hovered/focused: it springs in from the left, settles at the row's right
- * edge on a z-raised, backdrop-blurred layer over the row content, then
- * slides back out on leave. pointer-events-none — it never intercepts the
- * row's own click target; status stays in the a11y tree via sr-only text.
+ * Floating availability pill that swaps in next to the row's icon when the
+ * icon target is hovered/focused. It stays local — anchored just right of
+ * the icon on a z-raised, backdrop-blurred layer over the row content —
+ * springing from opacity/scale/a few px of translate, never traversing the
+ * row. pointer-events-none — it never intercepts the row's own click
+ * target; status stays in the a11y tree via sr-only text.
  */
 function StatusChip({ status, visible }: { status: AvailabilityStatus; visible: boolean }) {
   const reduce = useReducedMotion();
-  const Glyph = STATUS_GLYPHS[status];
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute top-1/2 right-2 z-10 -translate-y-1/2"
+      className="pointer-events-none absolute top-1/2 left-7 z-10 -translate-y-1/2"
     >
       <AnimatePresence>
         {visible ? (
@@ -117,25 +117,25 @@ function StatusChip({ status, visible }: { status: AvailabilityStatus; visible: 
             key="chip"
             initial={{
               opacity: 0,
-              x: reduce ? 0 : -140,
+              x: reduce ? 0 : -6,
               scale: reduce ? 1 : 0.92,
             }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{
               opacity: 0,
-              x: reduce ? 0 : -24,
+              x: reduce ? 0 : -6,
               scale: reduce ? 1 : 0.96,
               transition: { duration: 0.15, ease: "easeOut" },
             }}
             transition={reduce ? { duration: 0.15 } : CHIP_SPRING}
+            style={{ transformOrigin: "left center" }}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5",
+              "inline-flex items-center rounded-full border px-2 py-0.5",
               "text-[10px] font-medium tracking-[0.08em] uppercase",
               "shadow-lg shadow-black/50 backdrop-blur-md",
               CHIP_TINTS[status],
             )}
           >
-            <Glyph className="size-3" aria-hidden="true" />
             {status}
           </motion.span>
         ) : null}
@@ -198,8 +198,8 @@ interface ProviderRowProps {
  * taken ones), static text otherwise. Availability is expressed purely by
  * icon tint (status text stays in the a11y tree via sr-only/aria-label).
  * Only the icon is the status trigger: hovering/focusing it morphs the
- * brand mark into the status glyph and slides the status chip across the
- * row — the rest of the row never triggers it. Available domains link to
+ * brand mark into the status glyph and pops the status chip right next to
+ * it — the rest of the row never triggers it. Available domains link to
  * the first registrar carrying the TLD while the price chips offer every
  * registrar.
  */
