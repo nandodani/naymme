@@ -1,36 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Code2, Globe, LayoutGrid, Users } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 
 import { nameSchema } from "@/src/schemas.js";
 import { scoreName, type NameScore } from "@/src/scoring/score.js";
 import type { AvailabilityResponse } from "@/lib/availability.js";
-import { AvailabilityGrid, type AvailabilityFilter } from "./availability-grid.js";
-import { BrandScoreCard } from "./brand-score-card.js";
-import { ConfigCard } from "./config-card.js";
-import { CopyToast } from "./toast.js";
+import { Hero } from "./hero.js";
+import { Navbar } from "./navbar.js";
+import { ResultsGrid } from "./results-grid.js";
 import { SearchInput } from "./search-input.js";
-import { ContinuousTabs, type ContinuousTabItem } from "./watermelon/continuous-tabs.js";
+import { CopyToast } from "./toast.js";
 import { TooltipProvider } from "./ui/tooltip.js";
 
 const DEBOUNCE_MS = 320;
-
-const FILTER_TABS: ContinuousTabItem[] = [
-  { id: "all", label: "All", icon: <LayoutGrid aria-hidden="true" className="size-3.5" /> },
-  {
-    id: "available",
-    label: "Available",
-    icon: <CheckCircle2 aria-hidden="true" className="size-3.5" />,
-  },
-  { id: "domains", label: "Domains", icon: <Globe aria-hidden="true" className="size-3.5" /> },
-  { id: "socials", label: "Socials", icon: <Users aria-hidden="true" className="size-3.5" /> },
-  {
-    id: "developer",
-    label: "Developer",
-    icon: <Code2 aria-hidden="true" className="size-3.5" />,
-  },
-];
 
 function normalize(raw: string): string {
   return raw.trim().toLowerCase();
@@ -59,7 +42,6 @@ export function NameChecker() {
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadTick, setReloadTick] = useState(0);
-  const [filter, setFilter] = useState<AvailabilityFilter>("all");
   const [toast, setToast] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const requestSeq = useRef(0);
@@ -71,6 +53,8 @@ export function NameChecker() {
     () => (nameValid ? scoreName(name) : null),
     [nameValid, name],
   );
+
+  const searched = debouncedName !== "";
 
   const notify = useCallback((text: string, label: string) => {
     void copyText(text);
@@ -85,7 +69,8 @@ export function NameChecker() {
     if (initial !== null && initial !== "") setQuery(initial);
   }, []);
 
-  // Autofocus + ⌘K / Ctrl+K / "/" to refocus from anywhere.
+  // Autofocus, ⌘K / Ctrl+K / "/" to refocus, and keep focus across the
+  // hero → results transition (the input remounts into the compact variant).
   useEffect(() => {
     inputRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
@@ -108,6 +93,10 @@ export function NameChecker() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [searched]);
 
   // Back/forward navigation re-reads ?q=.
   useEffect(() => {
@@ -173,93 +162,69 @@ export function NameChecker() {
   return (
     <TooltipProvider>
       <div className="flex min-h-screen flex-col">
-        <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
-          <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4 sm:px-6">
-            <a
-              href="/"
-              aria-label="lmkurname home"
-              className="flex shrink-0 items-center gap-2.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        <Navbar onCopy={notify} />
+
+        <AnimatePresence mode="wait" initial={false}>
+          {searched ? (
+            <motion.main
+              key="results"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 sm:px-6"
             >
-              <span className="flex size-6 items-center justify-center rounded-md border border-border bg-zinc-900">
-                <span className="size-1.5 rounded-full bg-primary" />
-              </span>
-              <span className="hidden text-[13px] font-semibold tracking-tight text-foreground sm:inline">
-                lmkurname
-              </span>
-            </a>
-            <div className="min-w-0 flex-1 sm:max-w-md">
-              <SearchInput ref={inputRef} value={query} onChange={setQuery} valid={nameValid} />
-            </div>
-            <div className="ml-auto flex shrink-0 items-center gap-2">
-              {availability?.mode === "demo" ? (
-                <span className="rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
-                  demo data
+              <div className="mx-auto max-w-xl pt-7 pb-8">
+                <SearchInput
+                  ref={inputRef}
+                  value={query}
+                  onChange={setQuery}
+                  valid={nameValid}
+                  variant="compact"
+                />
+              </div>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <span className="font-mono text-[11px] text-zinc-500">
+                  results for <span className="text-zinc-300">{debouncedName}</span>
                 </span>
-              ) : null}
-              <span className="hidden items-center rounded-md border border-border bg-zinc-900/60 px-2 py-1 font-mono text-[10px] text-zinc-400 md:inline-flex">
-                POST /api/mcp
-              </span>
-            </div>
-          </div>
-        </header>
-
-        <main className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 gap-3 px-4 py-5 sm:px-6 lg:grid-cols-[400px_1fr]">
-          <div className="flex flex-col gap-3">
-            <BrandScoreCard
-              score={score}
-              availability={availability}
-              checking={checking}
-              name={debouncedName || name}
-              onCopy={notify}
-            />
-            <ConfigCard onCopy={notify} />
-          </div>
-
-          <div className="flex min-w-0 flex-col gap-3">
-            <div className="flex items-center justify-between gap-3">
-              <ContinuousTabs
-                id="availability-filter"
-                aria-label="Filter availability results"
-                tabs={FILTER_TABS}
-                value={filter}
-                onChange={(id) => setFilter(id as AvailabilityFilter)}
-              />
-              <div className="flex shrink-0 items-center gap-2">
                 {checking ? (
-                  <span className="inline-flex animate-pulse items-center gap-1 text-[11px] text-zinc-500">
+                  <span className="inline-flex animate-pulse items-center gap-1.5 text-[11px] text-zinc-500">
                     <span className="size-1.5 rounded-full bg-primary" />
                     checking…
                   </span>
                 ) : availability !== null ? (
-                  <span className="text-[11px] text-zinc-500 tabular-nums">
+                  <span className="font-mono text-[11px] text-zinc-500 tabular-nums">
                     {availability.summary.available} free · {availability.summary.taken} taken
                   </span>
                 ) : null}
               </div>
-            </div>
+              <ResultsGrid
+                name={debouncedName}
+                score={score}
+                data={availability}
+                checking={checking}
+                error={error}
+                onRetry={retry}
+                onCopy={notify}
+              />
+            </motion.main>
+          ) : (
+            <motion.div
+              key="hero"
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18 }}
+              className="flex flex-1 flex-col"
+            >
+              <Hero value={query} onChange={setQuery} valid={nameValid} inputRef={inputRef} />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-            <AvailabilityGrid
-              name={debouncedName}
-              data={availability}
-              checking={checking}
-              error={error}
-              onRetry={retry}
-              filter={filter}
-              onCopy={notify}
-            />
-          </div>
-        </main>
-
-        <footer className="flex h-10 shrink-0 items-center justify-between gap-3 border-t border-border px-4 text-[11px] text-zinc-600 sm:px-6">
-          <span>
+        <footer className="flex h-10 shrink-0 items-center justify-center border-t border-white/5 px-4 text-[11px] text-zinc-600 sm:px-6">
+          <span className="text-center">
             Scores are deterministic heuristics · availability is a best-effort snapshot, not a
             guarantee.
           </span>
-          {availability?.mode === "demo" ? (
-            <span className="rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 font-medium text-amber-300">
-              demo data
-            </span>
-          ) : null}
         </footer>
 
         <CopyToast message={toast} />

@@ -42,6 +42,7 @@ const TLD_PRICE_ESTIMATE: Partial<Record<ProviderId, string>> = {
   "domain:com": "~$11",
   "domain:dev": "~$12",
   "domain:io": "~$34",
+  "domain:ai": "~$68",
   "domain:gg": "~$68",
   "domain:app": "~$14",
   "domain:pt": "~$12",

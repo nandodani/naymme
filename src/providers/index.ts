@@ -25,6 +25,7 @@ export function createAdapters(deps: ProviderDeps): Record<ProviderId, ProviderA
     "domain:gg": createDomainAdapter("gg", deps, rdap),
     "domain:dev": createDomainAdapter("dev", deps, rdap),
     "domain:io": createDomainAdapter("io", deps, rdap),
+    "domain:ai": createDomainAdapter("ai", deps, rdap),
     "domain:app": createDomainAdapter("app", deps, rdap),
     "domain:pt": createDomainAdapter("pt", deps, rdap),
     "domain:es": createDomainAdapter("es", deps, rdap),

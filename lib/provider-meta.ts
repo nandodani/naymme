@@ -28,6 +28,7 @@ export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
       { id: "domain:com", label: ".com" },
       { id: "domain:dev", label: ".dev" },
       { id: "domain:io", label: ".io" },
+      { id: "domain:ai", label: ".ai" },
       { id: "domain:gg", label: ".gg" },
       { id: "domain:app", label: ".app" },
       { id: "domain:pt", label: ".pt" },
@@ -59,3 +60,10 @@ export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
     ],
   },
 ];
+
+/** Look up a group by id — throws for unknown ids (ids are compile-time constants). */
+export function providerGroup(id: ProviderGroupId): ProviderGroup {
+  const group = PROVIDER_GROUPS.find((g) => g.id === id);
+  if (group === undefined) throw new Error(`unknown provider group: ${id}`);
+  return group;
+}

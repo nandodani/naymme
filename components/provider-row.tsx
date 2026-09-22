@@ -6,7 +6,7 @@ import { Check, CheckCircle2, Clock, Copy, ExternalLink, Globe, XCircle } from "
 import { BRAND_ICONS } from "./brand-icons.js";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip.js";
 import { cn } from "@/lib/utils.js";
-import { platformLinks, tldPriceEstimate, type Registrar } from "@/lib/links.js";
+import { platformLinks, REGISTRARS, tldPriceEstimate, type Registrar } from "@/lib/links.js";
 import type { ProviderMeta } from "@/lib/provider-meta.js";
 import type { AvailabilityResult, AvailabilityStatus } from "@/src/types.js";
 
@@ -72,12 +72,19 @@ interface ProviderRowProps {
   /** A check is in flight and no (or stale) result exists for this row. */
   pending: boolean;
   /** Registrar chosen for the current session (domains only). */
-  registrar: Registrar;
+  registrar?: Registrar;
   /** Copy `subject` to the clipboard and fire the shared toast. */
   onCopy: (text: string, label: string) => void;
 }
 
-export function ProviderRow({ meta, name, result, pending, registrar, onCopy }: ProviderRowProps) {
+export function ProviderRow({
+  meta,
+  name,
+  result,
+  pending,
+  registrar = REGISTRARS[0],
+  onCopy,
+}: ProviderRowProps) {
   const [copied, setCopied] = useState(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -122,7 +129,7 @@ export function ProviderRow({ meta, name, result, pending, registrar, onCopy }: 
   return (
     <li
       className={cn(
-        "group relative flex h-9 items-center gap-1.5 border-t border-border transition-colors first:border-t-0",
+        "group relative flex h-10 items-center gap-1.5 border-t border-border transition-colors first:border-t-0",
         "hover:bg-zinc-900/50 hover:ring-1 hover:ring-inset hover:ring-zinc-700/60",
       )}
     >

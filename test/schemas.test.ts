@@ -59,6 +59,7 @@ describe("resolveProviderIds", () => {
       "domain:gg",
       "domain:dev",
       "domain:io",
+      "domain:ai",
       "domain:app",
       "domain:pt",
       "domain:es",
