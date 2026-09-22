@@ -3,25 +3,16 @@
  * and badge semantics can be unit-tested without a DOM.
  */
 
-import type { SyllableComponent } from "@/src/scoring/score.js";
+import type { BrandVerdict } from "../src/scoring/brand.js";
 
-export type RatingTier = "Excellent" | "Strong" | "Fair" | "Contested";
+export type VerdictTone = "uncontested" | "strong" | "contested" | "crowded";
 
-/** Quality rating for the blended 0–100 brand rating. */
-export function ratingTier(rating: number): RatingTier {
-  if (rating >= 90) return "Excellent";
-  if (rating >= 75) return "Strong";
-  if (rating >= 55) return "Fair";
-  return "Contested";
-}
-
-/** Quality word for the discrete syllable badge, e.g. `3 · Optimal`. */
-export function syllableBand(component: SyllableComponent): string {
-  const ratio = component.max === 0 ? 0 : component.value / component.max;
-  if (ratio >= 0.9) return "Optimal";
-  if (ratio >= 0.65) return "Good";
-  if (ratio >= 0.4) return "Fair";
-  return "Low";
+/** Maps a verdict label to its badge tone on the score card. */
+export function verdictTone(verdict: BrandVerdict): VerdictTone {
+  if (verdict.startsWith("Uncontested")) return "uncontested";
+  if (verdict.startsWith("Strong")) return "strong";
+  if (verdict.startsWith("Contested")) return "contested";
+  return "crowded";
 }
 
 /** Free/total coverage clamped to 0–1 for meter fills. */

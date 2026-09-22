@@ -9,14 +9,12 @@ import { providerGroup } from "@/lib/provider-meta.js";
 import { resultCounts, type ResultFilter } from "@/lib/result-filter.js";
 import { cn } from "@/lib/utils.js";
 import type { AvailabilityResult } from "@/src/types.js";
-import type { NameScore } from "@/src/scoring/score.js";
 import { BrandScoreCard } from "./brand-score-card.js";
 import { ProviderCard } from "./provider-card.js";
 import { Button } from "./ui/button.js";
 
 interface ResultsGridProps {
   name: string;
-  score: NameScore | null;
   data: AvailabilityResponse | null;
   checking: boolean;
   error: string | null;
@@ -46,15 +44,7 @@ const FILTERS: readonly { id: ResultFilter; label: string }[] = [
  * anchors the left column, Developer and Socials fill out row one, Domains
  * spans underneath and Community fills the bottom-right slot.
  */
-export function ResultsGrid({
-  name,
-  score,
-  data,
-  checking,
-  error,
-  onRetry,
-  onCopy,
-}: ResultsGridProps) {
+export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: ResultsGridProps) {
   const [filter, setFilter] = useState<ResultFilter>("all");
   const reduceMotion = useReducedMotion();
   const resultsByProvider = new Map<string, AvailabilityResult>(
@@ -125,7 +115,6 @@ export function ResultsGrid({
       >
         <motion.div variants={item} className="md:col-span-2 xl:col-span-1 xl:col-start-1">
           <BrandScoreCard
-            score={score}
             availability={data}
             checking={checking}
             name={name}

@@ -1,30 +1,27 @@
 import { describe, expect, it } from "vitest";
 
-import { coverageRatio, ratingTier, syllableBand } from "../lib/score-display.js";
-import { scoreName } from "../src/scoring/score.js";
+import { coverageRatio, verdictTone } from "../lib/score-display.js";
+import { verdictFor } from "../src/scoring/brand.js";
 
-describe("ratingTier", () => {
-  it("maps thresholds to quality ratings", () => {
-    expect(ratingTier(100)).toBe("Excellent");
-    expect(ratingTier(90)).toBe("Excellent");
-    expect(ratingTier(89)).toBe("Strong");
-    expect(ratingTier(75)).toBe("Strong");
-    expect(ratingTier(74)).toBe("Fair");
-    expect(ratingTier(55)).toBe("Fair");
-    expect(ratingTier(54)).toBe("Contested");
-    expect(ratingTier(0)).toBe("Contested");
+describe("verdictFor", () => {
+  it("maps score thresholds to verdicts", () => {
+    expect(verdictFor(100)).toBe("Uncontested · Prime Real Estate");
+    expect(verdictFor(90)).toBe("Uncontested · Prime Real Estate");
+    expect(verdictFor(89)).toBe("Strong · Available on Key Platforms");
+    expect(verdictFor(75)).toBe("Strong · Available on Key Platforms");
+    expect(verdictFor(74)).toBe("Contested · Crown Jewels Taken");
+    expect(verdictFor(50)).toBe("Contested · Crown Jewels Taken");
+    expect(verdictFor(49)).toBe("Crowded · Heavily Taken");
+    expect(verdictFor(0)).toBe("Crowded · Heavily Taken");
   });
 });
 
-describe("syllableBand", () => {
-  it("labels peak syllable counts Optimal", () => {
-    expect(syllableBand(scoreName("devto").syllables)).toBe("Optimal"); // 2 syllables → 15/15
-    expect(syllableBand(scoreName("devtool").syllables)).toBe("Optimal"); // 3 syllables → 14/15
-  });
-
-  it("degrades gracefully off the peak", () => {
-    expect(syllableBand(scoreName("sync").syllables)).toBe("Fair"); // 1 syllable → 8/15
-    expect(syllableBand(scoreName("abacadabara").syllables)).toBe("Low"); // 6 syllables → 2/15
+describe("verdictTone", () => {
+  it("maps every verdict to a badge tone", () => {
+    expect(verdictTone(verdictFor(95))).toBe("uncontested");
+    expect(verdictTone(verdictFor(80))).toBe("strong");
+    expect(verdictTone(verdictFor(60))).toBe("contested");
+    expect(verdictTone(verdictFor(10))).toBe("crowded");
   });
 });
 

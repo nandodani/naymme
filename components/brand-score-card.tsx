@@ -1,40 +1,33 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ClipboardCopy, Code2, Globe, Share2, Users } from "lucide-react";
+import { ClipboardCopy, Gem, Globe, Share2, Type } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
 import type { AvailabilityResponse } from "@/lib/availability.js";
-import { availabilityStats, type AvailabilityStats } from "@/lib/stats.js";
-import { providerGroup, PROVIDER_GROUPS } from "@/lib/provider-meta.js";
-import { coverageRatio, ratingTier, syllableBand, type RatingTier } from "@/lib/score-display.js";
-import type { NameScore, ScoreComponent, SyllableComponent } from "@/src/scoring/score.js";
+import { PROVIDER_GROUPS } from "@/lib/provider-meta.js";
+import { coverageRatio, verdictTone, type VerdictTone } from "@/lib/score-display.js";
+import { brandScore, type BrandScore } from "@/src/scoring/brand.js";
 import { cn } from "@/lib/utils.js";
 import { Button } from "./ui/button.js";
 import { Skeleton } from "./ui/skeleton.js";
 
-const TIER_STYLES: Record<RatingTier, { badge: string; ring: string }> = {
-  Excellent: {
-    badge: "border-emerald-400/40 bg-emerald-400/15 text-emerald-200",
-    ring: "stroke-emerald-400",
+const TONE_STYLES: Record<VerdictTone, { badge: string; dot: string }> = {
+  uncontested: {
+    badge: "border-emerald-400/40 bg-emerald-400/10 text-emerald-300",
+    dot: "bg-emerald-400",
   },
-  Strong: {
-    badge: "border-sky-400/40 bg-sky-400/15 text-sky-200",
-    ring: "stroke-sky-400",
+  strong: { badge: "border-sky-400/40 bg-sky-400/10 text-sky-300", dot: "bg-sky-400" },
+  contested: {
+    badge: "border-amber-400/40 bg-amber-400/10 text-amber-300",
+    dot: "bg-amber-400",
   },
-  Fair: {
-    badge: "border-amber-400/40 bg-amber-400/15 text-amber-200",
-    ring: "stroke-amber-400",
-  },
-  Contested: {
-    badge: "border-rose-400/40 bg-rose-400/15 text-rose-200",
-    ring: "stroke-rose-400",
-  },
+  crowded: { badge: "border-rose-400/40 bg-rose-400/10 text-rose-300", dot: "bg-rose-400" },
 };
 
 /**
- * Ease-out count-up for the headline rating. Returns `null` while the
- * checks are in flight so no partial score ever paints; once a rating
+ * Ease-out count-up for the headline score. Returns `null` while the
+ * checks are in flight so no partial score ever paints; once a score
  * resolves it rolls from the previous value on a 700ms cubic ease —
  * skipped entirely under prefers-reduced-motion.
  */
@@ -71,250 +64,150 @@ function useCountUp(target: number | null): number | null {
   return display;
 }
 
-/**
- * Circular rating gauge. `rating === null` means the availability checks
- * are still in flight — the gauge renders an indeterminate `--` pulse and
- * no arc fill rather than a misleading partial number. The arc is driven
- * by the same eased count-up as the number, so it draws on as the score
- * settles and is tinted by the resolved tier.
- */
-function RatingGauge({ rating, tier }: { rating: number | null; tier: RatingTier | null }) {
-  const display = useCountUp(rating);
-  const radius = 42;
-  const circumference = 2 * Math.PI * radius;
-  const filled = display === null ? 0 : (Math.min(100, Math.max(0, display)) / 100) * circumference;
+/** High-density stat row: icon, label, and a compact value. */
+function StatPill({
+  icon: Icon,
+  label,
+  children,
+  title,
+}: {
+  icon: typeof Globe;
+  label: string;
+  children: React.ReactNode;
+  title?: string;
+}) {
   return (
-    <div className="glow-score relative size-24 shrink-0" aria-busy={rating === null}>
-      <svg viewBox="0 0 96 96" className="size-24 -rotate-90" aria-hidden="true">
-        <circle
-          cx="48"
-          cy="48"
-          r={radius}
-          fill="none"
-          strokeWidth="5"
-          className="stroke-zinc-800"
-        />
-        <circle
-          cx="48"
-          cy="48"
-          r={radius}
-          fill="none"
-          strokeWidth="5"
-          strokeLinecap="round"
-          strokeDasharray={`${filled} ${circumference - filled}`}
-          className={cn(
-            "transition-[stroke-dasharray] duration-700",
-            tier === null ? "stroke-zinc-500" : TIER_STYLES[tier].ring,
-          )}
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span
-          className={cn(
-            "font-mono text-[26px] leading-none font-semibold tracking-tight",
-            display === null ? "animate-pulse text-zinc-600" : "text-foreground",
-          )}
-        >
-          {display ?? "--"}
-        </span>
-        <span className="mt-0.5 text-[9px] font-medium tracking-[0.12em] text-zinc-600 uppercase">
-          / 100
-        </span>
+    <div
+      title={title}
+      className="flex min-w-0 items-center gap-2.5 rounded-lg border border-zinc-800 bg-white/[0.02] px-3 py-2.5"
+    >
+      <Icon aria-hidden="true" className="size-3.5 shrink-0 text-zinc-500" />
+      <div className="min-w-0 flex-1">
+        <div className="text-[10px] font-medium tracking-[0.08em] text-zinc-500 uppercase">
+          {label}
+        </div>
+        <div className="mt-0.5 flex items-center gap-2 font-mono text-[12px] text-zinc-200 tabular-nums">
+          {children}
+        </div>
       </div>
-      <span className="sr-only">
-        {rating === null ? "checking availability…" : `Brand rating ${rating} out of 100`}
-      </span>
     </div>
   );
 }
 
-/** Thin available-vs-taken meter: emerald fill on a zinc-800 track. */
-function MiniMeter({ ratio, pending, label }: { ratio: number; pending: boolean; label: string }) {
-  const reduceMotion = useReducedMotion();
+/** One dot per crown jewel: filled when free, hollow when taken/unchecked. */
+function CrownDots({ brand }: { brand: BrandScore }) {
   return (
-    <span
-      role="img"
-      aria-label={label}
-      className="h-1 min-w-16 flex-1 overflow-hidden rounded-full bg-zinc-800"
-    >
-      {pending ? null : (
-        <motion.span
-          className="block h-full rounded-full bg-emerald-400/70"
-          style={{ transformOrigin: "left" }}
-          initial={{ scaleX: 0 }}
-          animate={{ scaleX: ratio }}
-          transition={
-            reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 30 }
-          }
+    <span className="inline-flex items-center gap-1" aria-hidden="true">
+      {brand.crownJewels.slots.map((jewel) => (
+        <span
+          key={jewel.label}
+          className={cn(
+            "size-1.5 rounded-full",
+            jewel.free ? "bg-emerald-400" : "border border-zinc-600 bg-transparent",
+          )}
         />
-      )}
+      ))}
     </span>
   );
 }
 
-function CoverageRow({
-  icon: Icon,
-  label,
-  free,
-  total,
-  noun,
-  pending,
-}: {
-  icon: typeof Globe;
-  label: string;
-  free: number | null;
-  total: number;
-  /** Status noun shown after the fraction, e.g. "Free" for TLDs. */
-  noun: string;
-  pending: boolean;
-}) {
-  return (
-    <div className="flex h-10 items-center gap-3 border-t border-white/5 px-4 first:border-t-0">
-      <Icon aria-hidden="true" className="size-3.5 shrink-0 text-zinc-500" />
-      <span className="w-24 shrink-0 text-[11px] font-medium tracking-[0.08em] text-zinc-500 uppercase">
-        {label}
-      </span>
-      {pending ? (
-        <Skeleton className="h-1 flex-1" />
-      ) : free === null ? (
-        <span className="font-mono text-[11px] text-zinc-600 tabular-nums">—</span>
-      ) : (
-        <>
-          <MiniMeter
-            ratio={coverageRatio(free, total)}
-            pending={pending}
-            label={`${free} of ${total} ${noun.toLowerCase()}`}
-          />
-          <span className="shrink-0 font-mono text-[11px] text-zinc-300 tabular-nums">
-            {free}/{total} <span className="text-zinc-500">{noun.toLowerCase()}</span>
-          </span>
-        </>
-      )}
-    </div>
-  );
-}
-
-/** Compact metric tile with a spring micro-meter for continuous scores. */
-function MetricTile({ label, component }: { label: string; component: ScoreComponent }) {
+/** Thin availability bar: emerald fill on a zinc-800 track. */
+function AvailabilityBar({ ratio }: { ratio: number }) {
   const reduceMotion = useReducedMotion();
-  const pct = component.max === 0 ? 0 : component.value / component.max;
   return (
-    <li
-      title={component.detail}
-      className="flex flex-col gap-2 rounded-lg border border-zinc-800 bg-white/[0.02] p-3"
+    <span
+      role="img"
+      aria-label={`${Math.round(ratio * 100)}% available`}
+      className="h-1 w-16 shrink-0 overflow-hidden rounded-full bg-zinc-800"
     >
-      <span className="text-[10px] font-medium tracking-[0.1em] text-zinc-500 uppercase">
-        {label}
-      </span>
-      <span className="font-mono text-[14px] leading-none font-medium text-zinc-200 tabular-nums">
-        {component.value}
-        <span className="text-[11px] text-zinc-600">/{component.max}</span>
-      </span>
-      <span className="h-1 overflow-hidden rounded-full bg-zinc-800">
-        <motion.span
-          className="block h-full rounded-full bg-zinc-300"
-          style={{ transformOrigin: "left" }}
-          initial={{ scaleX: 0 }}
-          animate={{ scaleX: pct }}
-          transition={
-            reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 30 }
-          }
-        />
-      </span>
-    </li>
-  );
-}
-
-/** Syllables render discrete data — a crisp badge, not a progress bar. */
-function SyllableTile({ component }: { component: SyllableComponent }) {
-  const band = syllableBand(component);
-  return (
-    <li
-      title={component.detail}
-      className="flex flex-col gap-2 rounded-lg border border-zinc-800 bg-white/[0.02] p-3"
-    >
-      <span className="text-[10px] font-medium tracking-[0.1em] text-zinc-500 uppercase">
-        Syllables
-      </span>
-      <span className="inline-flex w-fit items-center rounded-full border border-zinc-700 bg-white/[0.05] px-2 py-0.5 font-mono text-[11px] font-medium text-zinc-200 tabular-nums">
-        {component.count} · {band}
-      </span>
-      <span className="font-mono text-[10px] text-zinc-600 tabular-nums">
-        {component.value}/{component.max} pts
-      </span>
-    </li>
+      <motion.span
+        className="block h-full rounded-full bg-emerald-400/70"
+        style={{ transformOrigin: "left" }}
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: ratio }}
+        transition={
+          reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 30 }
+        }
+      />
+    </span>
   );
 }
 
 function markdownSummary(
   name: string,
-  score: NameScore,
-  rating: number,
-  tier: RatingTier,
-  stats: AvailabilityStats | null,
-  availability: AvailabilityResponse | null,
+  brand: BrandScore,
+  availability: AvailabilityResponse,
   url: string,
 ): string {
   const lines = [
     `## lmkurname — ${name}`,
-    `**${rating}/100** (${tier}) · name score ${score.total}/100 (${score.grade})`,
+    `**${brand.score}/100** — ${brand.verdict}`,
+    `Crown jewels ${brand.crownJewels.free} of ${brand.crownJewels.slots.length} free (${brand.crownJewels.slots
+      .map((j) => `${j.label} ${j.free ? "free" : "taken"}`)
+      .join(", ")}) · total availability ${brand.availability.free}/${brand.availability.total}`,
+    `Base ${Math.round(brand.baseScore)} × linguistic ${brand.multiplier.toFixed(2)} — ${brand.trait}`,
+    "",
+    "| Provider | Subject | Status |",
+    "| --- | --- | --- |",
   ];
-  if (stats !== null) {
-    lines.push(
-      `Coverage: TLDs ${stats.tld.free}/${stats.tld.total} free · ` +
-        `socials ${stats.social.free}/${stats.social.total} clean · ` +
-        `dev ${stats.dev.free}/${stats.dev.total} clean`,
-    );
-  }
-  if (availability !== null) {
-    lines.push("", "| Provider | Subject | Status |", "| --- | --- | --- |");
-    const labelOf = new Map<string, string>(
-      PROVIDER_GROUPS.flatMap((g) => g.providers.map((p) => [p.id, p.label] as const)),
-    );
-    for (const r of availability.results) {
-      const label = labelOf.get(r.provider) ?? r.provider;
-      lines.push(`| ${label} | ${r.subject} | ${r.status} |`);
-    }
+  const labelOf = new Map<string, string>(
+    PROVIDER_GROUPS.flatMap((g) => g.providers.map((p) => [p.id, p.label] as const)),
+  );
+  for (const r of availability.results) {
+    lines.push(`| ${labelOf.get(r.provider) ?? r.provider} | ${r.subject} | ${r.status} |`);
   }
   lines.push("", url);
   return lines.join("\n");
 }
 
+/** Skeleton shown while availability checks are resolving. */
+function ScoreSkeleton() {
+  return (
+    <div className="px-5 pt-5 pb-4" aria-hidden="true">
+      <div className="flex items-end justify-between gap-3">
+        <Skeleton className="h-12 w-28" />
+        <Skeleton className="h-6 w-40 rounded-full" />
+      </div>
+      <Skeleton className="mt-3 h-4 w-32" />
+      <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <Skeleton className="h-14 rounded-lg" />
+        <Skeleton className="h-14 rounded-lg" />
+        <Skeleton className="h-14 rounded-lg" />
+      </div>
+    </div>
+  );
+}
+
 export function BrandScoreCard({
-  score,
   availability,
   checking,
   name,
   onCopy,
   className,
 }: {
-  score: NameScore | null;
   availability: AvailabilityResponse | null;
   checking: boolean;
   name: string;
   onCopy: (text: string, label: string) => void;
   className?: string;
 }) {
-  const stats = useMemo(() => availabilityStats(availability), [availability]);
-  const pendingCoverage = checking;
-
-  // Brand rating = 60% deterministic name heuristics + 40% availability
-  // coverage. While any checks are in flight the rating stays null (the
-  // gauge shows "--") so it never paints a partial score or jumps mid-load.
-  // If the availability request fails outright, the rating degrades to the
-  // deterministic name score rather than treating unknown as available.
-  const rating =
-    score === null || checking
-      ? null
-      : stats === null
-        ? score.total
-        : Math.round(0.6 * score.total + 0.4 * stats.composite * 100);
-  const tier = rating === null ? null : ratingTier(rating);
+  // The brand score only resolves once the checks finish — while any are in
+  // flight it stays null and the card renders a skeleton rather than paint a
+  // partial or stale number.
+  const brand = useMemo(
+    () =>
+      name === "" || checking || availability === null
+        ? null
+        : brandScore(name, availability.results),
+    [name, checking, availability],
+  );
+  const display = useCountUp(brand?.score ?? null);
+  const tone = brand === null ? null : verdictTone(brand.verdict);
 
   const copyReport = () => {
-    if (score === null || rating === null || tier === null) return;
+    if (brand === null || availability === null) return;
     onCopy(
-      markdownSummary(name, score, rating, tier, stats, availability, window.location.href),
+      markdownSummary(name, brand, availability, window.location.href),
       "Markdown summary copied",
     );
   };
@@ -325,124 +218,109 @@ export function BrandScoreCard({
     onCopy(url.toString(), "Link copied");
   };
 
+  const jewelTitle =
+    brand === null
+      ? undefined
+      : brand.crownJewels.slots
+          .map((j) => `${j.label}: ${j.checked ? (j.free ? "free" : "taken") : "not checked"}`)
+          .join(" · ");
+
   return (
     <section
       aria-labelledby="brand-score-title"
-      className={cn("overflow-hidden rounded-xl border border-white/10 bg-card", className)}
+      aria-busy={brand === null && name !== ""}
+      className={cn("overflow-hidden rounded-xl border border-zinc-800 bg-black", className)}
     >
-      <div className="flex h-10 items-center justify-between gap-2 border-b border-white/5 px-4">
+      <div className="flex h-10 items-center justify-between gap-2 border-b border-zinc-800 px-4">
         <h2
           id="brand-score-title"
-          className="text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase"
+          className="text-[11px] font-medium tracking-[0.08em] text-zinc-500 uppercase"
         >
           Brand score
         </h2>
-        {availability?.mode === "demo" ? (
-          <span className="rounded border border-zinc-700 bg-white/[0.03] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">
-            demo data
-          </span>
-        ) : null}
+        <div className="flex items-center gap-1.5">
+          {availability?.mode === "demo" ? (
+            <span className="rounded border border-zinc-700 bg-white/[0.03] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">
+              demo data
+            </span>
+          ) : null}
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={copyReport}
+            disabled={brand === null}
+            aria-label="Copy markdown summary to clipboard"
+          >
+            <ClipboardCopy aria-hidden="true" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={shareResult}
+            aria-label="Copy shareable result link"
+          >
+            <Share2 aria-hidden="true" />
+          </Button>
+        </div>
       </div>
 
-      {score === null ? (
-        <div className="px-4 py-6">
+      {name === "" ? (
+        <div className="px-5 py-6">
           <p className="text-[12px] leading-5 text-zinc-600">
-            Search a name to score it out of 100 and measure its claim coverage across domains,
-            developer platforms and socials.
+            Search a name to score it out of 100 across crown jewels, core web and long-tail
+            platforms.
           </p>
         </div>
+      ) : brand === null ? (
+        <ScoreSkeleton />
       ) : (
-        <>
-          <div className="flex items-center gap-4 border-b border-white/5 px-4 py-4">
-            <RatingGauge rating={rating} tier={tier} />
-            <div className="min-w-0 flex-1">
-              <div className="truncate font-mono text-[16px] font-medium text-foreground">
-                {score.normalized}
-              </div>
-              <div className="mt-1.5 flex items-center gap-2">
-                <span className="text-[10px] font-medium tracking-[0.1em] text-zinc-600 uppercase">
-                  Overall brand score
-                </span>
-                {tier !== null ? (
-                  <span
-                    className={cn(
-                      "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] uppercase",
-                      TIER_STYLES[tier].badge,
-                    )}
-                  >
-                    {tier}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center rounded-full border border-zinc-800 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-zinc-600 uppercase">
-                    Scoring
-                  </span>
-                )}
-              </div>
-              <div className="mt-2 text-[11px] font-medium tracking-[0.08em] text-zinc-600 uppercase">
-                deterministic heuristic · name score {score.total}/100 ({score.grade})
-              </div>
-              <div className="mt-2.5 flex gap-1.5">
-                <Button
-                  variant="outline"
-                  size="xs"
-                  onClick={copyReport}
-                  disabled={checking}
-                  aria-label="Copy markdown summary to clipboard"
-                >
-                  <ClipboardCopy aria-hidden="true" />
-                  Copy Markdown
-                </Button>
-                <Button
-                  variant="outline"
-                  size="xs"
-                  onClick={shareResult}
-                  aria-label="Copy shareable result link"
-                >
-                  <Share2 aria-hidden="true" />
-                  Share
-                </Button>
-              </div>
+        <div className="px-5 pt-5 pb-4">
+          <div className="flex items-end justify-between gap-3">
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-mono text-[44px] leading-none font-semibold tracking-tight text-foreground tabular-nums">
+                {display ?? brand.score}
+              </span>
+              <span className="font-mono text-[13px] text-zinc-600 tabular-nums">/ 100</span>
             </div>
+            {tone !== null ? (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-[0.06em] uppercase",
+                  TONE_STYLES[tone].badge,
+                )}
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn("size-1.5 rounded-full", TONE_STYLES[tone].dot)}
+                />
+                {brand.verdict}
+              </span>
+            ) : null}
+          </div>
+          <div className="mt-1.5 truncate font-mono text-[13px] text-zinc-400">
+            {brand.normalized}
           </div>
 
-          <div className="border-b border-white/5" aria-label="Availability coverage">
-            <CoverageRow
-              icon={Globe}
-              label="TLDs"
-              free={stats?.tld.free ?? null}
-              total={stats?.tld.total ?? providerGroup("domains").providers.length}
-              noun="Free"
-              pending={pendingCoverage}
-            />
-            <CoverageRow
-              icon={Users}
-              label="Socials"
-              free={stats?.social.free ?? null}
-              total={stats?.social.total ?? providerGroup("socials").providers.length}
-              noun="Clean"
-              pending={pendingCoverage}
-            />
-            <CoverageRow
-              icon={Code2}
-              label="Dev"
-              free={stats?.dev.free ?? null}
-              total={stats?.dev.total ?? providerGroup("developer").providers.length}
-              noun="Clean"
-              pending={pendingCoverage}
-            />
+          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <StatPill icon={Gem} label="Crown Jewels" title={jewelTitle}>
+              <span>
+                {brand.crownJewels.free} of {brand.crownJewels.slots.length} free
+              </span>
+              <CrownDots brand={brand} />
+            </StatPill>
+            <StatPill icon={Globe} label="Total Availability">
+              <span>
+                {brand.availability.free} of {brand.availability.total} free
+              </span>
+              <AvailabilityBar
+                ratio={coverageRatio(brand.availability.free, brand.availability.total)}
+              />
+            </StatPill>
+            <StatPill icon={Type} label="Name Trait" title={brand.trait}>
+              <span className="truncate font-sans text-[12px] font-medium">{brand.trait}</span>
+            </StatPill>
           </div>
-
-          <ul
-            aria-label="Name score breakdown"
-            className="grid grid-cols-2 gap-2 px-4 py-3 sm:grid-cols-3"
-          >
-            <MetricTile label="Punchiness" component={score.punchiness} />
-            <SyllableTile component={score.syllables} />
-            <MetricTile label="Pronounce" component={score.pronounceability} />
-            <MetricTile label="Uniqueness" component={score.uniqueness} />
-            <MetricTile label="Cleanliness" component={score.cleanliness} />
-          </ul>
-        </>
+        </div>
       )}
     </section>
   );
