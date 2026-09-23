@@ -49,8 +49,7 @@ export function buildMcpDiscovery(): Record<string, unknown> {
       llms: `${SITE_URL}/llms.txt`,
       llmsFull: `${SITE_URL}/llms-full.txt`,
       sitemap: `${SITE_URL}/sitemap.xml`,
-      documentation: "https://github.com/nandodani/name-check-mcp/tree/main/docs",
-      source: "https://github.com/nandodani/name-check-mcp",
+      documentation: `${SITE_URL}/docs`,
     },
   };
 }

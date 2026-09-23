@@ -11,6 +11,7 @@ import {
 import { GET as llmsGET } from "../app/llms.txt/route.js";
 import { GET as llmsFullGET } from "../app/llms-full.txt/route.js";
 import NotFound from "../app/not-found.js";
+import DocsPage from "../app/docs/page.js";
 import AboutPage from "../app/about/page.js";
 import ContactPage from "../app/contact/page.js";
 import PrivacyPage from "../app/privacy/page.js";
@@ -34,7 +35,7 @@ describe("GET /api/markdown", () => {
     expect(body).toContain("lmkurname");
   });
 
-  it.each(["/about", "/contact", "/privacy"])("serves %s as markdown", async (path) => {
+  it.each(["/docs", "/about", "/contact", "/privacy"])("serves %s as markdown", async (path) => {
     const res = markdownGET(new Request(`https://app.test/api/markdown?path=${path}`));
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/markdown");
@@ -130,6 +131,7 @@ describe("llms.txt files", () => {
 
 describe("static pages", () => {
   it.each([
+    ["Docs", DocsPage],
     ["About", AboutPage],
     ["Contact", ContactPage],
     ["Privacy", PrivacyPage],

@@ -115,6 +115,7 @@ test.describe("accessibility", () => {
   });
 
   for (const [path, label] of [
+    ["/docs", "docs"],
     ["/about", "about"],
     ["/contact", "contact"],
     ["/privacy", "privacy"],

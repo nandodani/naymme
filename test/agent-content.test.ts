@@ -7,7 +7,14 @@ import { SITE_URL } from "../lib/site.js";
 
 describe("page content catalog", () => {
   it("covers the homepage and the static pages", () => {
-    expect([...MARKDOWN_PAGE_PATHS]).toEqual(["/", "/about", "/contact", "/privacy", "/credits"]);
+    expect([...MARKDOWN_PAGE_PATHS]).toEqual([
+      "/",
+      "/docs",
+      "/about",
+      "/contact",
+      "/privacy",
+      "/credits",
+    ]);
     for (const path of MARKDOWN_PAGE_PATHS) {
       expect(PAGE_CONTENTS[path], path).toBeDefined();
     }

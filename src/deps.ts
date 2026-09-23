@@ -77,7 +77,7 @@ export function defaultDeps(overrides: Partial<ProviderDeps> = {}): ProviderDeps
     rdapBootstrapUrl: "https://data.iana.org/rdap/dns.json",
     githubApiBase: "https://api.github.com",
     timeoutMs: DEFAULT_TIMEOUT_MS,
-    userAgent: "lmkurname/0.1 (+https://github.com/nandodani/name-check-mcp)",
+    userAgent: "lmkurname/0.1 (+https://name-check-mcp.vercel.app)",
     ...overrides,
   };
 }

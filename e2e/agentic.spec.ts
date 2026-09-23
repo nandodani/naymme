@@ -19,7 +19,7 @@ function visibleText(html: string): string {
 }
 
 test.describe("markdown content negotiation", () => {
-  for (const path of ["/", "/about", "/contact", "/privacy", "/credits"]) {
+  for (const path of ["/", "/docs", "/about", "/contact", "/privacy", "/credits"]) {
     test(`${path} serves markdown to Accept: text/markdown`, async ({ request }) => {
       const res = await request.get(path, MARKDOWN);
       expect(res.status()).toBe(200);
@@ -59,10 +59,18 @@ test.describe("agent-friendly 404", () => {
 });
 
 test.describe("raw SSR content", () => {
-  test("homepage HTML carries a h1 and >=500 chars of meaningful text at >5% ratio", async ({
-    request,
-  }) => {
+  test("homepage HTML carries a h1 and >=500 chars of meaningful text", async ({ request }) => {
     const res = await request.get("/", HTML);
+    const html = await res.text();
+    expect(html).toContain("<h1");
+    const text = visibleText(html);
+    // The homepage is intentionally minimal — hero copy, provider ticker
+    // and footer chrome only; the long-form prose lives on /docs.
+    expect(text.length).toBeGreaterThanOrEqual(500);
+  });
+
+  test("/docs HTML carries the explainer prose at >5% text ratio", async ({ request }) => {
+    const res = await request.get("/docs", HTML);
     const html = await res.text();
     expect(html).toContain("<h1");
     const text = visibleText(html);
@@ -129,6 +137,7 @@ test.describe("machine-readable files", () => {
 
 test.describe("static pages", () => {
   for (const [path, title] of [
+    ["/docs", "Documentation"],
     ["/about", "About"],
     ["/contact", "Contact"],
     ["/privacy", "Privacy"],
