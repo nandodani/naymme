@@ -133,7 +133,7 @@ export const SOCIAL_PROVIDER_IDS = [
   "social:tiktok",
 ] as const satisfies readonly ProviderId[];
 
-export const providerIdSchema = z.enum(PROVIDER_IDS);
+/** @public */ export const providerIdSchema = z.enum(PROVIDER_IDS);
 export const providerSelectionSchema = z.enum([...PROVIDER_IDS, ...PROVIDER_ALIASES]);
 
 /**
@@ -214,8 +214,8 @@ export const scoreNameOutputSchema = z.object({
 
 export type CheckAvailabilityInput = z.infer<typeof checkAvailabilityInputSchema>;
 export type CheckAvailabilityOutput = z.infer<typeof checkAvailabilityOutputSchema>;
-export type ScoreNameInput = z.infer<typeof scoreNameInputSchema>;
-export type ScoreNameOutput = z.infer<typeof scoreNameOutputSchema>;
+/** @public */ export type ScoreNameInput = z.infer<typeof scoreNameInputSchema>;
+/** @public */ export type ScoreNameOutput = z.infer<typeof scoreNameOutputSchema>;
 
 const ALIAS_EXPANSIONS: Record<ProviderAlias, readonly ProviderId[]> = {
   all: PROVIDER_IDS,

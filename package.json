@@ -32,7 +32,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run build"
+    "check": "npm run typecheck && npm run lint && npm run knip && npm run format:check && npm run test && npm run build && npm run size",
+    "knip": "knip",
+    "test:e2e": "playwright test",
+    "size": "size-limit"
   },
   "keywords": [
     "mcp",
@@ -49,7 +52,7 @@
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "@react-three/fiber": "^9.7.0",
+    "@react-three/fiber": "^9.8.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "loading-dev": "^0.3.4",
@@ -66,6 +69,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.63.0",
+    "@size-limit/file": "^14.0.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.20.2",
     "@types/react": "^19.3.0",
@@ -74,7 +79,10 @@
     "@vitest/coverage-v8": "^5.0.1",
     "eslint": "^10.10.0",
     "eslint-config-prettier": "^9.1.2",
+    "knip": "^6.36.0",
+    "msw": "^2.15.0",
     "prettier": "^3.9.6",
+    "size-limit": "^14.0.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.13",
     "typescript": "^5.9.3",
@@ -82,5 +90,17 @@
     "vite": "^7.3.6",
     "vitest": "^5.0.1",
     "wrangler": "^4.132.0"
-  }
+  },
+  "size-limit": [
+    {
+      "name": "core MCP bundle (dist)",
+      "path": "dist/**/*.js",
+      "limit": "50 kB"
+    },
+    {
+      "name": "web client chunks",
+      "path": ".next/static/chunks/*.js",
+      "limit": "3 MB"
+    }
+  ]
 }

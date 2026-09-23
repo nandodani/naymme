@@ -71,32 +71,6 @@ export function TikTokIcon(props: IconProps) {
   );
 }
 
-/**
- * Stylized pig-head glyph for Porkbun (no official monochrome mark exists) —
- * drawn stroke-only like a Lucide icon so it sits cleanly next to them.
- */
-export function PorkbunIcon(props: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-      {...props}
-    >
-      <path d="M7.3 6.6 5.7 4a.9.9 0 0 1 .9-1.3l2.4 1" />
-      <path d="m16.7 6.6 1.6-2.6a.9.9 0 0 0-.9-1.3l-2.4 1" />
-      <path d="M12 5.4c-4.6 0-7.8 3-7.8 7.1s3.2 7.1 7.8 7.1 7.8-3 7.8-7.1-3.2-7.1-7.8-7.1Z" />
-      <ellipse cx="12" cy="14.4" rx="3.3" ry="2.3" />
-      <path d="M10.7 14.4h.01M13.3 14.4h.01" strokeWidth="2.4" />
-    </svg>
-  );
-}
-
 export function GitLabIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false" {...props}>
@@ -322,4 +296,4 @@ export const BRAND_ICONS = {
   appstore: AppStoreIcon,
 } as const;
 
-export type BrandIconId = keyof typeof BRAND_ICONS;
+/** @public */ export type BrandIconId = keyof typeof BRAND_ICONS;
