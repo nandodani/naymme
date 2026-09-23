@@ -1,17 +1,20 @@
 import type { PageContent } from "@/lib/page-content.js";
 
 import { ContentSections } from "./content-sections.js";
+import { SiteFooter } from "./site-footer.js";
 
 const NAV_LINKS = [
   { label: "About", href: "/about" },
+  { label: "Docs", href: "/docs" },
   { label: "Contact", href: "/contact" },
   { label: "Privacy", href: "/privacy" },
   { label: "llms.txt", href: "/llms.txt" },
 ] as const;
 
 /**
- * Shell for the static content pages (/about, /contact, /privacy) and the
- * 404: same header/footer chrome as the app, prose via ContentSections.
+ * Shell for the static content pages (/about, /contact, /privacy, /docs)
+ * and the 404: same header/footer chrome as the app, prose via
+ * ContentSections.
  */
 export function StaticPage({ content }: { content: PageContent }) {
   return (
@@ -48,12 +51,7 @@ export function StaticPage({ content }: { content: PageContent }) {
         <ContentSections sections={content.sections} />
       </main>
 
-      <footer className="flex shrink-0 flex-col items-center justify-center gap-0.5 border-t border-zinc-800 px-4 py-2.5 text-center text-[11px] text-zinc-400 sm:px-6">
-        <span>
-          Independent project. Not affiliated with, endorsed by, or associated with any brands,
-          platforms, or registries displayed.
-        </span>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

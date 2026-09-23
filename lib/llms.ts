@@ -8,8 +8,6 @@ import { SITE_URL } from "./site.js";
  * variant inlines the complete tool/API reference and every provider id.
  */
 
-const REPO = "https://github.com/nandodani/name-check-mcp";
-const DOCS = `${REPO}/tree/main/docs`;
 const MCP_ENDPOINT = `${SITE_URL}/api/mcp`;
 
 export function buildLlmsTxt(): string {
@@ -46,14 +44,12 @@ export function buildLlmsTxt(): string {
     "## Links",
     "",
     `- [Complete agent instructions](${SITE_URL}/llms-full.txt)`,
-    `- [Documentation](${DOCS})`,
-    `- [API reference](${DOCS}/api-reference.md)`,
-    `- [Provider list](${DOCS}/providers.md)`,
-    `- [Source code (MIT)](${REPO})`,
+    `- [Documentation](${SITE_URL}/docs)`,
     "",
     "## Pages",
     "",
     `- [Home](${SITE_URL}/)`,
+    `- [Docs](${SITE_URL}/docs)`,
     `- [About](${SITE_URL}/about)`,
     `- [Contact](${SITE_URL}/contact)`,
     `- [Privacy](${SITE_URL}/privacy)`,
@@ -135,7 +131,7 @@ export function buildLlmsFullTxt(): string {
     "",
     "Verdicts are best-effort snapshots of public registration state. `available` requires a verified unclaimed marker (RDAP/registry 404, WHOIS no-match); `unknown` means the source could not be checked. Always re-confirm at the registrar or platform before purchasing or registering.",
     "",
-    `Docs: ${DOCS} — architecture.md, api-reference.md, providers.md, registrars-pricing.md, deployment.md, troubleshooting.md.`,
+    `Docs: ${SITE_URL}/docs — how checks run, provider semantics, the HTTP API and the MCP transport.`,
     "",
   ].join("\n");
 }

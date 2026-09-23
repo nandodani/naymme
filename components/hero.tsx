@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode, RefObject } from "react";
+import type { RefObject } from "react";
 import { motion } from "motion/react";
 
 import { ProviderRibbon } from "./provider-ribbon.js";
@@ -13,16 +13,12 @@ interface HeroProps {
   onSubmit: () => void;
   valid: boolean;
   inputRef: RefObject<HTMLInputElement | null>;
-  /** Server-rendered prose rendered below the fold (product explainer,
-   *  docs links) — already-rendered element passed down from page.tsx. */
-  content?: ReactNode;
 }
 
 /**
- * Zero state: headline, center-stage search and the provider ribbon, with the
- * explainer sections below the fold — the first screen is unchanged.
+ * Zero state: headline, center-stage search and the provider ribbon.
  */
-export function Hero({ value, onChange, onSubmit, valid, inputRef, content }: HeroProps) {
+export function Hero({ value, onChange, onSubmit, valid, inputRef }: HeroProps) {
   return (
     <main id="main-content" tabIndex={-1} className="flex flex-1 flex-col outline-none">
       <motion.div
@@ -50,7 +46,6 @@ export function Hero({ value, onChange, onSubmit, valid, inputRef, content }: He
         <p className="mt-12 text-[11px] tracking-wide text-zinc-400 uppercase">search on</p>
         <ProviderRibbon />
       </motion.div>
-      {content}
     </main>
   );
 }

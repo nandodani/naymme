@@ -20,10 +20,7 @@ const NOT_FOUND_CONTENT: PageContent = {
         { label: "llms.txt — agent quick-start", href: "/llms.txt" },
         { label: "llms-full.txt — full agent instructions", href: "/llms-full.txt" },
         { label: "sitemap.xml", href: "/sitemap.xml" },
-        {
-          label: "Documentation",
-          href: "https://github.com/nandodani/name-check-mcp/tree/main/docs",
-        },
+        { label: "Documentation", href: "/docs" },
       ],
     },
   ],

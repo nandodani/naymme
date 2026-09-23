@@ -1,8 +1,8 @@
 /**
  * Site copy as structured data — the single source of truth for the
- * human-readable pages (/about, /contact, /privacy), the below-fold SSR
- * content on the homepage, and the `Accept: text/markdown` representation
- * served to agents for the same URLs. Author here, render twice.
+ * human-readable pages (/docs, /about, /contact, /privacy), and the
+ * `Accept: text/markdown` representation served to agents for the same
+ * URLs. Author here, render twice.
  */
 
 import { CREDIT_GROUPS } from "./credits.js";
@@ -29,14 +29,33 @@ export interface PageContent {
   sections: readonly ContentSection[];
 }
 
-const REPO = "https://github.com/nandodani/name-check-mcp";
-const DOCS = `${REPO}/tree/main/docs`;
-
 export const HOME_CONTENT: PageContent = {
   path: "/",
   title: "lmkurname — check your name everywhere",
   description:
     "lmkurname checks whether a project or brand name is available across domains, developer platforms, package registries and social networks, then scores it for brand quality — from this web UI, a JSON API, or any MCP-compatible AI assistant.",
+  sections: [
+    {
+      paragraphs: [
+        "Type a candidate name once and lmkurname fans out to more than 55 independent providers, each queried live and reported back with its own verdict — available, taken, invalid, or unknown when the source cannot be checked. Beyond availability, it computes a deterministic 0–100 brand score covering punchiness, pronounceability, uniqueness and cleanliness.",
+        "Everything the site exposes — the JSON API, the hosted MCP endpoint, the per-provider semantics and the agent surface — is documented on the docs page.",
+      ],
+      links: [
+        { label: "Documentation — how checks run, providers, API and MCP", href: "/docs" },
+        { label: "llms.txt — agent quick-start", href: "/llms.txt" },
+        { label: "llms-full.txt — complete agent instructions", href: "/llms-full.txt" },
+        { label: ".well-known/mcp — MCP discovery document", href: "/.well-known/mcp" },
+        { label: "sitemap.xml", href: "/sitemap.xml" },
+      ],
+    },
+  ],
+};
+
+export const DOCS_CONTENT: PageContent = {
+  path: "/docs",
+  title: "Documentation",
+  description:
+    "How lmkurname checks a name, what the verdicts mean, and how to call it from the JSON API or an MCP-compatible AI assistant.",
   sections: [
     {
       heading: "What a check covers",
@@ -71,7 +90,7 @@ export const HOME_CONTENT: PageContent = {
     {
       heading: "Use it from your AI assistant",
       paragraphs: [
-        "lmkurname is a Model Context Protocol server first. Point any MCP client at the hosted Streamable HTTP endpoint — POST /api/mcp on this origin — and it exposes two tools: check_availability(name, providers?) for the live 55-provider sweep, and score_name(name) for the deterministic brand score. Cursor, Windsurf and VS Code speak HTTP natively; Claude Desktop bridges through mcp-remote; Claude Code registers the endpoint with one CLI command. The Connect MCP button above generates the exact config for each client.",
+        "lmkurname is a Model Context Protocol server first. Point any MCP client at the hosted Streamable HTTP endpoint — POST /api/mcp on this origin — and it exposes two tools: check_availability(name, providers?) for the live 55-provider sweep, and score_name(name) for the deterministic brand score. Cursor, Windsurf and VS Code speak HTTP natively; Claude Desktop bridges through mcp-remote; Claude Code registers the endpoint with one CLI command. The Connect MCP button on the homepage generates the exact config for each client.",
       ],
       list: [
         "check_availability — { name, providers? } → { name, results, summary }. Each result reports provider, status (available | taken | unknown | invalid), subject, available flag, optional detail and durationMs.",
@@ -100,8 +119,6 @@ export const HOME_CONTENT: PageContent = {
         { label: "llms-full.txt — complete agent instructions", href: "/llms-full.txt" },
         { label: ".well-known/mcp — MCP discovery document", href: "/.well-known/mcp" },
         { label: "sitemap.xml", href: "/sitemap.xml" },
-        { label: "Documentation", href: DOCS },
-        { label: "Source code (MIT)", href: REPO },
       ],
     },
     {
@@ -130,7 +147,7 @@ export const HOME_CONTENT: PageContent = {
     {
       heading: "Run it locally or self-host",
       paragraphs: [
-        "The same codebase ships as the npm package lmkurname: `npx lmkurname` runs the full MCP server over stdio with zero configuration — the setup Claude Desktop and other local agents use when they should not depend on the hosted endpoint. A Cloudflare Worker build exposes the identical tools at the edge, and the repository documents both along with provider internals and environment variables.",
+        "The same codebase ships as the npm package lmkurname: `npx lmkurname` runs the full MCP server over stdio with zero configuration — the setup Claude Desktop and other local agents use when they should not depend on the hosted endpoint. A Cloudflare Worker build exposes the identical tools at the edge; deployment notes live in the deployment doc.",
       ],
     },
     {
@@ -169,7 +186,7 @@ export const ABOUT_CONTENT: PageContent = {
   sections: [
     {
       paragraphs: [
-        "lmkurname is an open-source name-availability checker built for the moment every project starts with: you have a candidate name, and you need to know whether you can actually have it — as a domain, a package, a repository, a handle — before you fall in love with it.",
+        "lmkurname is a name-availability checker built for the moment every project starts with: you have a candidate name, and you need to know whether you can actually have it — as a domain, a package, a repository, a handle — before you fall in love with it.",
         "One input fans out to more than 55 providers across domain TLDs, developer platforms, package registries, hosted subdomains, app stores, publishing platforms and social networks, then distills the sweep into a per-provider grid plus a deterministic brand-quality score. The point is not just 'is it free' but 'is it free where it matters, and is it any good'.",
       ],
     },
@@ -191,13 +208,13 @@ export const ABOUT_CONTENT: PageContent = {
       ],
     },
     {
-      heading: "Open source",
+      heading: "Maintainer",
       paragraphs: [
-        "lmkurname is MIT-licensed and maintained by @nandodani as an independent project. It is not affiliated with, endorsed by, or associated with any of the brands, platforms or registries it checks.",
+        "lmkurname is maintained by @nandodani as an independent project. It is not affiliated with, endorsed by, or associated with any of the brands, platforms or registries it checks.",
       ],
       links: [
-        { label: "Source code on GitHub", href: REPO },
-        { label: "Documentation", href: DOCS },
+        { label: "nandodani.dev", href: "https://nandodani.dev" },
+        { label: "Documentation", href: "/docs" },
         { label: "llms.txt", href: "/llms.txt" },
       ],
     },
@@ -211,36 +228,35 @@ export const CONTACT_CONTENT: PageContent = {
   sections: [
     {
       paragraphs: [
-        "lmkurname is maintained by @nandodani. The fastest, most reliable channel is the GitHub repository — issues and pull requests are read, and a public thread means the answer helps the next person too.",
+        "lmkurname is maintained by @nandodani. The way to reach out is through the contact links on nandodani.dev — every message is read, and concrete reports are what keep the provider checks honest.",
       ],
+      links: [{ label: "nandodani.dev", href: "https://nandodani.dev" }],
     },
     {
       heading: "Report a bug or a wrong result",
       paragraphs: [
-        "Open an issue on GitHub. Availability checks depend on third-party sources, so the more concrete the report the faster it lands: include the name you searched, the provider that looked wrong (for example domain:com or github), the verdict lmkurname showed, and what you expected instead. A URL or registry lookup showing the real state is ideal.",
+        "Availability checks depend on third-party sources, so the more concrete the report the faster it lands: include the name you searched, the provider that looked wrong (for example domain:com or github), the verdict lmkurname showed, and what you expected instead. A URL or registry lookup showing the real state is ideal.",
       ],
       links: [
-        { label: "Open a GitHub issue", href: `${REPO}/issues` },
-        { label: "Provider internals and check order", href: `${DOCS}/providers.md` },
-        { label: "Troubleshooting guide", href: `${DOCS}/troubleshooting.md` },
+        { label: "Documentation", href: "/docs" },
+        { label: "Back to the checker", href: "/" },
       ],
     },
     {
       heading: "Request a provider or a feature",
       paragraphs: [
-        "New providers land through the adapter contract documented in the repo — if a platform has a deterministic way to confirm a name is free, it can usually be added. File an issue describing the platform and how availability can be verified, or send a pull request that follows the provider contract in AGENTS.md.",
+        "New providers land through a small adapter contract — if a platform has a deterministic way to confirm a name is free, it can usually be added. Send the platform name and how availability can be verified through the contact links on nandodani.dev.",
       ],
       links: [
-        { label: "Repository", href: REPO },
-        { label: "API reference", href: `${DOCS}/api-reference.md` },
+        { label: "Documentation", href: "/docs" },
+        { label: "nandodani.dev", href: "https://nandodani.dev" },
       ],
     },
     {
       heading: "Everything else",
       paragraphs: [
-        "For questions that do not fit an issue, reach the maintainer through the contact links on nandodani.dev. There is no support SLA — this is an independent project — but real-world reports are what keep the provider checks honest.",
+        "There is no support SLA — this is an independent project — but real-world reports are what keep the provider checks honest.",
       ],
-      links: [{ label: "nandodani.dev", href: "https://nandodani.dev" }],
     },
   ],
 };
@@ -277,10 +293,10 @@ export const PRIVACY_CONTENT: PageContent = {
     {
       heading: "Changes",
       paragraphs: [
-        "This policy describes the deployed site at name-check-mcp.vercel.app as built from the public repository. If the data handling changes, the repository — and this page — change with it. Questions about privacy fit best as a GitHub issue.",
+        "This policy describes the deployed site at name-check-mcp.vercel.app. If the data handling changes, this page changes with it. Questions about privacy are welcome via the contact page.",
       ],
       links: [
-        { label: "Source code", href: REPO },
+        { label: "Documentation", href: "/docs" },
         { label: "Contact", href: "/contact" },
       ],
     },
@@ -295,7 +311,7 @@ export const CREDITS_CONTENT: PageContent = {
   sections: [
     {
       paragraphs: [
-        "lmkurname stands on open source. These are the libraries, fonts, and creative assets that make it work — each links to its project.",
+        "lmkurname stands on the work of open-source projects. These are the libraries, fonts, and creative assets that make it work — each links to its project.",
       ],
     },
     ...CREDIT_GROUPS.map((group) => ({
@@ -310,6 +326,7 @@ export const CREDITS_CONTENT: PageContent = {
 
 export const PAGE_CONTENTS: Readonly<Record<string, PageContent>> = {
   "/": HOME_CONTENT,
+  "/docs": DOCS_CONTENT,
   "/about": ABOUT_CONTENT,
   "/contact": CONTACT_CONTENT,
   "/privacy": PRIVACY_CONTENT,

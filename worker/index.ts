@@ -109,7 +109,7 @@ function workerDeps(): ProviderDeps {
     rdapBootstrapUrl: "https://data.iana.org/rdap/dns.json",
     githubApiBase: "https://api.github.com",
     timeoutMs: 5000,
-    userAgent: "lmkurname/0.1 (+https://github.com/nandodani/name-check-mcp)",
+    userAgent: "lmkurname/0.1 (+https://name-check-mcp.vercel.app)",
   };
 }
 

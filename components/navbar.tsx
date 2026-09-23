@@ -19,6 +19,12 @@ export function Navbar({ onCopy }: { onCopy: (text: string, label: string) => vo
         </a>
         <div className="ml-auto flex items-center gap-1.5">
           <a
+            href="/docs"
+            className="mr-1 hidden rounded-md text-[11px] text-zinc-400 transition-colors outline-none hover:text-zinc-300 focus-visible:ring-2 focus-visible:ring-ring sm:inline"
+          >
+            Docs
+          </a>
+          <a
             href="https://nandodani.dev"
             target="_blank"
             rel="noopener noreferrer"

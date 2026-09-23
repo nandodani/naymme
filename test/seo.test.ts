@@ -87,12 +87,13 @@ describe("sitemap.xml", () => {
       expect.arrayContaining([
         SITE_URL,
         `${SITE_URL}/credits`,
+        `${SITE_URL}/docs`,
         `${SITE_URL}/about`,
         `${SITE_URL}/contact`,
         `${SITE_URL}/privacy`,
       ]),
     );
-    expect(urls).toHaveLength(5);
+    expect(urls).toHaveLength(6);
   });
 });
 

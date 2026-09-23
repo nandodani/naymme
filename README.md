@@ -1,8 +1,5 @@
 # lmkurname
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/nandodani/name-check-mcp)
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/nandodani/name-check-mcp)
-
 A web app and MCP (Model Context Protocol) server that answers two
 questions about a candidate name:
 
@@ -287,8 +284,7 @@ Claude Desktop's config speaks stdio only, so bridge through `mcp-remote`:
 
 Deploying the repo root to Vercel builds the Next.js app — one deployment
 serves the UI at `/` and the MCP endpoint at `/api/mcp` (`/mcp`, `/health`
-rewrite to it). The “Deploy with Vercel” button picks this up
-automatically.
+rewrite to it).
 
 ```bash
 npm i -g vercel
@@ -297,8 +293,7 @@ vercel deploy --prod
 
 ### Cloudflare Workers — Streamable HTTP
 
-The repo ships `worker/index.ts` + `wrangler.toml` (also what the
-“Deploy to Cloudflare Workers” button uses). Deploy:
+The repo ships `worker/index.ts` + `wrangler.toml`. Deploy:
 
 ```bash
 npx wrangler deploy        # or: npm run deploy:worker
@@ -399,6 +394,7 @@ Deep dives into how the engine and providers work internally live in
   rate limits, runtime caveats
 - [`docs/deployment.md`](docs/deployment.md) — the four surfaces and env vars
 
-## License
+## Maintainer
 
-MIT
+Built and maintained by [nandodani](https://nandodani.dev).
+All rights reserved — this is not an open-source project.

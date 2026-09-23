@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ArrowUpRight } from "lucide-react";
 
+import { SiteFooter } from "@/components/site-footer.js";
 import { CREDIT_GROUPS } from "@/lib/credits.js";
 
 export const metadata: Metadata = {
@@ -102,25 +103,16 @@ export default function CreditsPage() {
         <p className="mt-10 text-[12px] leading-5 text-zinc-400">
           Missing an attribution?{" "}
           <a
-            href="https://github.com/nandodani/name-check-mcp/issues"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/contact"
             className="rounded-sm text-zinc-200 underline decoration-zinc-600 underline-offset-2 outline-none transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Open an issue
-            <span className="sr-only">(opens in a new tab)</span>
+            Get in touch
           </a>{" "}
           and we&rsquo;ll fix it.
         </p>
       </main>
 
-      <footer className="flex shrink-0 flex-col items-center justify-center gap-0.5 border-t border-white/5 px-4 py-2.5 text-center text-[11px] text-zinc-400 sm:px-6">
-        <span>
-          Independent project. Not affiliated with, endorsed by, or associated with any brands,
-          platforms, or registries displayed.
-        </span>
-        <span>Trademarks belong to their respective owners.</span>
-      </footer>
+      <SiteFooter note={<span>Trademarks belong to their respective owners.</span>} />
     </div>
   );
 }

@@ -7,8 +7,6 @@ import { SITE_NAME, SITE_URL } from "./site.js";
  * against SITE_URL so the documents are self-contained for crawlers.
  */
 
-const REPO_DOCS = "https://github.com/nandodani/name-check-mcp/tree/main/docs";
-
 function absolutize(href: string): string {
   return href.startsWith("/") ? `${SITE_URL}${href}` : href;
 }
@@ -44,7 +42,7 @@ export function notFoundMarkdown(path: string): string {
     `- [llms.txt](${SITE_URL}/llms.txt) — agent quick-start`,
     `- [llms-full.txt](${SITE_URL}/llms-full.txt) — complete agent instructions`,
     `- [sitemap.xml](${SITE_URL}/sitemap.xml) — every indexable route`,
-    `- [Documentation](${REPO_DOCS}) — API reference, providers, deployment`,
+    `- [Documentation](${SITE_URL}/docs) — how checks run, providers, API and MCP`,
     `- [MCP discovery](${SITE_URL}/.well-known/mcp) — tools and transport`,
     "",
     `Machine endpoints: POST ${SITE_URL}/api/mcp (MCP Streamable HTTP), GET /api/availability?name=<name>, GET /api/score?name=<name>.`,
