@@ -164,7 +164,7 @@ function PriceChips({ provider, subject }: { provider: string; subject: string }
   );
   return (
     <span
-      className="scrollbar-none marquee-mask hidden w-42 items-center gap-1 overflow-x-auto overscroll-x-contain xl:flex"
+      className="scrollbar-none marquee-mask mr-3 hidden min-w-0 shrink basis-42 items-center gap-1 overflow-x-auto overscroll-x-contain xl:flex"
       aria-label="First-year price estimates"
     >
       {sorted.map(({ registrar, estimate }) =>
@@ -264,7 +264,12 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
       {isDomain ? null : (
         <span className="shrink-0 text-[10px] font-medium text-zinc-600">{meta.label}</span>
       )}
-      <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-zinc-300">{subject}</span>
+      <span
+        title={subject}
+        className="shrink-0 font-mono text-[12px] whitespace-nowrap text-zinc-300"
+      >
+        {subject}
+      </span>
       <span className="sr-only">{statusText}</span>
     </>
   );
@@ -291,7 +296,7 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
           ? { opacity: 0, transition: { duration: 0.12 } }
           : { opacity: 0, scale: 0.96, filter: "blur(4px)", transition: { duration: 0.16 } }
       }
-      className={sharedRowClasses}
+      className={`${sharedRowClasses} overflow-hidden`}
       title={isDomain ? undefined : statusText}
     >
       {/* Icon-scoped status trigger: hover/focus on this target alone
@@ -314,23 +319,23 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
           target="_blank"
           rel="noreferrer noopener"
           aria-label={`${actionLabel ?? subject} — ${statusText}`}
-          className="flex min-w-0 flex-1 items-center gap-2.5 self-stretch pr-3 pl-1.5 text-left outline-none focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+          className="flex min-w-0 grow basis-auto shrink-[0.1] items-center gap-2.5 self-stretch overflow-x-auto scrollbar-none pr-3 pl-1.5 text-left outline-none focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         >
           {identity}
         </a>
       ) : (
-        <div className="flex min-w-0 flex-1 items-center gap-2.5 self-stretch pr-3 pl-1.5 text-left">
+        <div className="flex min-w-0 grow basis-auto shrink-[0.1] items-center gap-2.5 self-stretch overflow-x-auto scrollbar-none pr-3 pl-1.5 text-left">
           {identity}
         </div>
       )}
 
       {status !== undefined && !pending ? <StatusChip status={status} visible={revealed} /> : null}
 
-      {prices.length > 0 ? (
-        <span className="flex shrink-0 items-center gap-1.5 pr-3">
-          <PriceChips provider={meta.id} subject={subject} />
-        </span>
-      ) : null}
+      {/* Space priority: subject (anchor) sized to content — grow +
+            basis-auto + near-zero shrink — so the chip strip absorbs ~90%
+            of any squeeze and collapses to nothing before a pathological
+            subject scrolls inside its own container. */}
+      {prices.length > 0 ? <PriceChips provider={meta.id} subject={subject} /> : null}
     </motion.li>
   );
 }
