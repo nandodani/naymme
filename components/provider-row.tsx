@@ -164,7 +164,7 @@ function PriceChips({ provider, subject }: { provider: string; subject: string }
   );
   return (
     <span
-      className="scrollbar-none marquee-mask mt-0.5 mb-0.5 flex min-w-0 items-center gap-1 overflow-x-auto overscroll-x-contain pl-9"
+      className="scrollbar-none marquee-mask mt-0.5 mb-0.5 flex min-w-44 flex-1 items-center gap-1 overflow-x-auto overscroll-x-contain pl-9"
       aria-label="First-year price estimates"
     >
       {sorted.map(({ registrar, estimate }) =>
@@ -255,7 +255,7 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
   }
 
   const sharedRowClasses = cn(
-    "group relative flex flex-col border-t border-border transition-colors first:border-t-0",
+    "group relative flex flex-wrap items-center border-t border-border transition-colors first:border-t-0",
     href !== null && "cursor-pointer hover:bg-zinc-900/50",
   );
 
@@ -312,9 +312,10 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
       className={`${sharedRowClasses} overflow-hidden`}
       title={isDomain ? undefined : statusText}
     >
-      {/* Line 1: icon + subject. The subject never truncates — it wraps
-          inside the full-width identity (<wbr> keeps each TLD whole). */}
-      <div className="relative flex min-h-9 items-center">
+      {/* Icon + subject — sized to content, so the registrar strip can
+          share the line when it fits. The subject never truncates: it
+          wraps inside the identity (<wbr> keeps each TLD whole). */}
+      <div className="relative flex min-h-9 min-w-0 items-center">
         {/* Icon-scoped status trigger: hover/focus on this target alone
             reveals the chip — the rest of the row never does. */}
         <span
@@ -350,9 +351,9 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
         ) : null}
       </div>
 
-      {/* Line 2: registrars get their own line under the domain — never
-          squashed at the card edge. pl-9 aligns the strip with the subject
-          text; still slidable past ~6 chips with the marquee fade. */}
+      {/* Registrars flow inline beside a short domain; under ~3 chips of
+          room they wrap to their own line, pl-9-aligned with the subject.
+          Still slidable past ~3.5 chips with the marquee fade. */}
       {prices.length > 0 ? <PriceChips provider={meta.id} subject={subject} /> : null}
     </motion.li>
   );
