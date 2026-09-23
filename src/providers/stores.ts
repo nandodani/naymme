@@ -1,4 +1,5 @@
 import type { ProviderDeps } from "../deps.js";
+import { readJsonCapped } from "../security.js";
 import type { ProviderAdapter, ProviderOutcome } from "../types.js";
 import { invalidOutcome } from "./validation.js";
 
@@ -66,7 +67,7 @@ export function createAppStoreAdapter(deps: ProviderDeps): ProviderAdapter {
       if (res.status !== 200) {
         return unknown(name, `App Store search returned HTTP ${res.status}`);
       }
-      const body = (await res.json().catch(() => null)) as AppStoreSearchBody | null;
+      const body = (await readJsonCapped(res)) as AppStoreSearchBody | null;
       if (body === null || !Array.isArray(body.results)) {
         return unknown(name, "unexpected App Store response body");
       }

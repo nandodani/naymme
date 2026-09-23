@@ -65,6 +65,22 @@ of **rough first-year USD estimates per TLD per registrar**, surfaced through
   modeled**.
 - Non-`domain:*` providers return `[]` from `tldPrices()`.
 
+Coverage snapshot for the four headline registrars (all 25 TLDs are tracked in
+the table; Vercel/Spaceship/Dynadot/Gandi/Hover follow the same
+`number | null` scheme):
+
+| Registrar  | Coverage in `TLD_PRICE_ESTIMATES`                                   | Sample first-year estimates            |
+| ---------- | ------------------------------------------------------------------- | -------------------------------------- |
+| Porkbun    | Value for every TLD                                                 | `com` 11, `io` 34, `ai`/`gg` 68        |
+| Cloudflare | gTLD subset only — `null` for every ccTLD (at-cost wholesale model) | `com` 10, `dev` 13, `app` 15, `org` 11 |
+| Namecheap  | Value for every TLD                                                 | `com` 11, `io` 33, `ai` 68             |
+| GoDaddy    | Value for every TLD                                                 | `com` 13, `io` 45, `ai` 100            |
+
+TLD handling: the 25 `domain:*` provider ids map one-to-one to TLDs and every
+one has a `TLD_PRICE_ESTIMATES` row; the core/regional/niche grouping in
+[`lib/provider-meta.ts`](../lib/provider-meta.ts) is display-only and does not
+affect pricing.
+
 ## Proposals — live registrar pricing (not implemented)
 
 None of the below exists in the codebase; this is a suggested design only.

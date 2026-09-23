@@ -1,4 +1,5 @@
 import type { ProviderDeps } from "../deps.js";
+import { readJsonCapped } from "../security.js";
 
 export type RdapVerdict = "available" | "taken" | "unknown" | "invalid";
 
@@ -27,10 +28,10 @@ export function createRdapClient(deps: ProviderDeps): RdapClient {
         headers: { accept: "application/json" },
       });
       if (!res.ok) {
-        bootstrap = null;
         throw new Error(`IANA RDAP bootstrap returned HTTP ${res.status}`);
       }
-      const doc = (await res.json()) as RdapBootstrap;
+      const doc = (await readJsonCapped(res)) as RdapBootstrap | null;
+      if (doc === null) throw new Error("IANA RDAP bootstrap returned unreadable JSON");
       const map = new Map<string, string>();
       for (const [tlds, urls] of doc.services ?? []) {
         const base = urls[0];
@@ -38,7 +39,11 @@ export function createRdapClient(deps: ProviderDeps): RdapClient {
         for (const tld of tlds) map.set(tld.toLowerCase(), base);
       }
       return map;
-    })();
+    })().catch((err: unknown) => {
+      // A rejected bootstrap must not be cached — the next lookup retries.
+      bootstrap = null;
+      throw err;
+    });
     return bootstrap;
   }
 

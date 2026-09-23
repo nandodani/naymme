@@ -1,6 +1,15 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { ProviderDeps } from "../src/deps.js";
 import { defaultDeps } from "../src/deps.js";
+import {
+  clientKeyFromHeaders,
+  contentLengthExceeded,
+  MAX_REQUEST_BODY_BYTES,
+  RATE_LIMITS,
+  rateLimiterFromEnv,
+  tooManyRequestsResponse,
+  type RateLimiter,
+} from "../src/security.js";
 import { createNameCheckServer, SERVER_NAME, SERVER_VERSION } from "../src/server.js";
 
 /**
@@ -65,10 +74,38 @@ function trackedBody(response: Response, onDone: () => void): Response {
  * SSE-framed by default; clients that ask for `application/json` only get a
  * plain JSON body.
  */
+let sharedLimiter: RateLimiter | null = null;
+function defaultLimiter(): RateLimiter {
+  sharedLimiter ??= rateLimiterFromEnv(RATE_LIMITS.mcp, process.env);
+  return sharedLimiter;
+}
+
 export async function handleMcpRequest(
   request: Request,
   deps: ProviderDeps = defaultDeps(),
+  limiter: Pick<RateLimiter, "allow"> = defaultLimiter(),
 ): Promise<Response> {
+  const verdict = limiter.allow(clientKeyFromHeaders(request.headers));
+  if (!verdict.ok) return tooManyRequestsResponse(verdict.retryAfterSeconds, CORS_HEADERS);
+  if (contentLengthExceeded(request, MAX_REQUEST_BODY_BYTES)) {
+    return Response.json(
+      { jsonrpc: "2.0", error: { code: -32600, message: "request body too large" }, id: null },
+      { status: 413, headers: CORS_HEADERS },
+    );
+  }
+
+  try {
+    return await dispatch(request, deps);
+  } catch (err) {
+    console.error("mcp request error:", err);
+    return Response.json(
+      { jsonrpc: "2.0", error: { code: -32603, message: "internal error" }, id: null },
+      { status: 500, headers: CORS_HEADERS },
+    );
+  }
+}
+
+async function dispatch(request: Request, deps: ProviderDeps): Promise<Response> {
   const server = createNameCheckServer(deps);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,

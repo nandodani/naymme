@@ -1,4 +1,5 @@
 import type { ProviderDeps } from "../deps.js";
+import { readTextCapped } from "../security.js";
 import type { ProviderAdapter, ProviderOutcome } from "../types.js";
 import { invalidOutcome } from "./validation.js";
 
@@ -142,7 +143,7 @@ export function createRedditAdapter(deps: ProviderDeps): ProviderAdapter {
       const res = await safeFetch(deps, url, signal, { accept: "application/json" });
       if (!res) return unknown(name, "request failed");
       if (res.status === 200) {
-        const body = (await res.text()).trim();
+        const body = (await readTextCapped(res)).trim();
         if (body === "true") return available(name, url);
         if (body === "false") return taken(name, url);
         return unknown(name, "unexpected username_available.json response");
@@ -193,7 +194,7 @@ export function createTikTokAdapter(deps: ProviderDeps): ProviderAdapter {
       const res = await safeFetch(deps, url, signal, { accept: "text/html" });
       if (!res) return unknown(name, "request failed");
       if (res.status !== 200) return unknown(name, `TikTok returned HTTP ${res.status}`);
-      const code = TIKTOK_STATUS.exec(await res.text())?.[1];
+      const code = TIKTOK_STATUS.exec(await readTextCapped(res))?.[1];
       if (code === "0") return taken(name, url);
       if (code !== undefined && TIKTOK_NOT_FOUND.has(code)) return available(name, url);
       return unknown(name, "no recognizable statusCode marker in TikTok page");
