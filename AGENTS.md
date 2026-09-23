@@ -129,6 +129,33 @@ Every adapter **must**:
 knip, tests with coverage, build+size, and Playwright e2e. All must stay
 green — same commands as `npm run check` locally.
 
+## Vendored skills — obra/superpowers
+
+`.agents/skills/` contains an unmodified vendor copy of
+[obra/superpowers](https://github.com/obra/superpowers) **v6.4.1**
+(MIT, `LICENSE` included). These are behavioral workflows for agents —
+each directory holds a `SKILL.md` plus supporting references/scripts.
+
+**Discovering skills:** list `.agents/skills/` and read the `SKILL.md` of
+any skill matching your task before starting it. Start with
+`using-superpowers/SKILL.md` (the bootstrap that explains how the skills
+fit together).
+
+**The ones to apply by default in this repo:**
+
+- `test-driven-development` — write the failing test before the code;
+  new provider adapters must start from the contract matrix or a
+  failing case in `test/`.
+- `verification-before-completion` — never claim a check passes without
+  running it fresh (`npm run check` is the full gate).
+- `systematic-debugging` — root-cause before patching; no speculative
+  fixes, especially around the RDAP→WHOIS→DNS fallback chain.
+- `receiving-code-review` / `finishing-a-development-branch` — for PR
+  iteration and merge prep.
+
+Do not edit vendored files in place (they're excluded from
+lint/format/knip); update the vendor copy wholesale when upgrading.
+
 ## Practical rules for agents
 
 - **Add a provider:** add the id to `PROVIDER_IDS`, a `NameRule` in
@@ -144,3 +171,13 @@ green — same commands as `npm run check` locally.
 - `verbatimModuleSyntax` is on: import types with `import type`.
 - Don't commit generated/`dist`/`.next` output; `AGENTS.md` is tracked
   (it was removed from `.gitignore` on purpose).
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

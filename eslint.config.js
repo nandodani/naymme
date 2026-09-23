@@ -11,6 +11,7 @@ export default tseslint.config(
       ".next/**",
       "next-env.d.ts",
       "postcss.config.mjs",
+      ".agents/**",
     ],
   },
   js.configs.recommended,
