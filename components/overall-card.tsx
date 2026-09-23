@@ -111,16 +111,16 @@ function CategoryRow({ availability }: { availability: AvailabilityTally & { tit
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="truncate text-[11px] font-medium tracking-[0.08em] text-zinc-500 uppercase">
+        <span className="truncate text-[11px] font-medium tracking-[0.08em] text-zinc-400 uppercase">
           {title}
         </span>
         <span className="shrink-0 font-mono text-[11px] text-zinc-300 tabular-nums">
           {checked === 0 && pending > 0 ? (
-            <span className="animate-pulse text-zinc-500">checking…</span>
+            <span className="animate-pulse text-zinc-400">checking…</span>
           ) : (
             <>
               {free}/{checked} free
-              <span className="text-zinc-500"> · {pct ?? "—"}%</span>
+              <span className="text-zinc-400"> · {pct ?? "—"}%</span>
             </>
           )}
         </span>
@@ -266,7 +266,7 @@ export function OverallCard({
 
       {name === "" ? (
         <div className="px-5 py-6">
-          <p className="text-[12px] leading-5 text-zinc-600">
+          <p className="text-[12px] leading-5 text-zinc-400">
             Search a name to see its overall availability across the checked providers.
           </p>
         </div>
@@ -279,7 +279,7 @@ export function OverallCard({
               <span className="font-mono text-[44px] leading-none font-semibold tracking-tight text-foreground tabular-nums">
                 {display ?? overall.score}
               </span>
-              <span className="font-mono text-[13px] text-zinc-600 tabular-nums">% available</span>
+              <span className="font-mono text-[13px] text-zinc-400 tabular-nums">% available</span>
             </div>
             <span className="font-mono text-[12px] text-zinc-400 tabular-nums">
               {overall.availability.free}/{overall.availability.checked} free
@@ -291,7 +291,7 @@ export function OverallCard({
 
           <div className="mt-4">
             <SegmentedBar availability={overall.availability} />
-            <p className="mt-2 font-mono text-[11px] text-zinc-500 tabular-nums">
+            <p className="mt-2 font-mono text-[11px] text-zinc-400 tabular-nums">
               {availabilityLegend(overall.availability)}
             </p>
           </div>

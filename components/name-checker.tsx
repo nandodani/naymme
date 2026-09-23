@@ -185,6 +185,15 @@ export function NameChecker() {
         <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10">
           <Silk speed={5.4} scale={0.5} color="#262626" noiseIntensity={2.7} rotation={0} />
         </div>
+        {/* Skip link: first tab stop, jumps straight to the main landmark
+            (hero search or results, whichever is mounted). Kept at full
+            size off-screen — a 1px sr-only clip fails target size. */}
+        <a
+          href="#main-content"
+          className="fixed top-0 left-3 z-60 -translate-y-[150%] rounded-md bg-zinc-100 px-4 py-2 text-[12px] font-medium text-black outline-none motion-safe:transition-transform focus-visible:translate-y-3 focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Skip to main content
+        </a>
         <Navbar onCopy={notify} />
 
         <AnimatePresence mode="wait" initial={false}>
@@ -219,11 +228,13 @@ export function NameChecker() {
           ) : (
             <motion.main
               key="results"
+              id="main-content"
+              tabIndex={-1}
               initial={blurIn}
               animate={sharp}
               exit={blurOut}
               transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
-              className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 sm:px-6"
+              className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 outline-none sm:px-6"
             >
               <div className="mx-auto max-w-xl pt-7 pb-8">
                 <SearchInput
@@ -247,12 +258,12 @@ export function NameChecker() {
           )}
         </AnimatePresence>
 
-        <footer className="flex shrink-0 flex-col items-center justify-center gap-0.5 border-t border-white/5 px-4 py-2.5 text-center text-[11px] text-zinc-600 sm:px-6">
+        <footer className="flex shrink-0 flex-col items-center justify-center gap-0.5 border-t border-white/5 px-4 py-2.5 text-center text-[11px] text-zinc-400 sm:px-6">
           <span>
             Independent project. Not affiliated with, endorsed by, or associated with any brands,
             platforms, or registries displayed.
           </span>
-          <span className="text-zinc-700">
+          <span>
             Scores are deterministic heuristics · availability is a best-effort snapshot, not a
             guarantee.
           </span>

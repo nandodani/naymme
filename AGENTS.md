@@ -93,6 +93,8 @@ Every adapter **must**:
   `renderToStaticMarkup` (`test/components.test.tsx`) — no DOM/jsdom.
 - `test:e2e` — Playwright smoke against `next start` in
   `LMKURNAME_AVAILABILITY_MODE=demo` (deterministic, offline-safe).
+  `e2e/a11y.spec.ts` runs `@axe-core/playwright` (WCAG 2.2 A/AA tags) on
+  every page state plus keyboard-path checks; keep new UI axe-clean.
 - Coverage: `npm run test:coverage` (v8 provider). Thresholds in
   `vitest.config.ts` — ≥90% statements/functions/lines and ≥85% branches
   on `src/providers/**`, ≥95% on `src/schemas.ts`, ≥80% on `lib/**` and

@@ -1,6 +1,7 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useReducedMotion } from "motion/react";
 import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { Color, type IUniform, type Mesh } from "three";
 
@@ -165,8 +166,11 @@ export default function Silk({
     uniforms.uLightMode.value = lightMode ? 1 : 0;
   }, [speed, scale, noiseIntensity, color, rotation, lightMode, uniforms]);
 
+  const reduceMotion = useReducedMotion();
   return (
-    <Canvas dpr={[1, 2]} frameloop="always">
+    // prefers-reduced-motion: "demand" renders one static frame and stops
+    // the RAF loop instead of animating the shader's uTime forever.
+    <Canvas dpr={[1, 2]} frameloop={reduceMotion ? "demand" : "always"}>
       <SilkPlane ref={meshRef} uniforms={uniforms} />
     </Canvas>
   );
