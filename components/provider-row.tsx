@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { CheckCircle2, Clock, Globe, XCircle } from "lucide-react";
 
@@ -152,18 +152,27 @@ function StatusChip({ status, visible }: { status: AvailabilityStatus; visible: 
  * Compact per-registrar first-year price estimate for one TLD. Each chip is
  * a real link to that registrar's domain search; `—` means the registrar
  * doesn't carry the TLD. Prices are static estimates — no live pricing API.
+ * Cheapest carriers come first; the strip clips at ~3.5 chips so the
+ * half-visible chip advertises horizontal scroll for the rest, and the
+ * right-edge fade keeps the cut from looking like a bug.
  */
 function PriceChips({ provider, subject }: { provider: string; subject: string }) {
   const prices = tldPrices(provider as Parameters<typeof tldPrices>[0]);
   if (prices.length === 0) return null;
+  const sorted = [...prices].sort(
+    (a, b) => (a.estimate ?? Number.POSITIVE_INFINITY) - (b.estimate ?? Number.POSITIVE_INFINITY),
+  );
   return (
-    <span className="hidden items-center gap-1 xl:flex" aria-label="First-year price estimates">
-      {prices.map(({ registrar, estimate }) =>
+    <span
+      className="scrollbar-none marquee-mask mt-0.5 mb-0.5 flex min-w-44 flex-1 items-center gap-1 overflow-x-auto overscroll-x-contain pl-9"
+      aria-label="First-year price estimates"
+    >
+      {sorted.map(({ registrar, estimate }) =>
         estimate === null ? (
           <span
             key={registrar.id}
             title={`${registrar.label} does not carry this TLD`}
-            className="inline-flex h-5 items-center gap-1 rounded border border-zinc-800/60 px-1.5 font-mono text-[9px] text-zinc-600"
+            className="inline-flex h-5 shrink-0 items-center gap-1 rounded border border-zinc-800/60 px-1.5 font-mono text-[9px] text-zinc-600"
           >
             <RegistrarIcon id={registrar.id} className="text-zinc-600" />—
           </span>
@@ -175,7 +184,7 @@ function PriceChips({ provider, subject }: { provider: string; subject: string }
             rel="noreferrer noopener"
             title={`~$${estimate}/yr at ${registrar.label} (estimate)`}
             aria-label={`Register ${subject} at ${registrar.label}, estimated ~$${estimate} per year`}
-            className="inline-flex h-5 items-center gap-1 rounded border border-zinc-700/40 bg-zinc-800/40 px-1.5 font-mono text-[9px] text-zinc-400 transition-colors outline-none hover:border-zinc-500/60 hover:text-zinc-200 focus-visible:border-zinc-500/60 focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-5 shrink-0 items-center gap-1 rounded border border-zinc-700/40 bg-zinc-800/40 px-1.5 font-mono text-[9px] text-zinc-400 transition-colors outline-none hover:border-zinc-500/60 hover:text-zinc-200 focus-visible:border-zinc-500/60 focus-visible:ring-2 focus-visible:ring-ring"
           >
             <RegistrarIcon id={registrar.id} />
             ~${estimate}
@@ -224,7 +233,11 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
   let actionLabel: string | null = null;
   if (status === "available") {
     if (isDomain) {
-      const carrier = prices.find((p) => p.estimate !== null)?.registrar ?? REGISTRARS[0];
+      const carriers = prices.filter(
+        (p): p is (typeof prices)[number] & { estimate: number } => p.estimate !== null,
+      );
+      const carrier =
+        carriers.sort((a, b) => a.estimate - b.estimate)[0]?.registrar ?? REGISTRARS[0];
       href = carrier.searchUrl(subject);
       actionLabel = `Register ${subject} at ${carrier.label}`;
     } else if (links !== null) {
@@ -242,7 +255,7 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
   }
 
   const sharedRowClasses = cn(
-    "group relative flex h-10 items-center border-t border-border transition-colors first:border-t-0",
+    "group relative flex flex-wrap items-center border-t border-border transition-colors first:border-t-0",
     href !== null && "cursor-pointer hover:bg-zinc-900/50",
   );
 
@@ -251,14 +264,32 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
       {isDomain ? null : (
         <span className="shrink-0 text-[10px] font-medium text-zinc-600">{meta.label}</span>
       )}
-      <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-zinc-300">{subject}</span>
+      {/* <wbr> after each dot gives the wrap a soft break point so a TLD
+          (or dotted name segment) wraps as a unit instead of splitting
+          mid-glyph. */}
+      <span
+        title={subject}
+        className="min-w-0 shrink font-mono text-[12px] wrap-anywhere text-zinc-300"
+      >
+        {subject.split(".").map((part, i) => (
+          <Fragment key={i}>
+            {i > 0 ? (
+              <>
+                {"."}
+                <wbr />
+              </>
+            ) : null}
+            {part}
+          </Fragment>
+        ))}
+      </span>
       <span className="sr-only">{statusText}</span>
     </>
   );
 
   return (
     // motion.li so the "Available only" filter can blur+scale+fade rows in
-    // and out (AnimatePresence in ProviderCard). Deliberately no `layout`:
+    // and out (AnimatePresence in ProviderColumn). Deliberately no `layout`:
     // positional slides made re-entering rows collide with rows already at
     // their final spot — fading in place can never overlap.
     <motion.li
@@ -278,46 +309,52 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
           ? { opacity: 0, transition: { duration: 0.12 } }
           : { opacity: 0, scale: 0.96, filter: "blur(4px)", transition: { duration: 0.16 } }
       }
-      className={sharedRowClasses}
+      className={`${sharedRowClasses} overflow-hidden`}
       title={isDomain ? undefined : statusText}
     >
-      {/* Icon-scoped status trigger: hover/focus on this target alone
-          reveals the chip — the rest of the row never does. */}
-      <span
-        tabIndex={0}
-        aria-label={`${meta.label} ${subject} — ${statusText}`}
-        onMouseEnter={() => setRevealed(true)}
-        onMouseLeave={() => setRevealed(false)}
-        onFocus={() => setRevealed(true)}
-        onBlur={() => setRevealed(false)}
-        className="flex shrink-0 cursor-default items-center self-stretch pr-1 pl-3 outline-none focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-      >
-        <RowIcon id={meta.id} status={status} pending={pending} revealed={revealed} />
-      </span>
-
-      {href !== null ? (
-        <a
-          href={href}
-          target="_blank"
-          rel="noreferrer noopener"
-          aria-label={`${actionLabel ?? subject} — ${statusText}`}
-          className="flex min-w-0 flex-1 items-center gap-2.5 self-stretch pr-3 pl-1.5 text-left outline-none focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      {/* Icon + subject — sized to content, so the registrar strip can
+          share the line when it fits. The subject never truncates: it
+          wraps inside the identity (<wbr> keeps each TLD whole). */}
+      <div className="relative flex min-h-9 min-w-0 items-center">
+        {/* Icon-scoped status trigger: hover/focus on this target alone
+            reveals the chip — the rest of the row never does. */}
+        <span
+          tabIndex={0}
+          aria-label={`${meta.label} ${subject} — ${statusText}`}
+          onMouseEnter={() => setRevealed(true)}
+          onMouseLeave={() => setRevealed(false)}
+          onFocus={() => setRevealed(true)}
+          onBlur={() => setRevealed(false)}
+          className="flex shrink-0 cursor-default items-center self-stretch pr-1 pl-3 outline-none focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         >
-          {identity}
-        </a>
-      ) : (
-        <div className="flex min-w-0 flex-1 items-center gap-2.5 self-stretch pr-3 pl-1.5 text-left">
-          {identity}
-        </div>
-      )}
-
-      {status !== undefined && !pending ? <StatusChip status={status} visible={revealed} /> : null}
-
-      {prices.length > 0 ? (
-        <span className="flex shrink-0 items-center gap-1.5 pr-3">
-          <PriceChips provider={meta.id} subject={subject} />
+          <RowIcon id={meta.id} status={status} pending={pending} revealed={revealed} />
         </span>
-      ) : null}
+
+        {href !== null ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer noopener"
+            aria-label={`${actionLabel ?? subject} — ${statusText}`}
+            className="flex min-w-0 flex-1 items-center gap-2.5 self-stretch overflow-hidden pr-3 pl-1.5 text-left outline-none focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+          >
+            {identity}
+          </a>
+        ) : (
+          <div className="flex min-w-0 flex-1 items-center gap-2.5 self-stretch overflow-hidden pr-3 pl-1.5 text-left">
+            {identity}
+          </div>
+        )}
+
+        {status !== undefined && !pending ? (
+          <StatusChip status={status} visible={revealed} />
+        ) : null}
+      </div>
+
+      {/* Registrars flow inline beside a short domain; under ~3 chips of
+          room they wrap to their own line, pl-9-aligned with the subject.
+          Still slidable past ~3.5 chips with the marquee fade. */}
+      {prices.length > 0 ? <PriceChips provider={meta.id} subject={subject} /> : null}
     </motion.li>
   );
 }

@@ -100,6 +100,97 @@ export function createGitHubUserAdapter(
   };
 }
 
+/**
+ * Repository names allow letters/digits plus `-`, `_` and `.` separators
+ * (≤100 chars, must start with a letter or digit).
+ */
+const GITHUB_REPO = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
+
+interface GitHubSearchItem {
+  name?: unknown;
+  full_name?: unknown;
+}
+
+/**
+ * Repository-name collision check via the unauthenticated Search API —
+ * answers whether a repo already carries this name under any owner
+ * (`{owner}/{repo}`), independent of the user/org login check. The search is
+ * fuzzy (`in:name` ranks near matches), so only an exact `name` match
+ * (case-insensitive) counts as a collision. Unauthenticated search is
+ * limited to 10 req/min per IP — a 403/429 degrades to `unknown`.
+ */
+export function createGitHubRepoAdapter(deps: ProviderDeps): ProviderAdapter {
+  return {
+    id: "github:repo",
+    async check(name, signal): Promise<ProviderOutcome> {
+      if (!GITHUB_REPO.test(name)) {
+        return {
+          status: "invalid",
+          subject: name,
+          available: false,
+          detail:
+            "not a valid GitHub repository name (≤100 chars, letters/digits with '-', '_' or '.' separators)",
+        };
+      }
+      const url = `${deps.githubApiBase}/search/repositories?q=${encodeURIComponent(`${name} in:name`)}&per_page=10`;
+      let res: Response;
+      try {
+        res = await deps.fetch(url, {
+          signal,
+          headers: {
+            accept: "application/vnd.github+json",
+            "user-agent": deps.userAgent,
+          },
+        });
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") throw err;
+        return { status: "unknown", subject: name, available: null, detail: "request failed" };
+      }
+      if (res.status === 200) {
+        const body = (await res.json().catch(() => null)) as {
+          items?: unknown;
+        } | null;
+        if (body === null || !Array.isArray(body.items)) {
+          return {
+            status: "unknown",
+            subject: name,
+            available: null,
+            detail: "unexpected GitHub search response body",
+          };
+        }
+        const hit = (body.items as GitHubSearchItem[]).find(
+          (item) =>
+            typeof item?.name === "string" && item.name.toLowerCase() === name.toLowerCase(),
+        );
+        if (hit !== undefined) {
+          const fullName = typeof hit.full_name === "string" ? hit.full_name : `search?q=${name}`;
+          return {
+            status: "taken",
+            subject: name,
+            available: false,
+            detail: `https://github.com/${fullName} — a repository already carries this name`,
+          };
+        }
+        return {
+          status: "available",
+          subject: name,
+          available: true,
+          detail: `no repository named '${name}' — create one at https://github.com/new`,
+        };
+      }
+      return {
+        status: "unknown",
+        subject: name,
+        available: null,
+        detail:
+          res.status === 403 || res.status === 429
+            ? "GitHub search rate limit (unauthenticated limit is 10 req/min per IP)"
+            : `GitHub search returned HTTP ${res.status}`,
+      };
+    },
+  };
+}
+
 /** Organization check — org names share the user namespace on GitHub. */
 export function createGitHubOrgAdapter(
   lookup: ReturnType<typeof createGitHubLookup>,

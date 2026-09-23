@@ -29,6 +29,7 @@ export const PROVIDER_IDS = [
   "domain:space",
   "github:user",
   "github:org",
+  "github:repo",
   "gitlab",
   "npm",
   "pypi",
@@ -40,6 +41,9 @@ export const PROVIDER_IDS = [
   "homebrew",
   "codepen",
   "replit",
+  "vercel",
+  "netlify",
+  "appstore",
   "figma",
   "dribbble",
   "behance",
@@ -149,7 +153,7 @@ export const nameSchema = z
 
 export const checkAvailabilityInputSchema = z.object({
   name: nameSchema.describe(
-    "Bare name to check, e.g. 'acme'. Checked as acme.com/acme.app/..., GitHub user/org 'acme', GitLab, npm/PyPI/crates.io/Docker Hub, Hugging Face, NuGet, RubyGems, Homebrew, CodePen, Replit, Figma, Dribbble, Behance, Substack, Product Hunt, Telegram, Medium and social handle 'acme'.",
+    "Bare name to check, e.g. 'acme'. Checked as acme.com/acme.app/..., GitHub user/org 'acme' plus repository-name collisions, GitLab, npm/PyPI/crates.io/Docker Hub, Hugging Face, NuGet, RubyGems, Homebrew, CodePen, Replit, acme.vercel.app, acme.netlify.app, the Apple App Store, Figma, Dribbble, Behance, Substack, Product Hunt, Telegram, Medium and social handle 'acme'.",
   ),
   providers: z
     .array(providerSelectionSchema)

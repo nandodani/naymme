@@ -402,6 +402,11 @@ const PLATFORM_LINKS: Partial<Record<ProviderId, PlatformLinks>> = {
     claim: () => "https://github.com/account/organizations/new",
     profile: (name) => `https://github.com/${name}`,
   },
+  "github:repo": {
+    claim: () => "https://github.com/new",
+    profile: (name) =>
+      `https://github.com/search?q=${encodeURIComponent(`${name} in:name`)}&type=repositories`,
+  },
   gitlab: {
     claim: () => "https://gitlab.com/users/sign_up",
     profile: (name) => `https://gitlab.com/${name}`,
@@ -445,6 +450,18 @@ const PLATFORM_LINKS: Partial<Record<ProviderId, PlatformLinks>> = {
   replit: {
     claim: () => "https://replit.com/signup",
     profile: (name) => `https://replit.com/@${name}`,
+  },
+  vercel: {
+    claim: () => "https://vercel.com/new",
+    profile: (name) => `https://${name}.vercel.app`,
+  },
+  netlify: {
+    claim: () => "https://app.netlify.com/start",
+    profile: (name) => `https://${name}.netlify.app`,
+  },
+  appstore: {
+    claim: () => "https://developer.apple.com/",
+    profile: (name) => `https://apps.apple.com/us/search?term=${encodeURIComponent(name)}`,
   },
   figma: {
     claim: () => "https://www.figma.com/signup",

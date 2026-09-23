@@ -25,7 +25,10 @@ export function createNameCheckServer(deps: ProviderDeps): McpServer {
       title: "Check name availability",
       description:
         "Check whether a bare name is available across domain TLDs (.com, .gg, .dev, .io, .app " +
-        "and the European ccTLDs .pt/.es/.de/.fr/.uk/.eu), GitHub (user/org namespace), npm and " +
+        "and the European ccTLDs .pt/.es/.de/.fr/.uk/.eu), GitHub (user/org namespace plus " +
+        "repository-name collisions), dev registries (npm, PyPI, crates.io, Docker Hub, " +
+        "Hugging Face, NuGet, RubyGems, Homebrew), hosted subdomains (.vercel.app, " +
+        ".netlify.app), the Apple App Store, creator platforms and " +
         "social handles (X, Bluesky, Instagram, Reddit, YouTube, TikTok). Providers run " +
         "concurrently with an independent " +
         "5-second timeout each; a provider that fails or is inconclusive reports status " +

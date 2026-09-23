@@ -5,12 +5,12 @@ import { SearchX } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
 import type { AvailabilityResponse } from "@/lib/availability.js";
-import { ALL_PROVIDER_IDS, providerGroup } from "@/lib/provider-meta.js";
+import { ALL_PROVIDER_IDS, PROVIDER_GROUPS } from "@/lib/provider-meta.js";
 import { resultCounts, type ResultFilter } from "@/lib/result-filter.js";
 import { cn } from "@/lib/utils.js";
 import type { AvailabilityResult } from "@/src/types.js";
 import { OverallCard } from "./overall-card.js";
-import { ProviderCard } from "./provider-card.js";
+import { ProviderColumn } from "./provider-column.js";
 import { Button } from "./ui/button.js";
 
 interface ResultsGridProps {
@@ -36,16 +36,16 @@ const FILTERS: readonly { id: ResultFilter; label: string }[] = [
   { id: "available", label: "Available only" },
 ];
 
-/** Every provider id the four grid groups render — the count denominator. */
+/** Every provider id the grid groups render — the count denominator. */
 const EXPECTED_PROVIDER_IDS = ALL_PROVIDER_IDS;
 
 /**
- * The searched state: a bento grid of the overall availability card plus
- * one card per provider group. DOM order is the same as reading order at
- * every breakpoint — Overall, Developer, Socials, Domains, Community — so the
- * stagger, tab order and screen-reader order all agree. On xl the score
- * anchors the left column, Developer and Socials fill out row one, Domains
- * spans underneath and Community fills the bottom-right slot.
+ * The searched state: the overall availability card plus one free column
+ * per provider group, rendered in PROVIDER_GROUPS order. There are no
+ * cards — sections tile a `repeat(auto-fill, minmax(17rem, 1fr))` grid:
+ * as many columns as fit, each flexing equally to fill the container.
+ * DOM order matches reading order — Overall first, then the groups — so
+ * the stagger, tab order and screen-reader order all agree.
  */
 export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: ResultsGridProps) {
   const [filter, setFilter] = useState<ResultFilter>("all");
@@ -58,11 +58,6 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
   // unresolved + pending always reconcile to it — no ghost items.
   const counts = resultCounts(data?.results ?? [], EXPECTED_PROVIDER_IDS);
   const emptyFiltered = filter === "available" && counts.available === 0 && !checking;
-
-  const domains = providerGroup("domains");
-  const developer = providerGroup("developer");
-  const socials = providerGroup("socials");
-  const community = providerGroup("community");
 
   return (
     <div className="flex flex-col gap-3">
@@ -142,84 +137,32 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
+        className="grid grid-cols-[repeat(auto-fill,minmax(17rem,1fr))] items-start gap-x-8 gap-y-6"
       >
-        <motion.div variants={item} className="md:col-span-2 xl:col-span-1 xl:col-start-1">
-          <OverallCard
-            availability={data}
-            checking={checking}
-            name={name}
-            onCopy={onCopy}
-            className="h-full"
-          />
+        <motion.div variants={item}>
+          <OverallCard availability={data} checking={checking} name={name} onCopy={onCopy} />
         </motion.div>
 
         {emptyFiltered ? (
           <motion.div
             variants={item}
-            className="flex items-center justify-center gap-2.5 rounded-xl border border-zinc-800 bg-card px-4 py-10 md:col-span-2 xl:col-span-2"
+            className="flex items-center justify-center gap-2.5 rounded-xl border border-zinc-800 bg-card px-4 py-10"
           >
             <SearchX aria-hidden="true" className="size-4 text-zinc-600" />
             <p className="text-[12px] text-zinc-500">No available handles found for this search.</p>
           </motion.div>
         ) : (
-          <>
-            <motion.div
-              variants={item}
-              className="md:col-start-1 md:row-start-2 xl:col-start-2 xl:row-start-1"
-            >
-              <ProviderCard
-                group={developer}
+          PROVIDER_GROUPS.map((group) => (
+            <motion.div key={group.id} variants={item}>
+              <ProviderColumn
+                group={group}
                 name={name}
                 resultsByProvider={resultsByProvider}
                 pending={pending}
                 filter={filter}
-                className="h-full"
               />
             </motion.div>
-
-            <motion.div
-              variants={item}
-              className="md:col-start-2 md:row-start-2 xl:col-start-3 xl:row-start-1"
-            >
-              <ProviderCard
-                group={socials}
-                name={name}
-                resultsByProvider={resultsByProvider}
-                pending={pending}
-                filter={filter}
-                className="h-full"
-              />
-            </motion.div>
-
-            <motion.div
-              variants={item}
-              className="md:col-start-1 md:row-start-3 xl:col-span-2 xl:col-start-1 xl:row-start-2"
-            >
-              <ProviderCard
-                group={domains}
-                name={name}
-                resultsByProvider={resultsByProvider}
-                pending={pending}
-                filter={filter}
-                className="h-full"
-              />
-            </motion.div>
-
-            <motion.div
-              variants={item}
-              className="md:col-start-2 md:row-start-3 xl:col-start-3 xl:row-start-2"
-            >
-              <ProviderCard
-                group={community}
-                name={name}
-                resultsByProvider={resultsByProvider}
-                pending={pending}
-                filter={filter}
-                className="h-full"
-              />
-            </motion.div>
-          </>
+          ))
         )}
       </motion.div>
     </div>

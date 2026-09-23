@@ -8,7 +8,13 @@ import {
   createPyPiAdapter,
 } from "./devplatforms.js";
 import { createDomainAdapter } from "./domain.js";
-import { createGitHubLookup, createGitHubOrgAdapter, createGitHubUserAdapter } from "./github.js";
+import {
+  createGitHubLookup,
+  createGitHubOrgAdapter,
+  createGitHubRepoAdapter,
+  createGitHubUserAdapter,
+} from "./github.js";
+import { createNetlifyAdapter, createVercelAdapter } from "./hosting.js";
 import { createNpmAdapter } from "./npm.js";
 import {
   createBehanceAdapter,
@@ -26,6 +32,7 @@ import {
   createTelegramAdapter,
 } from "./platforms.js";
 import { createRdapClient } from "./rdap.js";
+import { createAppStoreAdapter } from "./stores.js";
 import {
   createBlueskyAdapter,
   createInstagramAdapter,
@@ -71,6 +78,7 @@ export function createAdapters(deps: ProviderDeps): Record<ProviderId, ProviderA
     "domain:space": createDomainAdapter("space", deps, rdap),
     "github:user": createGitHubUserAdapter(githubLookup),
     "github:org": createGitHubOrgAdapter(githubLookup),
+    "github:repo": createGitHubRepoAdapter(deps),
     gitlab: createGitLabAdapter(deps),
     npm: createNpmAdapter(deps),
     pypi: createPyPiAdapter(deps),
@@ -82,6 +90,9 @@ export function createAdapters(deps: ProviderDeps): Record<ProviderId, ProviderA
     homebrew: createHomebrewAdapter(deps),
     codepen: createCodePenAdapter(deps),
     replit: createReplitAdapter(deps),
+    vercel: createVercelAdapter(deps),
+    netlify: createNetlifyAdapter(deps),
+    appstore: createAppStoreAdapter(deps),
     figma: createFigmaAdapter(deps),
     dribbble: createDribbbleAdapter(deps),
     behance: createBehanceAdapter(deps),

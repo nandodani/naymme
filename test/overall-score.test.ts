@@ -125,7 +125,7 @@ describe("availabilityTally / availabilityPercent", () => {
 
 describe("categoryTally", () => {
   it("groups results by provider ids and reconciles per category", () => {
-    const domains = PROVIDER_GROUPS[0];
+    const domains = PROVIDER_GROUPS.find((g) => g.id === "domains")!;
     const results = [
       result("domain:com", "available"),
       result("domain:dev", "taken"),
@@ -133,16 +133,16 @@ describe("categoryTally", () => {
       // social:x belongs to a different group — ignored here
       result("social:x", "available"),
     ];
-    const c = categoryTally(results, domains!);
+    const c = categoryTally(results, domains);
     expect(c.id).toBe("domains");
-    expect(c.title).toBe("Domains");
+    expect(c.title).toBe("Core domains");
     expect(c.free).toBe(1);
     expect(c.taken).toBe(1);
     expect(c.unresolved).toBe(1);
-    // 25 domain slots, 3 returned → 22 pending
-    expect(c.pending).toBe(domains!.providers.length - 3);
+    // 9 core-domain slots, 3 returned → 6 pending
+    expect(c.pending).toBe(domains.providers.length - 3);
     expect(c.checked + c.pending).toBe(c.total);
-    expect(c.total).toBe(domains!.providers.length);
+    expect(c.total).toBe(domains.providers.length);
   });
 
   it("handles an empty category cleanly", () => {
