@@ -164,7 +164,7 @@ function PriceChips({ provider, subject }: { provider: string; subject: string }
   );
   return (
     <span
-      className="scrollbar-none hidden w-42 items-center gap-1 overflow-x-auto overscroll-x-contain [mask-image:linear-gradient(to_right,black_82%,transparent)] xl:flex"
+      className="scrollbar-none marquee-mask hidden w-42 items-center gap-1 overflow-x-auto overscroll-x-contain xl:flex"
       aria-label="First-year price estimates"
     >
       {sorted.map(({ registrar, estimate }) =>
