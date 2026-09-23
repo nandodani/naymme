@@ -1,5 +1,6 @@
 import type { ProviderDeps } from "../deps.js";
 import type { ProviderId } from "../schemas.js";
+import { readTextCapped } from "../security.js";
 import type { ProviderAdapter, ProviderOutcome } from "../types.js";
 import { invalidOutcome } from "./validation.js";
 
@@ -75,7 +76,7 @@ function createPageCheck(deps: ProviderDeps, spec: PageCheckSpec): ProviderAdapt
       if (!res) return unknown(subject, "request failed");
       if (busy.includes(res.status)) {
         if (spec.bodyMeansTaken !== undefined) {
-          const body = await res.text().catch(() => "");
+          const body = await readTextCapped(res).catch(() => "");
           return spec.bodyMeansTaken(body)
             ? taken(subject, spec.profile(name))
             : available(subject, spec.profile(name));

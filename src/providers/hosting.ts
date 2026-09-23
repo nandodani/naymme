@@ -1,5 +1,6 @@
 import type { ProviderDeps } from "../deps.js";
 import type { ProviderId } from "../schemas.js";
+import { readTextCapped } from "../security.js";
 import type { ProviderAdapter, ProviderOutcome } from "../types.js";
 import { invalidOutcome } from "./validation.js";
 
@@ -66,7 +67,7 @@ function createSubdomainCheck(deps: ProviderDeps, spec: SubdomainCheckSpec): Pro
         return taken(subject, `${url} (protected deployment)`);
       }
       if (res.status === 404) {
-        const body = await res.text().catch(() => "");
+        const body = await readTextCapped(res).catch(() => "");
         return spec.unclaimedMarker(res, body)
           ? available(subject, url)
           : unknown(subject, `${spec.id} returned HTTP 404 without the unclaimed-site marker`);

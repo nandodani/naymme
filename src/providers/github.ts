@@ -1,4 +1,5 @@
 import type { ProviderDeps } from "../deps.js";
+import { readJsonCapped } from "../security.js";
 import type { ProviderAdapter, ProviderOutcome } from "../types.js";
 import { invalidOutcome } from "./validation.js";
 
@@ -39,7 +40,7 @@ export function createGitHubLookup(deps: ProviderDeps) {
       }
       if (res.status === 404) return { kind: "absent" };
       if (res.status === 200) {
-        const body = (await res.json().catch(() => null)) as { type?: unknown } | null;
+        const body = (await readJsonCapped(res)) as { type?: unknown } | null;
         const kind = body?.type === "Organization" ? "org" : "user";
         return { kind, url };
       }
@@ -125,7 +126,7 @@ export function createGitHubRepoAdapter(deps: ProviderDeps): ProviderAdapter {
         return { status: "unknown", subject: name, available: null, detail: "request failed" };
       }
       if (res.status === 200) {
-        const body = (await res.json().catch(() => null)) as {
+        const body = (await readJsonCapped(res)) as {
           items?: unknown;
         } | null;
         if (body === null || !Array.isArray(body.items)) {

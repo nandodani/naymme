@@ -4,9 +4,18 @@ import { resolveProviderIds } from "../schemas.js";
 import { selectAdapters } from "../providers/index.js";
 import type { AvailabilityResult, ProviderAdapter, ProviderOutcome } from "../types.js";
 
+/**
+ * Error text for the public `detail` field: single line, no control
+ * characters, capped length — an upstream/library message should never
+ * smuggle markup or internals into the tool output.
+ */
 function errorMessage(err: unknown): string {
-  if (err instanceof Error) return err.name === "AbortError" ? `timed out` : err.message;
-  return String(err);
+  const raw =
+    err instanceof Error ? (err.name === "AbortError" ? "timed out" : err.message) : String(err);
+  return raw
+    .replace(/\p{C}+/gu, " ")
+    .trim()
+    .slice(0, 200);
 }
 
 /**

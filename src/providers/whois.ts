@@ -47,7 +47,9 @@ export async function whoisLookup(fqdn: string, deps: ProviderDeps): Promise<Who
     timeout: Math.max(1_000, deps.timeoutMs - 250),
     raw: true,
   });
-  const text = stringify(response);
+  // Cap the scanned text — WHOIS payloads are unbounded and registry
+  // responses are matched by regex, so bound both memory and CPU.
+  const text = stringify(response).slice(0, 512 * 1024);
   if (NOT_FOUND_PATTERNS.some((p) => p.test(text))) return "available";
   if (TAKEN_PATTERNS.some((p) => p.test(text))) return "taken";
   return "unknown";

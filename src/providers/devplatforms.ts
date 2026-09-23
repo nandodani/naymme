@@ -1,4 +1,5 @@
 import type { ProviderDeps } from "../deps.js";
+import { readJsonCapped } from "../security.js";
 import type { ProviderAdapter, ProviderOutcome } from "../types.js";
 import { invalidOutcome } from "./validation.js";
 
@@ -48,7 +49,7 @@ export function createGitLabAdapter(deps: ProviderDeps): ProviderAdapter {
       const users = await safeFetch(deps, usersUrl, signal, { accept: "application/json" });
       if (!users) return unknown(name, "request failed");
       if (users.status === 200) {
-        const body = (await users.json().catch(() => null)) as unknown;
+        const body = await readJsonCapped(users);
         if (!Array.isArray(body)) return unknown(name, "unexpected /users response body");
         if (body.length > 0) return taken(name, `https://gitlab.com/${name}`);
 

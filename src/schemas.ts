@@ -157,6 +157,8 @@ export const checkAvailabilityInputSchema = z.object({
   ),
   providers: z
     .array(providerSelectionSchema)
+    // 60 ids + 5 aliases; anything longer is redundant — cap it.
+    .max(65)
     .optional()
     .describe(
       "Providers to query. Defaults to all. Aliases: 'all' (everything), 'domains' (.com/.gg/.dev/.io), 'domains:all' (every TLD), 'domains:cctld' (ccTLDs), 'socials' (all social handles).",
