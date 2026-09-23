@@ -1,5 +1,6 @@
 import type { ProviderDeps } from "../deps.js";
 import type { ProviderAdapter, ProviderOutcome } from "../types.js";
+import { invalidOutcome } from "./validation.js";
 
 /**
  * Store listing checks. Phase 1 covers the Apple App Store; the remaining
@@ -57,6 +58,8 @@ export function createAppStoreAdapter(deps: ProviderDeps): ProviderAdapter {
   return {
     id: "appstore",
     async check(name, signal): Promise<ProviderOutcome> {
+      const invalid = invalidOutcome("appstore", name);
+      if (invalid !== null) return invalid;
       const url = `https://itunes.apple.com/search?term=${encodeURIComponent(name)}&entity=software&country=US&limit=50`;
       const res = await safeFetch(deps, url, signal);
       if (!res) return unknown(name, "request failed");

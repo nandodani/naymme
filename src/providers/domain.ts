@@ -2,9 +2,10 @@ import type { ProviderDeps } from "../deps.js";
 import type { ProviderAdapter, ProviderOutcome } from "../types.js";
 import { dnsNsVerdict } from "./dns.js";
 import type { RdapClient } from "./rdap.js";
+import { type DomainTld, invalidOutcome } from "./validation.js";
 import { whoisLookup } from "./whois.js";
 
-const DOMAIN_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i;
+const MAX_DOMAIN_LENGTH = 253;
 
 /**
  * Domain availability adapter for one TLD.
@@ -17,20 +18,23 @@ const DOMAIN_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i;
  * servers prove the domain is registered.
  */
 export function createDomainAdapter(
-  tld: string,
+  tld: DomainTld,
   deps: ProviderDeps,
   rdap: RdapClient,
 ): ProviderAdapter {
+  const providerId = `domain:${tld}` as const;
   return {
-    id: `domain:${tld}`,
+    id: providerId,
     async check(name, signal): Promise<ProviderOutcome> {
       const fqdn = `${name.toLowerCase()}.${tld}`;
-      if (!DOMAIN_LABEL.test(name)) {
+      const invalid = invalidOutcome(providerId, name, fqdn);
+      if (invalid !== null) return invalid;
+      if (fqdn.length > MAX_DOMAIN_LENGTH) {
         return {
           status: "invalid",
           subject: fqdn,
           available: false,
-          detail: "not a valid domain label (letters, digits, hyphens; no leading/trailing hyphen)",
+          detail: `domain name exceeds the ${MAX_DOMAIN_LENGTH}-character limit`,
         };
       }
 

@@ -1,5 +1,6 @@
 import type { ProviderDeps } from "../deps.js";
 import type { ProviderAdapter, ProviderOutcome } from "../types.js";
+import { invalidOutcome } from "./validation.js";
 
 /**
  * These platforms expect a real browser; a descriptive UA keeps the
@@ -7,10 +8,6 @@ import type { ProviderAdapter, ProviderOutcome } from "../types.js";
  */
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-
-function invalid(subject: string, detail: string): ProviderOutcome {
-  return { status: "invalid", subject, available: false, detail };
-}
 
 function unknown(subject: string, detail: string): ProviderOutcome {
   return { status: "unknown", subject, available: null, detail };
@@ -52,8 +49,6 @@ function statusVerdict(
   return "unknown";
 }
 
-const X_HANDLE = /^[A-Za-z0-9_]{4,15}$/;
-
 /**
  * X/Twitter handle check via the public profile URL: x.com answers 404 for
  * handles that don't exist and 200 for registered ones. Rate limits and
@@ -64,9 +59,8 @@ export function createXAdapter(deps: ProviderDeps): ProviderAdapter {
   return {
     id: "social:x",
     async check(name, signal): Promise<ProviderOutcome> {
-      if (!X_HANDLE.test(name)) {
-        return invalid(name, "not a valid X handle (4-15 chars, letters/digits/underscore)");
-      }
+      const invalidName = invalidOutcome("social:x", name);
+      if (invalidName !== null) return invalidName;
       const url = `https://x.com/${encodeURIComponent(name)}`;
       const res = await safeFetch(deps, url, signal, { accept: "text/html" });
       if (!res) return unknown(name, "request failed");
@@ -77,9 +71,6 @@ export function createXAdapter(deps: ProviderDeps): ProviderAdapter {
     },
   };
 }
-
-/** One atproto handle label: letters/digits/hyphens, no leading/trailing hyphen. */
-const BSKY_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i;
 
 /**
  * Bluesky handle check in the `.bsky.social` namespace via the public
@@ -92,12 +83,8 @@ export function createBlueskyAdapter(deps: ProviderDeps): ProviderAdapter {
     id: "social:bluesky",
     async check(name, signal): Promise<ProviderOutcome> {
       const handle = `${name.toLowerCase()}.bsky.social`;
-      if (!BSKY_LABEL.test(name)) {
-        return invalid(
-          handle,
-          "not a valid Bluesky handle (letters/digits/hyphens, no leading/trailing hyphen, ≤63 chars)",
-        );
-      }
+      const invalidName = invalidOutcome("social:bluesky", name, handle);
+      if (invalidName !== null) return invalidName;
       const url = `https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`;
       const res = await safeFetch(deps, url, signal, { accept: "application/json" });
       if (!res) return unknown(handle, "request failed");
@@ -107,15 +94,6 @@ export function createBlueskyAdapter(deps: ProviderDeps): ProviderAdapter {
       return unknown(handle, `bsky.app returned HTTP ${res.status}`);
     },
   };
-}
-
-function isInstagramHandle(name: string): boolean {
-  return (
-    /^[a-z0-9._]{1,30}$/i.test(name) &&
-    !name.startsWith(".") &&
-    !name.endsWith(".") &&
-    !name.includes("..")
-  );
 }
 
 /**
@@ -128,12 +106,8 @@ export function createInstagramAdapter(deps: ProviderDeps): ProviderAdapter {
   return {
     id: "social:instagram",
     async check(name, signal): Promise<ProviderOutcome> {
-      if (!isInstagramHandle(name)) {
-        return invalid(
-          name,
-          "not a valid Instagram handle (≤30 chars, letters/digits/dots/underscores, no edge or consecutive dots)",
-        );
-      }
+      const invalidName = invalidOutcome("social:instagram", name);
+      if (invalidName !== null) return invalidName;
       const url = `https://i.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(name)}`;
       const res = await safeFetch(deps, url, signal, {
         accept: "application/json",
@@ -153,8 +127,6 @@ export function createInstagramAdapter(deps: ProviderDeps): ProviderAdapter {
   };
 }
 
-const REDDIT_HANDLE = /^[A-Za-z0-9_-]{3,20}$/;
-
 /**
  * Reddit username check via the signup helper endpoint
  * `/api/username_available.json`, which answers a bare JSON boolean.
@@ -164,12 +136,8 @@ export function createRedditAdapter(deps: ProviderDeps): ProviderAdapter {
   return {
     id: "social:reddit",
     async check(name, signal): Promise<ProviderOutcome> {
-      if (!REDDIT_HANDLE.test(name)) {
-        return invalid(
-          name,
-          "not a valid Reddit username (3-20 chars, letters/digits/underscores/hyphens)",
-        );
-      }
+      const invalidName = invalidOutcome("social:reddit", name);
+      if (invalidName !== null) return invalidName;
       const url = `https://www.reddit.com/api/username_available.json?user=${encodeURIComponent(name)}`;
       const res = await safeFetch(deps, url, signal, { accept: "application/json" });
       if (!res) return unknown(name, "request failed");
@@ -184,8 +152,6 @@ export function createRedditAdapter(deps: ProviderDeps): ProviderAdapter {
   };
 }
 
-const YOUTUBE_HANDLE = /^[A-Za-z0-9._-]{3,30}$/;
-
 /**
  * YouTube handle check via the public `/@handle` page: 404 → available,
  * 200 → taken, anything else (consent walls, rate limits) → `unknown`.
@@ -194,12 +160,8 @@ export function createYouTubeAdapter(deps: ProviderDeps): ProviderAdapter {
   return {
     id: "social:youtube",
     async check(name, signal): Promise<ProviderOutcome> {
-      if (!YOUTUBE_HANDLE.test(name)) {
-        return invalid(
-          name,
-          "not a valid YouTube handle (3-30 chars, letters/digits/dots/underscores/hyphens)",
-        );
-      }
+      const invalidName = invalidOutcome("social:youtube", name);
+      if (invalidName !== null) return invalidName;
       const url = `https://www.youtube.com/@${encodeURIComponent(name)}`;
       const res = await safeFetch(deps, url, signal, { accept: "text/html" });
       if (!res) return unknown(name, "request failed");
@@ -211,7 +173,6 @@ export function createYouTubeAdapter(deps: ProviderDeps): ProviderAdapter {
   };
 }
 
-const TIKTOK_HANDLE = /^[a-z0-9._]{2,24}$/i;
 const TIKTOK_STATUS = /"statusCode"\s*:\s*(\d+)/;
 /** statusCode values the TikTok web app uses for "this user does not exist". */
 const TIKTOK_NOT_FOUND = new Set(["10202", "10221", "10245"]);
@@ -226,12 +187,8 @@ export function createTikTokAdapter(deps: ProviderDeps): ProviderAdapter {
   return {
     id: "social:tiktok",
     async check(name, signal): Promise<ProviderOutcome> {
-      if (!TIKTOK_HANDLE.test(name)) {
-        return invalid(
-          name,
-          "not a valid TikTok handle (2-24 chars, letters/digits/dots/underscores)",
-        );
-      }
+      const invalidName = invalidOutcome("social:tiktok", name);
+      if (invalidName !== null) return invalidName;
       const url = `https://www.tiktok.com/@${encodeURIComponent(name)}`;
       const res = await safeFetch(deps, url, signal, { accept: "text/html" });
       if (!res) return unknown(name, "request failed");

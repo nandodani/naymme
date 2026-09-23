@@ -1,15 +1,13 @@
 import type { ProviderDeps } from "../deps.js";
+import type { ProviderId } from "../schemas.js";
 import type { ProviderAdapter, ProviderOutcome } from "../types.js";
+import { invalidOutcome } from "./validation.js";
 
 /**
  * Hosted-platform subdomain checks ({name}.vercel.app, {name}.netlify.app).
  * Every adapter only claims `available` when the platform's unclaimed-marker
  * is verified — an ambiguous 404 stays `unknown`, never a fabricated free.
  */
-
-function invalid(subject: string, detail: string): ProviderOutcome {
-  return { status: "invalid", subject, available: false, detail };
-}
 
 function unknown(subject: string, detail: string): ProviderOutcome {
   return { status: "unknown", subject, available: null, detail };
@@ -43,11 +41,8 @@ async function safeFetch(
   }
 }
 
-/** DNS label: lowercase letters/digits with interior hyphens, ≤63 chars. */
-const SUBDOMAIN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
-
 interface SubdomainCheckSpec {
-  id: string;
+  id: ProviderId;
   /** Platform suffix the name is checked under, e.g. "vercel.app". */
   suffix: string;
   /** Verified "nobody holds this subdomain" marker on a 404 response. */
@@ -58,12 +53,8 @@ function createSubdomainCheck(deps: ProviderDeps, spec: SubdomainCheckSpec): Pro
   return {
     id: spec.id,
     async check(name, signal): Promise<ProviderOutcome> {
-      if (!SUBDOMAIN.test(name)) {
-        return invalid(
-          name,
-          `not a valid ${spec.suffix} subdomain (lowercase letters/digits with interior hyphens)`,
-        );
-      }
+      const invalid = invalidOutcome(spec.id, name);
+      if (invalid !== null) return invalid;
       const subject = `${name}.${spec.suffix}`;
       const url = `https://${subject}/`;
       const res = await safeFetch(deps, url, signal);
