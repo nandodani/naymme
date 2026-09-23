@@ -48,6 +48,12 @@ export function buildMcpDiscovery(): Record<string, unknown> {
     links: {
       llms: `${SITE_URL}/llms.txt`,
       llmsFull: `${SITE_URL}/llms-full.txt`,
+      openapi: `${SITE_URL}/openapi.json`,
+      apiCatalog: `${SITE_URL}/.well-known/api-catalog`,
+      serverCard: `${SITE_URL}/.well-known/mcp/server-card.json`,
+      aiCatalog: `${SITE_URL}/.well-known/ai-catalog.json`,
+      agentSkills: `${SITE_URL}/.well-known/agent-skills/index.json`,
+      auth: `${SITE_URL}/auth.md`,
       sitemap: `${SITE_URL}/sitemap.xml`,
       documentation: `${SITE_URL}/docs`,
     },

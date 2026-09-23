@@ -70,6 +70,21 @@ describe("markdown content negotiation", () => {
     expect(negotiateAgentRequest("/", null)).toEqual({ kind: "passthrough" });
   });
 
+  it("answers JSON clients a structured 404 on unknown paths", () => {
+    expect(negotiateAgentRequest("/no-such-page", "application/json")).toEqual({
+      kind: "not-found-json",
+      path: "/no-such-page",
+    });
+    expect(negotiateAgentRequest("/docs", "application/json")).toEqual({ kind: "passthrough" });
+  });
+
+  it("prefers markdown when a client accepts both markdown and JSON", () => {
+    expect(negotiateAgentRequest("/nope", "text/markdown, application/json")).toEqual({
+      kind: "not-found-markdown",
+      path: "/nope",
+    });
+  });
+
   it("honours markdown mixed into a longer Accept list", () => {
     expect(negotiateAgentRequest("/", "text/html, application/json, text/markdown")).toEqual({
       kind: "markdown",

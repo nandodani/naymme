@@ -48,8 +48,12 @@ describe("handleAvailabilityRequest", () => {
       demoAvailabilityService(),
     );
     expect(res.status).toBe(400);
-    const body = (await res.json()) as { error: string };
-    expect(body.error).toBe("invalid request");
+    const body = (await res.json()) as {
+      error: { code: string; message: string; hint: string };
+    };
+    expect(body.error.code).toBe("invalid_request");
+    expect(body.error.message).toBe("invalid request");
+    expect(body.error.hint.length).toBeGreaterThan(0);
   });
 
   it("400s on an unknown provider in the selection", async () => {

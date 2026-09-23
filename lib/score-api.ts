@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { apiErrorResponse, API_ERROR_CODES } from "../src/api-errors.js";
 import { nameSchema } from "../src/schemas.js";
 import { scoreName } from "../src/scoring/score.js";
 import {
@@ -27,9 +28,15 @@ export function handleScoreRequest(
 
   const parsed = nameSchema.safeParse(new URL(req.url).searchParams.get("name"));
   if (!parsed.success) {
-    return Response.json(
-      { error: "invalid request", issues: z.treeifyError(parsed.error) },
-      { status: 400, headers: NO_STORE },
+    return apiErrorResponse(
+      400,
+      API_ERROR_CODES.invalidRequest,
+      "invalid request",
+      "Pass ?name=<bare name, 1-63 chars of ASCII letters/digits/./_/- > — see /openapi.json.",
+      {
+        headers: NO_STORE,
+        details: z.treeifyError(parsed.error),
+      },
     );
   }
   return Response.json(scoreName(parsed.data), { headers: NO_STORE });

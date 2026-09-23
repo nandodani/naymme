@@ -31,7 +31,10 @@ export function Hero({ value, onChange, onSubmit, valid, inputRef }: HeroProps) 
           Check name availability across domains, code, and socials
         </h1>
         <p className="mt-4 text-center text-[14px] leading-relaxed text-zinc-400 sm:text-[15px]">
-          Real-time availability across code registries, social handles, and top-level domains.
+          Real-time availability across code registries, social handles, and top-level domains — one
+          search fans out to 61 sources. lmkurname also ships a public REST API (/api/availability,
+          /api/score), an MCP server for AI agents, OpenAPI 3.1 docs at /openapi.json, and markdown
+          copies of every page for LLM crawlers.
         </p>
         <div className="mt-8 w-full">
           <SearchInput
@@ -43,7 +46,9 @@ export function Hero({ value, onChange, onSubmit, valid, inputRef }: HeroProps) 
             variant="hero"
           />
         </div>
-        <p className="mt-12 text-[11px] tracking-wide text-zinc-400 uppercase">search on</p>
+        <h2 className="mt-12 text-[11px] font-normal tracking-wide text-zinc-400 uppercase">
+          search on
+        </h2>
         <ProviderRibbon />
       </motion.div>
     </main>

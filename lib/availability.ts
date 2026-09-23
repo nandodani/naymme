@@ -1,3 +1,4 @@
+import { apiErrorResponse, API_ERROR_CODES } from "../src/api-errors.js";
 import { defaultDeps, type ProviderDeps } from "../src/deps.js";
 import type { CheckAvailabilityInput, CheckAvailabilityOutput } from "../src/schemas.js";
 import { nameSchema, providerSelectionSchema } from "../src/schemas.js";
@@ -75,8 +76,14 @@ const querySchema = z.object({
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
-function jsonError(status: number, error: string, issues?: unknown): Response {
-  return Response.json({ error, issues }, { status, headers: NO_STORE });
+function jsonError(
+  status: number,
+  code: string,
+  message: string,
+  hint: string,
+  issues?: unknown,
+): Response {
+  return apiErrorResponse(status, code, message, hint, { headers: NO_STORE, details: issues });
 }
 
 /**
@@ -104,7 +111,13 @@ export async function handleAvailabilityRequest(
     providers: url.searchParams.get("providers") ?? undefined,
   });
   if (!parsed.success) {
-    return jsonError(400, "invalid request", z.treeifyError(parsed.error));
+    return jsonError(
+      400,
+      API_ERROR_CODES.invalidRequest,
+      "invalid request",
+      "Pass ?name=<bare name, 1-63 chars of ASCII letters/digits/./_/- >[&providers=<csv of ids or aliases>] — see /openapi.json.",
+      z.treeifyError(parsed.error),
+    );
   }
 
   try {
@@ -114,6 +127,11 @@ export async function handleAvailabilityRequest(
   } catch (err) {
     // Internal detail goes to logs only — the client gets a generic error.
     console.error("availability check failed:", err);
-    return jsonError(502, "availability check failed");
+    return jsonError(
+      502,
+      API_ERROR_CODES.upstreamFailed,
+      "availability check failed",
+      "A provider lookup failed upstream. Retry, or narrow the sweep with ?providers=.",
+    );
   }
 }

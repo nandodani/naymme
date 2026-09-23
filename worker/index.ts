@@ -1,4 +1,5 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import { apiErrorBody, API_ERROR_CODES } from "../src/api-errors.js";
 import type { DnsExistence, ProviderDeps } from "../src/deps.js";
 import {
   clientKeyFromHeaders,
@@ -170,7 +171,15 @@ async function handleMcp(request: Request): Promise<Response> {
   if (!verdict.ok) return tooManyRequestsResponse(verdict.retryAfterSeconds, CORS_HEADERS);
   if (contentLengthExceeded(request, MAX_REQUEST_BODY_BYTES)) {
     return Response.json(
-      { jsonrpc: "2.0", error: { code: -32600, message: "request body too large" }, id: null },
+      {
+        jsonrpc: "2.0",
+        error: {
+          code: -32600,
+          message: "request body too large",
+          data: { hint: `Bodies are capped at ${MAX_REQUEST_BODY_BYTES} bytes.` },
+        },
+        id: null,
+      },
       { status: 413, headers: CORS_HEADERS },
     );
   }
@@ -222,7 +231,12 @@ export default {
     }
 
     return Response.json(
-      { error: "not found", endpoints: ["/mcp", "/health"] },
+      apiErrorBody(
+        API_ERROR_CODES.notFound,
+        "not found",
+        "This Worker exposes POST /mcp (MCP Streamable HTTP) and GET /health (status).",
+        { endpoints: ["/mcp", "/health"] },
+      ),
       { status: 404, headers: CORS_HEADERS },
     );
   },
