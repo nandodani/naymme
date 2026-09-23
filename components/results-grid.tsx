@@ -10,7 +10,7 @@ import { resultCounts, type ResultFilter } from "@/lib/result-filter.js";
 import { cn } from "@/lib/utils.js";
 import type { AvailabilityResult } from "@/src/types.js";
 import { OverallCard } from "./overall-card.js";
-import { ProviderCard } from "./provider-card.js";
+import { ProviderColumn } from "./provider-column.js";
 import { Button } from "./ui/button.js";
 
 interface ResultsGridProps {
@@ -40,12 +40,12 @@ const FILTERS: readonly { id: ResultFilter; label: string }[] = [
 const EXPECTED_PROVIDER_IDS = ALL_PROVIDER_IDS;
 
 /**
- * The searched state: a bento grid of the overall availability card plus
- * one card per provider group, rendered in PROVIDER_GROUPS order. DOM
- * order is the same as reading order at every breakpoint — Overall, then
- * the groups — so the stagger, tab order and screen-reader order all
- * agree. Groups are sized to flow three-across on xl: the domain bands
- * share a row, and no card needs a manual span.
+ * The searched state: the overall availability card plus one free column
+ * per provider group, rendered in PROVIDER_GROUPS order. There are no
+ * cards — sections pack into CSS multi-columns sized to the container
+ * (~17rem each, as many as fit), so the layout flexes at any width. DOM
+ * order matches reading order — Overall first, then the groups — so the
+ * stagger, tab order and screen-reader order all agree.
  */
 export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: ResultsGridProps) {
   const [filter, setFilter] = useState<ResultFilter>("all");
@@ -137,36 +137,29 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
+        className="columns-[17rem] gap-x-8 [column-rule:1px_solid_rgba(255,255,255,0.05)]"
       >
-        <motion.div variants={item} className="md:col-span-2 xl:col-span-1 xl:col-start-1">
-          <OverallCard
-            availability={data}
-            checking={checking}
-            name={name}
-            onCopy={onCopy}
-            className="h-full"
-          />
+        <motion.div variants={item} className="mb-6 break-inside-avoid">
+          <OverallCard availability={data} checking={checking} name={name} onCopy={onCopy} />
         </motion.div>
 
         {emptyFiltered ? (
           <motion.div
             variants={item}
-            className="flex items-center justify-center gap-2.5 rounded-xl border border-zinc-800 bg-card px-4 py-10 md:col-span-2 xl:col-span-2"
+            className="mb-6 flex break-inside-avoid items-center justify-center gap-2.5 rounded-xl border border-zinc-800 bg-card px-4 py-10"
           >
             <SearchX aria-hidden="true" className="size-4 text-zinc-600" />
             <p className="text-[12px] text-zinc-500">No available handles found for this search.</p>
           </motion.div>
         ) : (
           PROVIDER_GROUPS.map((group) => (
-            <motion.div key={group.id} variants={item}>
-              <ProviderCard
+            <motion.div key={group.id} variants={item} className="mb-6 break-inside-avoid">
+              <ProviderColumn
                 group={group}
                 name={name}
                 resultsByProvider={resultsByProvider}
                 pending={pending}
                 filter={filter}
-                className="h-full"
               />
             </motion.div>
           ))

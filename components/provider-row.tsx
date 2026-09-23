@@ -164,7 +164,7 @@ function PriceChips({ provider, subject }: { provider: string; subject: string }
   );
   return (
     <span
-      className="scrollbar-none marquee-mask mr-3 hidden min-w-0 shrink basis-42 items-center gap-1 overflow-x-auto overscroll-x-contain xl:flex"
+      className="scrollbar-none marquee-mask mt-0.5 mb-0.5 flex min-w-0 items-center gap-1 overflow-x-auto overscroll-x-contain pl-9"
       aria-label="First-year price estimates"
     >
       {sorted.map(({ registrar, estimate }) =>
@@ -255,7 +255,7 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
   }
 
   const sharedRowClasses = cn(
-    "group relative flex min-h-10 items-center border-t border-border py-1 transition-colors first:border-t-0",
+    "group relative flex flex-col border-t border-border transition-colors first:border-t-0",
     href !== null && "cursor-pointer hover:bg-zinc-900/50",
   );
 
@@ -289,7 +289,7 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
 
   return (
     // motion.li so the "Available only" filter can blur+scale+fade rows in
-    // and out (AnimatePresence in ProviderCard). Deliberately no `layout`:
+    // and out (AnimatePresence in ProviderColumn). Deliberately no `layout`:
     // positional slides made re-entering rows collide with rows already at
     // their final spot — fading in place can never overlap.
     <motion.li
@@ -312,44 +312,47 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
       className={`${sharedRowClasses} overflow-hidden`}
       title={isDomain ? undefined : statusText}
     >
-      {/* Icon-scoped status trigger: hover/focus on this target alone
-          reveals the chip — the rest of the row never does. */}
-      <span
-        tabIndex={0}
-        aria-label={`${meta.label} ${subject} — ${statusText}`}
-        onMouseEnter={() => setRevealed(true)}
-        onMouseLeave={() => setRevealed(false)}
-        onFocus={() => setRevealed(true)}
-        onBlur={() => setRevealed(false)}
-        className="flex shrink-0 cursor-default items-center self-stretch pr-1 pl-3 outline-none focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-      >
-        <RowIcon id={meta.id} status={status} pending={pending} revealed={revealed} />
-      </span>
-
-      {href !== null ? (
-        <a
-          href={href}
-          target="_blank"
-          rel="noreferrer noopener"
-          aria-label={`${actionLabel ?? subject} — ${statusText}`}
-          className="flex min-w-52 grow basis-auto shrink-[0.3] items-center gap-2.5 self-stretch overflow-hidden pr-3 pl-1.5 text-left outline-none focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      {/* Line 1: icon + subject. The subject never truncates — it wraps
+          inside the full-width identity (<wbr> keeps each TLD whole). */}
+      <div className="relative flex min-h-9 items-center">
+        {/* Icon-scoped status trigger: hover/focus on this target alone
+            reveals the chip — the rest of the row never does. */}
+        <span
+          tabIndex={0}
+          aria-label={`${meta.label} ${subject} — ${statusText}`}
+          onMouseEnter={() => setRevealed(true)}
+          onMouseLeave={() => setRevealed(false)}
+          onFocus={() => setRevealed(true)}
+          onBlur={() => setRevealed(false)}
+          className="flex shrink-0 cursor-default items-center self-stretch pr-1 pl-3 outline-none focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         >
-          {identity}
-        </a>
-      ) : (
-        <div className="flex min-w-52 grow basis-auto shrink-[0.3] items-center gap-2.5 self-stretch overflow-hidden pr-3 pl-1.5 text-left">
-          {identity}
-        </div>
-      )}
+          <RowIcon id={meta.id} status={status} pending={pending} revealed={revealed} />
+        </span>
 
-      {status !== undefined && !pending ? <StatusChip status={status} visible={revealed} /> : null}
+        {href !== null ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer noopener"
+            aria-label={`${actionLabel ?? subject} — ${statusText}`}
+            className="flex min-w-0 flex-1 items-center gap-2.5 self-stretch overflow-hidden pr-3 pl-1.5 text-left outline-none focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+          >
+            {identity}
+          </a>
+        ) : (
+          <div className="flex min-w-0 flex-1 items-center gap-2.5 self-stretch overflow-hidden pr-3 pl-1.5 text-left">
+            {identity}
+          </div>
+        )}
 
-      {/* Space priority: the chip strip absorbs most of any squeeze (the
-            anchor's shrink factor is 0.3×content vs the strip's 1×168px
-            basis) and collapses toward nothing first. The anchor's min-w-52
-            floor keeps ~28ch subjects on one line; beyond that the subject
-            wraps onto extra lines (min-h-10 + py-1 let the row grow, <wbr>
-            keeps each TLD whole) instead of clipping or sliding. */}
+        {status !== undefined && !pending ? (
+          <StatusChip status={status} visible={revealed} />
+        ) : null}
+      </div>
+
+      {/* Line 2: registrars get their own line under the domain — never
+          squashed at the card edge. pl-9 aligns the strip with the subject
+          text; still slidable past ~6 chips with the marquee fade. */}
       {prices.length > 0 ? <PriceChips provider={meta.id} subject={subject} /> : null}
     </motion.li>
   );
