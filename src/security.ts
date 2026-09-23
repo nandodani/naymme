@@ -84,7 +84,22 @@ export interface RateLimitOptions {
   maxKeys?: number;
 }
 
-export type RateLimitVerdict = { ok: true } | { ok: false; retryAfterSeconds: number };
+/**
+ * Quota snapshot returned with every verdict — feeds the RFC RateLimit
+ * header fields (draft-ietf-httpapi-ratelimit-headers):
+ * `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
+ */
+export interface RateLimitQuota {
+  /** Requests allowed per window. */
+  limit: number;
+  /** Requests left in the current window after this one. */
+  remaining: number;
+  /** Seconds until the current window resets. */
+  resetSeconds: number;
+}
+
+export type RateLimitVerdict =
+  ({ ok: true } & RateLimitQuota) | ({ ok: false; retryAfterSeconds: number } & RateLimitQuota);
 
 interface Bucket {
   count: number;
@@ -115,16 +130,30 @@ export class RateLimiter {
     if (bucket === undefined || now >= bucket.resetAt) {
       this.prune(now);
       this.buckets.set(key, { count: 1, resetAt: now + this.windowMs });
-      return { ok: true };
+      return {
+        ok: true,
+        limit: this.max,
+        remaining: this.max - 1,
+        resetSeconds: Math.ceil(this.windowMs / 1000),
+      };
     }
     if (bucket.count >= this.max) {
+      const resetSeconds = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
       return {
         ok: false,
-        retryAfterSeconds: Math.max(1, Math.ceil((bucket.resetAt - now) / 1000)),
+        retryAfterSeconds: resetSeconds,
+        limit: this.max,
+        remaining: 0,
+        resetSeconds,
       };
     }
     bucket.count += 1;
-    return { ok: true };
+    return {
+      ok: true,
+      limit: this.max,
+      remaining: this.max - bucket.count,
+      resetSeconds: Math.max(1, Math.ceil((bucket.resetAt - now) / 1000)),
+    };
   }
 
   private prune(now: number): void {
@@ -182,19 +211,39 @@ export function clientKeyFromHeaders(headers: Headers): string {
   return "unknown";
 }
 
-/** 429 JSON error envelope with `Retry-After`. CORS headers are applied by the caller. */
+/**
+ * RFC RateLimit header fields for a verdict — emitted on every API
+ * response so agents can budget proactively instead of discovering the
+ * limit at 429. Values are per server instance (see `RateLimiter`).
+ */
+export function rateLimitHeaders(quota: RateLimitQuota): Record<string, string> {
+  return {
+    "ratelimit-limit": String(quota.limit),
+    "ratelimit-remaining": String(quota.remaining),
+    "ratelimit-reset": String(quota.resetSeconds),
+  };
+}
+
+/** 429 JSON error envelope with `Retry-After` + RFC RateLimit headers. */
 export function tooManyRequestsResponse(
-  retryAfterSeconds: number,
+  verdict: Extract<RateLimitVerdict, { ok: false }>,
   headers: Record<string, string> = {},
 ): Response {
   return Response.json(
     apiErrorBody(
       API_ERROR_CODES.rateLimited,
       "rate limit exceeded",
-      `Retry after ${retryAfterSeconds} seconds. Per-endpoint request budgets are documented in /auth.md.`,
-      { retryAfterSeconds },
+      `Retry after ${verdict.retryAfterSeconds} seconds. Per-endpoint request budgets are documented in /auth.md.`,
+      { retryAfterSeconds: verdict.retryAfterSeconds },
     ),
-    { status: 429, headers: { "retry-after": String(retryAfterSeconds), ...headers } },
+    {
+      status: 429,
+      headers: {
+        "retry-after": String(verdict.retryAfterSeconds),
+        ...rateLimitHeaders(verdict),
+        ...headers,
+      },
+    },
   );
 }
 

@@ -62,6 +62,27 @@ export function jsonLdGraph(): Record<string, unknown> {
           "query-input": "required name=name",
         },
       },
+      {
+        // The programmatic surface as its own entity so search/agent
+        // crawlers can index the API itself, not just the site.
+        "@type": "APIReference",
+        "@id": `${SITE_URL}/#api`,
+        name: `${SITE_NAME} REST + MCP API (v1)`,
+        url: `${SITE_URL}/openapi.json`,
+        documentation: `${SITE_URL}/docs`,
+        description:
+          "Public unauthenticated API: GET /api/v1/availability and /api/v1/score (REST) plus POST /api/mcp (MCP Streamable HTTP, tools check_availability and score_name). OpenAPI 3.1 spec, structured JSON errors, RFC RateLimit headers, API-Version: 1.",
+        inLanguage: "en",
+        isAccessibleForFree: true,
+        assemblyVersion: "1",
+        programmingModel:
+          "REST (versioned /api/v1/*) and Model Context Protocol (JSON-RPC 2.0 over Streamable HTTP)",
+        author: {
+          "@type": "Person",
+          name: AUTHOR_NAME,
+          url: AUTHOR_URL,
+        },
+      },
     ],
   };
 }

@@ -168,7 +168,7 @@ const mcpLimiter = new RateLimiter({ windowMs: 60_000, max: RATE_LIMITS.mcp });
 
 async function handleMcp(request: Request): Promise<Response> {
   const verdict = mcpLimiter.allow(clientKeyFromHeaders(request.headers));
-  if (!verdict.ok) return tooManyRequestsResponse(verdict.retryAfterSeconds, CORS_HEADERS);
+  if (!verdict.ok) return tooManyRequestsResponse(verdict, CORS_HEADERS);
   if (contentLengthExceeded(request, MAX_REQUEST_BODY_BYTES)) {
     return Response.json(
       {

@@ -2,12 +2,15 @@ import { apiErrorResponse, API_ERROR_CODES } from "../src/api-errors.js";
 import { defaultDeps, type ProviderDeps } from "../src/deps.js";
 import type { CheckAvailabilityInput, CheckAvailabilityOutput } from "../src/schemas.js";
 import { nameSchema, providerSelectionSchema } from "../src/schemas.js";
+import { API_VERSION } from "../src/api-version.js";
 import {
   clientKeyFromHeaders,
   RATE_LIMITS,
   rateLimiterFromEnv,
+  rateLimitHeaders,
   tooManyRequestsResponse,
   type RateLimiter,
+  type RateLimitVerdict,
 } from "../src/security.js";
 import { checkAvailability } from "../src/tools/checkAvailability.js";
 import { z } from "zod";
@@ -76,14 +79,26 @@ const querySchema = z.object({
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
+/**
+ * Every response — success or error — carries the API version and the
+ * caller's remaining RFC RateLimit budget, so agents can self-throttle.
+ */
+function responseHeaders(verdict: RateLimitVerdict): Record<string, string> {
+  return { ...NO_STORE, "api-version": API_VERSION, ...rateLimitHeaders(verdict) };
+}
+
 function jsonError(
   status: number,
   code: string,
   message: string,
   hint: string,
+  verdict: RateLimitVerdict,
   issues?: unknown,
 ): Response {
-  return apiErrorResponse(status, code, message, hint, { headers: NO_STORE, details: issues });
+  return apiErrorResponse(status, code, message, hint, {
+    headers: responseHeaders(verdict),
+    details: issues,
+  });
 }
 
 /**
@@ -103,7 +118,9 @@ export async function handleAvailabilityRequest(
   limiter: Pick<RateLimiter, "allow"> = defaultLimiter(),
 ): Promise<Response> {
   const verdict = limiter.allow(clientKeyFromHeaders(req.headers));
-  if (!verdict.ok) return tooManyRequestsResponse(verdict.retryAfterSeconds, NO_STORE);
+  if (!verdict.ok) {
+    return tooManyRequestsResponse(verdict, { ...NO_STORE, "api-version": API_VERSION });
+  }
 
   const url = new URL(req.url);
   const parsed = querySchema.safeParse({
@@ -116,6 +133,7 @@ export async function handleAvailabilityRequest(
       API_ERROR_CODES.invalidRequest,
       "invalid request",
       "Pass ?name=<bare name, 1-63 chars of ASCII letters/digits/./_/- >[&providers=<csv of ids or aliases>] — see /openapi.json.",
+      verdict,
       z.treeifyError(parsed.error),
     );
   }
@@ -123,7 +141,7 @@ export async function handleAvailabilityRequest(
   try {
     const output = await service.check(parsed.data.name, parsed.data.providers);
     const body: AvailabilityResponse = { ...output, mode: service.mode };
-    return Response.json(body, { headers: NO_STORE });
+    return Response.json(body, { headers: responseHeaders(verdict) });
   } catch (err) {
     // Internal detail goes to logs only — the client gets a generic error.
     console.error("availability check failed:", err);
@@ -132,6 +150,7 @@ export async function handleAvailabilityRequest(
       API_ERROR_CODES.upstreamFailed,
       "availability check failed",
       "A provider lookup failed upstream. Retry, or narrow the sweep with ?providers=.",
+      verdict,
     );
   }
 }

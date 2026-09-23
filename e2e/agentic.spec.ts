@@ -267,6 +267,98 @@ test.describe("structured errors", () => {
   });
 });
 
+test.describe("versioned API + agent headers", () => {
+  test("/api/v1/* aliases serve the same handlers with API-Version + RateLimit headers", async ({
+    request,
+  }) => {
+    const score = await request.get("/api/v1/score?name=acme");
+    expect(score.status()).toBe(200);
+    const headers = score.headers();
+    expect(headers["api-version"]).toBe("1");
+    expect(headers["ratelimit-limit"]).toBeTruthy();
+    expect(headers["ratelimit-remaining"]).toBeTruthy();
+    expect(headers["ratelimit-reset"]).toBeTruthy();
+    const body = await score.json();
+    expect(body.name).toBe("acme");
+
+    const avail = await request.get("/api/v1/availability?name=acme");
+    expect(avail.status()).toBe(200);
+    expect(avail.headers()["api-version"]).toBe("1");
+
+    const status = await request.get("/api/v1/mcp");
+    expect(status.status()).toBe(200);
+    expect(status.headers()["api-version"]).toBe("1");
+    expect((await status.json()).name).toBe("lmkurname");
+  });
+
+  test("unversioned /api/* responses carry the same headers", async ({ request }) => {
+    const res = await request.get("/api/score?name=acme");
+    expect(res.headers()["api-version"]).toBe("1");
+    expect(res.headers()["ratelimit-limit"]).toBeTruthy();
+  });
+
+  test("unmapped /api/* paths return a JSON 404 envelope (not HTML)", async ({ request }) => {
+    for (const path of ["/api/nope", "/api/v1/nope"]) {
+      const res = await request.get(path);
+      expect(res.status(), path).toBe(404);
+      expect(res.headers()["content-type"]).toContain("application/json");
+      const body = await res.json();
+      expect(body.error.code).toBe("not_found");
+      expect(body.error.hint).toBeTruthy();
+    }
+  });
+
+  test("openapi.json documents the v1 paths and RateLimit headers", async ({ request }) => {
+    const doc = await (await request.get("/openapi.json")).json();
+    for (const path of ["/api/v1/availability", "/api/v1/score", "/api/v1/mcp"]) {
+      expect(doc.paths[path], path).toBeDefined();
+    }
+    const ok = doc.paths["/api/v1/score"].get.responses["200"];
+    expect(ok.headers["RateLimit-Limit"]).toBeDefined();
+    expect(ok.headers["API-Version"]).toBeDefined();
+  });
+
+  test("/.well-known/oauth-authorization-server is an RFC 8414 no-auth stub", async ({
+    request,
+  }) => {
+    const res = await request.get("/.well-known/oauth-authorization-server");
+    expect(res.status()).toBe(200);
+    expect(res.headers()["access-control-allow-origin"]).toBe("*");
+    const doc = await res.json();
+    expect(doc.issuer).toBeTruthy();
+    expect(doc.grant_types_supported).toEqual([]);
+    expect(doc.response_types_supported).toEqual([]);
+    expect(doc.service_documentation).toContain("/auth.md");
+    expect(doc.token_endpoint).toBeUndefined();
+  });
+
+  test("/auth.md follows the WorkOS convention (# auth.md + numbered steps)", async ({
+    request,
+  }) => {
+    const body = await (await request.get("/auth.md")).text();
+    expect(body.startsWith("# auth.md")).toBe(true);
+    expect(body).toContain("## Step 1 — Discover");
+    expect(body).toContain("## Step 5 — Use the public tier");
+    expect(body).toContain("public, unauthenticated");
+    expect(body).toContain("/api/v1/availability");
+  });
+
+  test("llms.txt ships invocation examples; homepage has a hidden semantic API section", async ({
+    request,
+  }) => {
+    const llms = await (await request.get("/llms.txt")).text();
+    expect(llms).toContain("## Invocation examples");
+    expect(llms).toContain("/api/v1/availability");
+
+    const html = await (await request.get("/", HTML)).text();
+    // Visually hidden from humans, present for crawlers/screen readers.
+    expect(html).toContain("sr-only");
+    expect(html).toContain("Public API for agents and developers");
+    expect(html).toContain('rel="alternate"');
+    expect(html).toContain('type="text/markdown"');
+  });
+});
+
 test.describe("robots.txt content signals", () => {
   test("publishes ai-train, search and ai-input directives", async ({ request }) => {
     const res = await request.get("/robots.txt");

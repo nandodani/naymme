@@ -52,6 +52,37 @@ const errorSchema = {
   required: ["error"],
 } as const;
 
+/**
+ * Response headers every API endpoint emits — the API version marker and
+ * the RFC RateLimit budget fields (draft-ietf-httpapi-ratelimit-headers).
+ */
+const apiResponseHeaders = {
+  "API-Version": {
+    schema: { type: "string", enum: ["1"] },
+    description:
+      "API version of the response format. /api/v1/* and the unversioned /api/* paths are the same handlers.",
+  },
+  "RateLimit-Limit": {
+    schema: { type: "integer" },
+    description: "Requests allowed per 60-second window for this endpoint.",
+  },
+  "RateLimit-Remaining": {
+    schema: { type: "integer" },
+    description: "Requests remaining in the caller's current window.",
+  },
+  "RateLimit-Reset": {
+    schema: { type: "integer" },
+    description: "Seconds until the caller's rate-limit window resets.",
+  },
+};
+
+const retryAfterHeader = {
+  "Retry-After": {
+    schema: { type: "integer" },
+    description: "Seconds to wait before retrying (present on 429).",
+  },
+};
+
 function errorResponses(codes: { status: number; code: string; when: string }[]) {
   return Object.fromEntries(
     codes.map(({ status, code, when }) => [
@@ -59,6 +90,10 @@ function errorResponses(codes: { status: number; code: string; when: string }[])
       {
         description: `${when} — structured error envelope.`,
         content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+        headers: {
+          ...apiResponseHeaders,
+          ...(status === 429 ? retryAfterHeader : {}),
+        },
         "x-error-code": code,
       },
     ]),
@@ -105,6 +140,7 @@ const mcpGetOperation = {
     "200": {
       description: "Endpoint status document.",
       content: { "application/json": { schema: mcpStatusSchema } },
+      headers: apiResponseHeaders,
     },
     ...errorResponses([{ status: 429, code: "rate_limited", when: "Request budget exhausted" }]),
   },
@@ -143,6 +179,7 @@ const mcpPostOperation = {
         "text/event-stream": { schema: { type: "string" } },
         "application/json": { schema: { $ref: "#/components/schemas/JsonRpcMessage" } },
       },
+      headers: apiResponseHeaders,
     },
     ...errorResponses([
       { status: 413, code: "body_too_large", when: "Request body over the 1 MiB cap" },
@@ -159,7 +196,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
       title: `${SITE_NAME} API`,
       version: SERVER_VERSION,
       description:
-        "lmkurname checks a candidate name's availability across 61 providers (domains, GitHub, npm and other registries, hosted subdomains, stores and socials) and scores it deterministically for brand quality. Public API — no authentication. Errors use {error:{code,message,hint}}; rate limits are documented in /auth.md.",
+        "lmkurname checks a candidate name's availability across 61 providers (domains, GitHub, npm and other registries, hosted subdomains, stores and socials) and scores it deterministically for brand quality. Public API — no authentication; the API is version 1 (/api/v1/* is canonical, unversioned /api/* are aliases — API-Version: 1 on every response). Errors use {error:{code,message,hint}}; responses carry RFC RateLimit headers (RateLimit-Limit/Remaining/Reset), documented with rate limits in /auth.md.",
       contact: { name: "nandodani", url: "https://nandodani.dev" },
     },
     servers: [{ url: SITE_URL, description: "Production" }],
@@ -175,6 +212,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
             "200": {
               description: "Normalized availability results plus per-status tallies.",
               content: { "application/json": { schema: availabilityOutputJson } },
+              headers: apiResponseHeaders,
             },
             ...errorResponses([
               { status: 400, code: "invalid_request", when: "Invalid or missing name/providers" },
@@ -195,6 +233,50 @@ export function buildOpenApiDocument(): Record<string, unknown> {
             "200": {
               description: "Brand score breakdown with per-component values.",
               content: { "application/json": { schema: scoreOutputJson } },
+              headers: apiResponseHeaders,
+            },
+            ...errorResponses([
+              { status: 400, code: "invalid_request", when: "Invalid or missing name" },
+              { status: 429, code: "rate_limited", when: "Request budget exhausted" },
+            ]),
+          },
+        },
+      },
+      "/api/v1/availability": {
+        description:
+          "Canonical versioned path; the unversioned /api/availability is the same handler (API-Version: 1 on every response).",
+        get: {
+          operationId: "checkAvailabilityV1",
+          summary: "Check name availability across providers (v1)",
+          description:
+            "Versioned alias for GET /api/availability — identical parameters and response. Prefer this path for new integrations; unversioned paths remain v1 aliases and will carry Deprecation + Sunset headers before any future breaking change.",
+          parameters: [nameQueryParam, providersQueryParam],
+          responses: {
+            "200": {
+              description: "Normalized availability results plus per-status tallies.",
+              content: { "application/json": { schema: availabilityOutputJson } },
+              headers: apiResponseHeaders,
+            },
+            ...errorResponses([
+              { status: 400, code: "invalid_request", when: "Invalid or missing name/providers" },
+              { status: 429, code: "rate_limited", when: "Request budget exhausted" },
+              { status: 502, code: "upstream_failed", when: "A provider lookup failed" },
+            ]),
+          },
+        },
+      },
+      "/api/v1/score": {
+        description: "Canonical versioned path; /api/score is the same handler.",
+        get: {
+          operationId: "scoreNameV1",
+          summary: "Deterministically score a name for brand quality (v1)",
+          description: "Versioned alias for GET /api/score — identical parameters and response.",
+          parameters: [nameQueryParam],
+          responses: {
+            "200": {
+              description: "Brand score breakdown with per-component values.",
+              content: { "application/json": { schema: scoreOutputJson } },
+              headers: apiResponseHeaders,
             },
             ...errorResponses([
               { status: 400, code: "invalid_request", when: "Invalid or missing name" },
@@ -204,6 +286,19 @@ export function buildOpenApiDocument(): Record<string, unknown> {
         },
       },
       "/api/mcp": { get: mcpGetOperation, post: mcpPostOperation },
+      "/api/v1/mcp": {
+        description: "Canonical versioned path; /api/mcp is the same handler.",
+        get: {
+          ...mcpGetOperation,
+          operationId: "getMcpStatusV1",
+          description: "Versioned alias for GET /api/mcp — the MCP endpoint status document.",
+        },
+        post: {
+          ...mcpPostOperation,
+          operationId: "callMcpJsonRpcV1",
+          description: "Versioned alias for POST /api/mcp — the JSON-RPC 2.0 transport.",
+        },
+      },
       "/mcp": {
         description: "Path alias for /api/mcp.",
         get: {
@@ -266,7 +361,9 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           responses: {
             "200": {
               description: "MCP discovery document.",
-              content: { "application/json": { schema: { type: "object" } } },
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/McpDiscovery" } },
+              },
             },
           },
         },
@@ -284,7 +381,9 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           responses: {
             "200": {
               description: "The OpenAPI document.",
-              content: { "application/json": { schema: { type: "object" } } },
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/OpenApiDocument" } },
+              },
             },
           },
         },
@@ -299,8 +398,14 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           type: "object",
           properties: {
             jsonrpc: { type: "string", enum: ["2.0"] },
-            id: {},
-            result: {},
+            id: {
+              oneOf: [{ type: "string" }, { type: "number" }, { type: "null" }],
+              description: "JSON-RPC request id echoed back; null for parse errors.",
+            },
+            result: {
+              description:
+                "Method-specific result — for tools/call, the MCP tool result envelope {content, isError?, structuredContent?}; initialize returns {protocolVersion, capabilities, serverInfo}.",
+            },
             error: {
               type: "object",
               properties: {
@@ -314,6 +419,57 @@ export function buildOpenApiDocument(): Record<string, unknown> {
               required: ["code", "message"],
             },
           },
+        },
+        McpDiscovery: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            version: { type: "string" },
+            description: { type: "string" },
+            homepage: { type: "string" },
+            mcp: {
+              type: "object",
+              properties: {
+                transport: { type: "string", enum: ["streamable-http"] },
+                endpoint: { type: "string" },
+                method: { type: "string", enum: ["POST"] },
+                session: { type: "string", enum: ["stateless"] },
+                note: { type: "string" },
+              },
+              required: ["transport", "endpoint"],
+            },
+            tools: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string", enum: ["check_availability", "score_name"] },
+                  title: { type: "string" },
+                  description: { type: "string" },
+                  inputSchema: { type: "object", description: "JSON Schema for the tool input." },
+                },
+                required: ["name", "inputSchema"],
+              },
+            },
+            api: {
+              type: "object",
+              properties: {
+                availability: { type: "string" },
+                score: { type: "string" },
+              },
+            },
+          },
+          required: ["name", "version", "mcp", "tools"],
+        },
+        OpenApiDocument: {
+          type: "object",
+          properties: {
+            openapi: { type: "string", const: "3.1.0" },
+            info: { type: "object" },
+            paths: { type: "object" },
+            components: { type: "object" },
+          },
+          required: ["openapi", "info", "paths"],
         },
       },
     },

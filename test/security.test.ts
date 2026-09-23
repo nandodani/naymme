@@ -22,7 +22,13 @@ describe("RateLimiter", () => {
     expect(limiter.allow("a", 1_000).ok).toBe(true);
     expect(limiter.allow("a", 2_000).ok).toBe(true);
     const denied = limiter.allow("a", 3_000);
-    expect(denied).toEqual({ ok: false, retryAfterSeconds: 58 });
+    expect(denied).toEqual({
+      ok: false,
+      retryAfterSeconds: 58,
+      limit: 2,
+      remaining: 0,
+      resetSeconds: 58,
+    });
   });
 
   it("keys are independent and the window slides", () => {
