@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { CheckCircle2, Clock, Globe, XCircle } from "lucide-react";
 
@@ -255,7 +255,7 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
   }
 
   const sharedRowClasses = cn(
-    "group relative flex h-10 items-center border-t border-border transition-colors first:border-t-0",
+    "group relative flex min-h-10 items-center border-t border-border py-1 transition-colors first:border-t-0",
     href !== null && "cursor-pointer hover:bg-zinc-900/50",
   );
 
@@ -264,11 +264,24 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
       {isDomain ? null : (
         <span className="shrink-0 text-[10px] font-medium text-zinc-600">{meta.label}</span>
       )}
+      {/* <wbr> after each dot gives the wrap a soft break point so a TLD
+          (or dotted name segment) wraps as a unit instead of splitting
+          mid-glyph. */}
       <span
         title={subject}
-        className="shrink-0 font-mono text-[12px] whitespace-nowrap text-zinc-300"
+        className="min-w-0 shrink font-mono text-[12px] wrap-anywhere text-zinc-300"
       >
-        {subject}
+        {subject.split(".").map((part, i) => (
+          <Fragment key={i}>
+            {i > 0 ? (
+              <>
+                {"."}
+                <wbr />
+              </>
+            ) : null}
+            {part}
+          </Fragment>
+        ))}
       </span>
       <span className="sr-only">{statusText}</span>
     </>
@@ -319,22 +332,24 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
           target="_blank"
           rel="noreferrer noopener"
           aria-label={`${actionLabel ?? subject} — ${statusText}`}
-          className="flex min-w-0 grow basis-auto shrink-[0.1] items-center gap-2.5 self-stretch overflow-x-auto scrollbar-none pr-3 pl-1.5 text-left outline-none focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+          className="flex min-w-52 grow basis-auto shrink-[0.3] items-center gap-2.5 self-stretch overflow-hidden pr-3 pl-1.5 text-left outline-none focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         >
           {identity}
         </a>
       ) : (
-        <div className="flex min-w-0 grow basis-auto shrink-[0.1] items-center gap-2.5 self-stretch overflow-x-auto scrollbar-none pr-3 pl-1.5 text-left">
+        <div className="flex min-w-52 grow basis-auto shrink-[0.3] items-center gap-2.5 self-stretch overflow-hidden pr-3 pl-1.5 text-left">
           {identity}
         </div>
       )}
 
       {status !== undefined && !pending ? <StatusChip status={status} visible={revealed} /> : null}
 
-      {/* Space priority: subject (anchor) sized to content — grow +
-            basis-auto + near-zero shrink — so the chip strip absorbs ~90%
-            of any squeeze and collapses to nothing before a pathological
-            subject scrolls inside its own container. */}
+      {/* Space priority: the chip strip absorbs most of any squeeze (the
+            anchor's shrink factor is 0.3×content vs the strip's 1×168px
+            basis) and collapses toward nothing first. The anchor's min-w-52
+            floor keeps ~28ch subjects on one line; beyond that the subject
+            wraps onto extra lines (min-h-10 + py-1 let the row grow, <wbr>
+            keeps each TLD whole) instead of clipping or sliding. */}
       {prices.length > 0 ? <PriceChips provider={meta.id} subject={subject} /> : null}
     </motion.li>
   );
