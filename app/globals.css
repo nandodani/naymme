@@ -184,6 +184,15 @@
   scrollbar-color: rgb(255 255 255 / 0.12) transparent;
 }
 
+/* Hide scrollbars entirely (scrollable but chrome-free). Unlayered on
+ * purpose: @layer utilities would lose to the unlayered `*` rule above. */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* Subtle neutral top glow */
 .page-glow::before {
   content: "";

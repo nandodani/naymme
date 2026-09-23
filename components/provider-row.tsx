@@ -152,18 +152,27 @@ function StatusChip({ status, visible }: { status: AvailabilityStatus; visible: 
  * Compact per-registrar first-year price estimate for one TLD. Each chip is
  * a real link to that registrar's domain search; `—` means the registrar
  * doesn't carry the TLD. Prices are static estimates — no live pricing API.
+ * Cheapest carriers come first; the strip clips at ~3.5 chips so the
+ * half-visible chip advertises horizontal scroll for the rest, and the
+ * right-edge fade keeps the cut from looking like a bug.
  */
 function PriceChips({ provider, subject }: { provider: string; subject: string }) {
   const prices = tldPrices(provider as Parameters<typeof tldPrices>[0]);
   if (prices.length === 0) return null;
+  const sorted = [...prices].sort(
+    (a, b) => (a.estimate ?? Number.POSITIVE_INFINITY) - (b.estimate ?? Number.POSITIVE_INFINITY),
+  );
   return (
-    <span className="hidden items-center gap-1 xl:flex" aria-label="First-year price estimates">
-      {prices.map(({ registrar, estimate }) =>
+    <span
+      className="scrollbar-none hidden w-42 items-center gap-1 overflow-x-auto overscroll-x-contain [mask-image:linear-gradient(to_right,black_82%,transparent)] xl:flex"
+      aria-label="First-year price estimates"
+    >
+      {sorted.map(({ registrar, estimate }) =>
         estimate === null ? (
           <span
             key={registrar.id}
             title={`${registrar.label} does not carry this TLD`}
-            className="inline-flex h-5 items-center gap-1 rounded border border-zinc-800/60 px-1.5 font-mono text-[9px] text-zinc-600"
+            className="inline-flex h-5 shrink-0 items-center gap-1 rounded border border-zinc-800/60 px-1.5 font-mono text-[9px] text-zinc-600"
           >
             <RegistrarIcon id={registrar.id} className="text-zinc-600" />—
           </span>
@@ -175,7 +184,7 @@ function PriceChips({ provider, subject }: { provider: string; subject: string }
             rel="noreferrer noopener"
             title={`~$${estimate}/yr at ${registrar.label} (estimate)`}
             aria-label={`Register ${subject} at ${registrar.label}, estimated ~$${estimate} per year`}
-            className="inline-flex h-5 items-center gap-1 rounded border border-zinc-700/40 bg-zinc-800/40 px-1.5 font-mono text-[9px] text-zinc-400 transition-colors outline-none hover:border-zinc-500/60 hover:text-zinc-200 focus-visible:border-zinc-500/60 focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-5 shrink-0 items-center gap-1 rounded border border-zinc-700/40 bg-zinc-800/40 px-1.5 font-mono text-[9px] text-zinc-400 transition-colors outline-none hover:border-zinc-500/60 hover:text-zinc-200 focus-visible:border-zinc-500/60 focus-visible:ring-2 focus-visible:ring-ring"
           >
             <RegistrarIcon id={registrar.id} />
             ~${estimate}
@@ -224,7 +233,11 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
   let actionLabel: string | null = null;
   if (status === "available") {
     if (isDomain) {
-      const carrier = prices.find((p) => p.estimate !== null)?.registrar ?? REGISTRARS[0];
+      const carriers = prices.filter(
+        (p): p is (typeof prices)[number] & { estimate: number } => p.estimate !== null,
+      );
+      const carrier =
+        carriers.sort((a, b) => a.estimate - b.estimate)[0]?.registrar ?? REGISTRARS[0];
       href = carrier.searchUrl(subject);
       actionLabel = `Register ${subject} at ${carrier.label}`;
     } else if (links !== null) {
