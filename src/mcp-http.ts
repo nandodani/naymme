@@ -1,12 +1,23 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { defaultDeps } from "./deps.js";
+import { BodyTooLargeError, MAX_REQUEST_BODY_BYTES } from "./security.js";
 import { createNameCheckServer } from "./server.js";
 
-/** Read and JSON-parse a request body. Empty body → undefined. */
+/**
+ * Read and JSON-parse a request body, capped at MAX_REQUEST_BODY_BYTES —
+ * an uncapped read lets any client exhaust process memory. Empty body →
+ * undefined; over-limit → `BodyTooLargeError`.
+ */
 export async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
-  for await (const chunk of req) chunks.push(chunk as Buffer);
+  let total = 0;
+  for await (const chunk of req) {
+    const buf = chunk as Buffer;
+    total += buf.byteLength;
+    if (total > MAX_REQUEST_BODY_BYTES) throw new BodyTooLargeError(MAX_REQUEST_BODY_BYTES);
+    chunks.push(buf);
+  }
   const text = Buffer.concat(chunks).toString("utf8").trim();
   if (text === "") return undefined;
   return JSON.parse(text);
@@ -41,9 +52,13 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
 export async function handleStatelessMcpRequest(
   req: IncomingMessage,
   res: ServerResponse,
+  transportOptions: ConstructorParameters<typeof StreamableHTTPServerTransport>[0] = {},
 ): Promise<void> {
   const server = createNameCheckServer(defaultDeps());
-  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+    ...transportOptions,
+  });
 
   res.on("close", () => {
     void transport.close().catch(() => undefined);
@@ -55,6 +70,16 @@ export async function handleStatelessMcpRequest(
     const body = req.method === "POST" ? await readJsonBody(req) : undefined;
     await transport.handleRequest(req, res, body);
   } catch (err) {
+    if (err instanceof BodyTooLargeError) {
+      if (!res.headersSent) {
+        sendJson(res, 413, {
+          jsonrpc: "2.0",
+          error: { code: -32600, message: "request body too large" },
+          id: null,
+        });
+      }
+      return;
+    }
     console.error("mcp request error:", err);
     if (!res.headersSent) {
       sendJson(res, 500, {

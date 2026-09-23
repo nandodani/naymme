@@ -1,5 +1,14 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { ProviderDeps } from "../src/deps.js";
+import {
+  clientKeyFromHeaders,
+  contentLengthExceeded,
+  MAX_REQUEST_BODY_BYTES,
+  RATE_LIMITS,
+  RateLimiter,
+  readJsonCapped,
+  tooManyRequestsResponse,
+} from "../src/security.js";
 import { createNameCheckServer, SERVER_NAME, SERVER_VERSION } from "../src/server.js";
 
 /**
@@ -31,7 +40,8 @@ async function resolveNsDoh(fqdn: string): Promise<string[]> {
     { headers: { accept: "application/dns-json" } },
   );
   if (!res.ok) throw new Error(`DoH resolver answered HTTP ${res.status}`);
-  const data = (await res.json()) as DohResponse;
+  const data = (await readJsonCapped(res)) as DohResponse | null;
+  if (data === null) throw new Error("DoH resolver returned unreadable JSON");
   return (data.Answer ?? [])
     .filter((a) => a.type === DNS_TYPE_NS && typeof a.data === "string")
     .map((a) => a.data?.replace(/\.$/, "") ?? "");
@@ -123,7 +133,19 @@ function trackedBody(response: Response, onDone: () => void): Response {
   return new Response(stream, response);
 }
 
+// One limiter per isolate — best-effort protection of the request budget.
+const mcpLimiter = new RateLimiter({ windowMs: 60_000, max: RATE_LIMITS.mcp });
+
 async function handleMcp(request: Request): Promise<Response> {
+  const verdict = mcpLimiter.allow(clientKeyFromHeaders(request.headers));
+  if (!verdict.ok) return tooManyRequestsResponse(verdict.retryAfterSeconds, CORS_HEADERS);
+  if (contentLengthExceeded(request, MAX_REQUEST_BODY_BYTES)) {
+    return Response.json(
+      { jsonrpc: "2.0", error: { code: -32600, message: "request body too large" }, id: null },
+      { status: 413, headers: CORS_HEADERS },
+    );
+  }
+
   const server = createNameCheckServer(workerDeps());
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,

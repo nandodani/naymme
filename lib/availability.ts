@@ -1,6 +1,13 @@
 import { defaultDeps, type ProviderDeps } from "../src/deps.js";
 import type { CheckAvailabilityInput, CheckAvailabilityOutput } from "../src/schemas.js";
 import { nameSchema, providerSelectionSchema } from "../src/schemas.js";
+import {
+  clientKeyFromHeaders,
+  RATE_LIMITS,
+  rateLimiterFromEnv,
+  tooManyRequestsResponse,
+  type RateLimiter,
+} from "../src/security.js";
 import { checkAvailability } from "../src/tools/checkAvailability.js";
 import { z } from "zod";
 import { demoCheckAvailability } from "./demo.js";
@@ -62,7 +69,7 @@ const querySchema = z.object({
         .map((part) => part.trim())
         .filter(Boolean),
     )
-    .pipe(z.array(providerSelectionSchema))
+    .pipe(z.array(providerSelectionSchema).max(65))
     .optional(),
 });
 
@@ -77,10 +84,20 @@ function jsonError(status: number, error: string, issues?: unknown): Response {
  * framework-free so it is testable without Next.js. The route passes the
  * env-selected service; tests inject their own.
  */
+let sharedLimiter: RateLimiter | null = null;
+function defaultLimiter(): RateLimiter {
+  sharedLimiter ??= rateLimiterFromEnv(RATE_LIMITS.availability, process.env);
+  return sharedLimiter;
+}
+
 export async function handleAvailabilityRequest(
   req: Request,
   service: AvailabilityService = availabilityServiceFromEnv(),
+  limiter: Pick<RateLimiter, "allow"> = defaultLimiter(),
 ): Promise<Response> {
+  const verdict = limiter.allow(clientKeyFromHeaders(req.headers));
+  if (!verdict.ok) return tooManyRequestsResponse(verdict.retryAfterSeconds, NO_STORE);
+
   const url = new URL(req.url);
   const parsed = querySchema.safeParse({
     name: url.searchParams.get("name"),
@@ -95,6 +112,8 @@ export async function handleAvailabilityRequest(
     const body: AvailabilityResponse = { ...output, mode: service.mode };
     return Response.json(body, { headers: NO_STORE });
   } catch (err) {
-    return jsonError(502, "availability check failed", err instanceof Error ? err.message : err);
+    // Internal detail goes to logs only — the client gets a generic error.
+    console.error("availability check failed:", err);
+    return jsonError(502, "availability check failed");
   }
 }
