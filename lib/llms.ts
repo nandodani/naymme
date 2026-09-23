@@ -57,7 +57,7 @@ export function buildLlmsTxt(): string {
     "",
     "## Discovery documents",
     "",
-    `- OAuth discovery stubs (public/no-token tier): ${SITE_URL}/.well-known/oauth-protected-resource and ${SITE_URL}/.well-known/oauth-authorization-server`,
+    `- OAuth discovery documents (public/no-token tier): ${SITE_URL}/.well-known/oauth-protected-resource (RFC 9728; .json alias also served) and ${SITE_URL}/.well-known/oauth-authorization-server (RFC 8414)`,
     "",
     `Rate limits and access details: ${SITE_URL}/auth.md`,
     "",

@@ -163,19 +163,20 @@ export function buildAiCatalog(): Record<string, unknown> {
 }
 
 /**
- * RFC 9728 OAuth Protected Resource Metadata stub. The API is public and
- * unauthenticated, so the document declares the resource and an empty
- * authorization-server list — a compliant way to state "no token tier".
+ * RFC 9728 OAuth Protected Resource Metadata. The API is public and
+ * unauthenticated — the document declares the resource origin, the
+ * `public:read` scope and the `header` bearer method, and points
+ * `authorization_servers` at this origin. Following that issuer to the
+ * RFC 8414 document shows it grants no tokens, which is the definitive
+ * "anonymous tier" answer for agents probing the standard discovery path.
  */
 export function buildOauthProtectedResource(): Record<string, unknown> {
   return {
-    resource: MCP_ENDPOINT,
-    resource_name: `${SITE_NAME} MCP + REST API`,
-    resource_documentation: `${SITE_URL}/auth.md`,
-    authorization_servers: [],
-    scopes_supported: [],
-    bearer_methods_supported: [],
-    resource_signing_alg_values_supported: [],
+    resource: SITE_URL,
+    authorization_servers: [SITE_URL],
+    scopes_supported: ["public:read"],
+    bearer_methods_supported: ["header"],
+    resource_documentation: `${SITE_URL}/docs`,
   };
 }
 
@@ -184,7 +185,8 @@ export function buildOauthProtectedResource(): Record<string, unknown> {
  * /.well-known/oauth-authorization-server. There is no authorization
  * server behind this host — the document exists so agents probing the
  * standard discovery path get a definitive answer instead of a 404:
- * `issuer` identifies the host, the supported-flow lists are empty, and
+ * `issuer` identifies the host, the flow/grant lists are empty (the
+ * issuer advertises the public:read scope but grants no tokens), and
  * `service_documentation` points at /auth.md for the full public tier.
  */
 export function buildOauthAuthorizationServer(): Record<string, unknown> {
@@ -195,7 +197,7 @@ export function buildOauthAuthorizationServer(): Record<string, unknown> {
     response_modes_supported: [],
     grant_types_supported: [],
     token_endpoint_auth_methods_supported: [],
-    scopes_supported: [],
+    scopes_supported: ["public:read"],
     code_challenge_methods_supported: [],
   };
 }
@@ -235,7 +237,7 @@ export function buildAuthMarkdown(): string {
     "",
     `The structured discovery documents confirm the no-token tier:`,
     "",
-    `- \`GET ${SITE_URL}/.well-known/oauth-protected-resource\` — RFC 9728 Protected Resource Metadata; \`authorization_servers\` is an empty list`,
+    `- \`GET ${SITE_URL}/.well-known/oauth-protected-resource\` — RFC 9728 Protected Resource Metadata; declares the resource origin, the \`public:read\` scope and \`authorization_servers: [${SITE_URL}]\` — the same issuer that grants no tokens`,
     `- \`GET ${SITE_URL}/.well-known/oauth-authorization-server\` — RFC 8414 Authorization Server Metadata stub; \`grant_types_supported\` and \`response_types_supported\` are empty lists`,
     `- \`GET ${SITE_URL}/openapi.json\` — OpenAPI 3.1 description of every endpoint`,
     `- \`GET ${SITE_URL}/.well-known/mcp\` — MCP discovery document (transport, tools, input schemas)`,

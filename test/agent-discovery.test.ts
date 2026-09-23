@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
@@ -8,6 +9,7 @@ import { GET as skillMdGET } from "../app/.well-known/agent-skills/[name]/SKILL.
 import { GET as aiCatalogGET } from "../app/.well-known/ai-catalog.json/route.js";
 import { GET as serverCardGET } from "../app/.well-known/mcp/server-card.json/route.js";
 import { GET as oauthResourceGET } from "../app/.well-known/oauth-protected-resource/route.js";
+import { GET as oauthResourceJsonGET } from "../app/.well-known/oauth-protected-resource.json/route.js";
 import { GET as openapiGET } from "../app/openapi.json/route.js";
 import { GET as apiOpenapiGET } from "../app/api/openapi.json/route.js";
 import { GET as authMdGET } from "../app/auth.md/route.js";
@@ -196,17 +198,27 @@ describe("/.well-known/ai-catalog.json", () => {
 });
 
 describe("/.well-known/oauth-protected-resource", () => {
-  it("declares the public tier with an empty authorization_servers list", async () => {
+  it("serves the exact RFC 9728 structure with CORS", async () => {
     const res = oauthResourceGET();
     expect(res.status).toBe(200);
-    const doc = (await res.json()) as {
-      resource: string;
-      authorization_servers: string[];
-      resource_documentation: string;
-    };
-    expect(doc.resource).toBe(`${SITE_URL}/api/mcp`);
-    expect(doc.authorization_servers).toEqual([]);
-    expect(doc.resource_documentation).toBe(`${SITE_URL}/auth.md`);
+    expect(res.headers.get("content-type")).toContain("application/json");
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+    const doc = (await res.json()) as Record<string, unknown>;
+    expect(doc).toEqual({
+      resource: SITE_URL,
+      authorization_servers: [SITE_URL],
+      scopes_supported: ["public:read"],
+      bearer_methods_supported: ["header"],
+      resource_documentation: `${SITE_URL}/docs`,
+    });
+  });
+
+  it("serves the identical document at the .json alias", async () => {
+    const res = oauthResourceJsonGET();
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/json");
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+    expect(await res.json()).toEqual(await oauthResourceGET().json());
   });
 });
 
@@ -236,6 +248,29 @@ describe("/auth.md", () => {
   });
 });
 
+describe("DNS-AID documentation", () => {
+  const dnsAid = readFileSync(new URL("../DNS-AID.md", import.meta.url), "utf8");
+  const zone = readFileSync(new URL("../dns/dnsaid.zone", import.meta.url), "utf8");
+
+  it("documents _index._agents + agent ServiceMode records with required params", () => {
+    for (const text of [dnsAid, zone]) {
+      expect(text).toContain("_index._agents");
+      expect(text).toContain("lmkurname._agents");
+      expect(text).toContain("SVCB");
+      expect(text).toContain('alpn="h2"');
+      expect(text).toContain('bap="mcp"');
+      expect(text).toContain('well-known="mcp/server-card.json"');
+      expect(text).toContain("name-check-mcp.vercel.app");
+    }
+    // Skill requirements: HTTPS variant, numeric keyNNNNN guidance, DNSSEC,
+    // and the explicit vercel.app zone-control limitation.
+    expect(dnsAid).toContain("HTTPS");
+    expect(dnsAid).toContain("keyNNNNN");
+    expect(dnsAid).toContain("DNSSEC");
+    expect(dnsAid).toContain("provider-owned");
+  });
+});
+
 describe("shared builders", () => {
   it("anchors the api-catalog linkset at the site origin", () => {
     const linkset = buildApiCatalogLinkset() as { linkset: { anchor: string }[] };
@@ -254,8 +289,8 @@ describe("shared builders", () => {
     }
   });
 
-  it("points the oauth stub's documentation at auth.md", () => {
+  it("points the oauth stub's documentation at /docs", () => {
     const doc = buildOauthProtectedResource() as { resource_documentation: string };
-    expect(doc.resource_documentation).toBe(`${SITE_URL}/auth.md`);
+    expect(doc.resource_documentation).toBe(`${SITE_URL}/docs`);
   });
 });

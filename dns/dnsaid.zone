@@ -1,0 +1,49 @@
+; ============================================================================
+; DNS-AID records for the lmkurname agent
+; (draft-mozleywilliams-dnsop-dnsaid-02 — DNS for AI Discovery)
+;
+; IMPORTANT: these cannot be published under vercel.app — it is a
+; provider-owned suffix with no user zone control. Publish them under a
+; domain you control (shown here as nandodani.dev — substitute your zone)
+; with TargetName pointing at the deployment, or under a custom domain
+; attached to the deployment. Nothing here implies the records are live.
+;
+; bap / well-known are draft-defined SvcParamKeys pending IANA assignment;
+; where a zone-file parser or provider UI rejects the names, express them
+; in numeric keyNNNNN form once assigned, or carry the agent protocol in
+; alpn (alpn="mcp,h2") and drop bap. Enable DNSSEC on the zone.
+; ============================================================================
+
+$TTL 3600
+$ORIGIN nandodani.dev.
+
+; --- Organizational agent index ---------------------------------------------
+; Requestors query _index._agents.<domain> to enumerate the org's agents.
+; TargetName serves /.well-known/api-catalog (RFC 9264 linkset) over HTTPS.
+
+_index._agents          IN  SVCB  1  name-check-mcp.vercel.app. (
+                            alpn="h2"
+                            port=443
+                            mandatory=alpn,port
+                            well-known="api-catalog" )
+
+; --- Known agent: lmkurname (MCP server) ------------------------------------
+; bap="mcp" marks the agent protocol; well-known is the RFC 8615 path to
+; the SEP-1649 MCP server card on the TargetName host.
+
+lmkurname._agents       IN  SVCB  1  name-check-mcp.vercel.app. (
+                            alpn="h2"
+                            port=443
+                            mandatory=alpn,port
+                            bap="mcp"
+                            well-known="mcp/server-card.json" )
+
+; --- HTTPS-record equivalents -----------------------------------------------
+; For providers that expose the HTTPS type but not SVCB (e.g. Vercel DNS),
+; use these instead — HTTPS records are SVCB records for HTTPS endpoints.
+
+; _index._agents        IN  HTTPS 1  name-check-mcp.vercel.app. (
+;                            alpn="h2" port=443 well-known="api-catalog" )
+; lmkurname._agents     IN  HTTPS 1  name-check-mcp.vercel.app. (
+;                            alpn="h2" port=443 bap="mcp"
+;                            well-known="mcp/server-card.json" )

@@ -239,12 +239,24 @@ test.describe("agent discovery endpoints", () => {
     }
   });
 
-  test("/.well-known/oauth-protected-resource documents the public tier", async ({ request }) => {
-    const res = await request.get("/.well-known/oauth-protected-resource");
-    expect(res.status()).toBe(200);
-    const doc = await res.json();
-    expect(doc.authorization_servers).toEqual([]);
-    expect(doc.resource_documentation).toContain("/auth.md");
+  test("/.well-known/oauth-protected-resource serves the RFC 9728 document", async ({
+    request,
+  }) => {
+    for (const path of [
+      "/.well-known/oauth-protected-resource",
+      "/.well-known/oauth-protected-resource.json",
+    ]) {
+      const res = await request.get(path);
+      expect(res.status(), path).toBe(200);
+      expect(res.headers()["content-type"], path).toContain("application/json");
+      expect(res.headers()["access-control-allow-origin"], path).toBe("*");
+      const doc = await res.json();
+      expect(doc.resource, path).toBe("https://name-check-mcp.vercel.app");
+      expect(doc.authorization_servers, path).toEqual(["https://name-check-mcp.vercel.app"]);
+      expect(doc.scopes_supported, path).toEqual(["public:read"]);
+      expect(doc.bearer_methods_supported, path).toEqual(["header"]);
+      expect(doc.resource_documentation, path).toBe("https://name-check-mcp.vercel.app/docs");
+    }
   });
 
   test("/auth.md documents the unauthenticated API and its limits", async ({ request }) => {
