@@ -42,10 +42,10 @@ const EXPECTED_PROVIDER_IDS = ALL_PROVIDER_IDS;
 /**
  * The searched state: the overall availability card plus one free column
  * per provider group, rendered in PROVIDER_GROUPS order. There are no
- * cards — sections pack into CSS multi-columns sized to the container
- * (~17rem each, as many as fit), so the layout flexes at any width. DOM
- * order matches reading order — Overall first, then the groups — so the
- * stagger, tab order and screen-reader order all agree.
+ * cards — sections tile a `repeat(auto-fill, minmax(17rem, 1fr))` grid:
+ * as many columns as fit, each flexing equally to fill the container.
+ * DOM order matches reading order — Overall first, then the groups — so
+ * the stagger, tab order and screen-reader order all agree.
  */
 export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: ResultsGridProps) {
   const [filter, setFilter] = useState<ResultFilter>("all");
@@ -137,23 +137,23 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
         variants={container}
         initial="hidden"
         animate="show"
-        className="columns-[17rem] gap-x-8 [column-rule:1px_solid_rgba(255,255,255,0.05)]"
+        className="grid grid-cols-[repeat(auto-fill,minmax(17rem,1fr))] items-start gap-x-8 gap-y-6"
       >
-        <motion.div variants={item} className="mb-6 break-inside-avoid">
+        <motion.div variants={item}>
           <OverallCard availability={data} checking={checking} name={name} onCopy={onCopy} />
         </motion.div>
 
         {emptyFiltered ? (
           <motion.div
             variants={item}
-            className="mb-6 flex break-inside-avoid items-center justify-center gap-2.5 rounded-xl border border-zinc-800 bg-card px-4 py-10"
+            className="flex items-center justify-center gap-2.5 rounded-xl border border-zinc-800 bg-card px-4 py-10"
           >
             <SearchX aria-hidden="true" className="size-4 text-zinc-600" />
             <p className="text-[12px] text-zinc-500">No available handles found for this search.</p>
           </motion.div>
         ) : (
           PROVIDER_GROUPS.map((group) => (
-            <motion.div key={group.id} variants={item} className="mb-6 break-inside-avoid">
+            <motion.div key={group.id} variants={item}>
               <ProviderColumn
                 group={group}
                 name={name}

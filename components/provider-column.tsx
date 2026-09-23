@@ -57,10 +57,7 @@ export function ProviderColumn({
   );
 
   return (
-    <section
-      aria-labelledby={`providers-${group.id}`}
-      className={cn("break-inside-avoid", className)}
-    >
+    <section aria-labelledby={`providers-${group.id}`} className={cn(className)}>
       <div className="flex h-9 items-center gap-2.5 border-b border-white/5">
         <h3
           id={`providers-${group.id}`}
