@@ -9,6 +9,7 @@ export default tseslint.config(
       "coverage/**",
       "node_modules/**",
       ".next/**",
+      ".wrangler/**",
       "next-env.d.ts",
       "postcss.config.mjs",
       ".agents/**",

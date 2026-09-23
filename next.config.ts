@@ -12,7 +12,12 @@ const nextConfig: NextConfig = {
   async headers() {
     // Baseline hardening for every route (UI + API). CSP keeps script-src
     // at 'self' + 'unsafe-inline' because Next emits inline hydration
-    // scripts; nonces would need middleware on every response.
+    // scripts; nonces would need middleware on every response. React's dev
+    // build also calls eval(), so 'unsafe-eval' joins in development only.
+    const scriptSrc =
+      process.env.NODE_ENV === "development"
+        ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+        : "script-src 'self' 'unsafe-inline'";
     return [
       {
         source: "/:path*",
@@ -29,7 +34,7 @@ const nextConfig: NextConfig = {
             key: "content-security-policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline'",
+              scriptSrc,
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data:",
               "font-src 'self' data:",
