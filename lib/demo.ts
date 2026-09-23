@@ -28,6 +28,10 @@ function demoSubject(provider: string, name: string): string {
   if (provider.startsWith("social:")) return `@${name}`;
   if (provider === "vercel") return `${name}.vercel.app`;
   if (provider === "netlify") return `${name}.netlify.app`;
+  if (provider === "cloudflare") return `${name}.pages.dev`;
+  if (provider === "flyio") return `${name}.fly.dev`;
+  if (provider === "railway") return `${name}.up.railway.app`;
+  if (provider === "supabase") return `${name}.supabase.co`;
   return name;
 }
 

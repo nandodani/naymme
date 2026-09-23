@@ -76,7 +76,7 @@ npm run check        # typecheck + lint + format:check + test + build
   `domain:space`, `github:user`, `github:org`, `github:repo`,
   `gitlab`, `npm`, `pypi`, `crates`, `dockerhub`, `huggingface`, `nuget`,
   `rubygems`, `homebrew`, `codepen`, `replit`, `vercel`, `netlify`,
-  `appstore`, `figma`, `dribbble`,
+  `cloudflare`, `flyio`, `railway`, `supabase`, `appstore`, `figma`, `dribbble`,
   `behance`, `substack`, `producthunt`, `telegram`, `medium`,
   `social:x`, `social:bluesky`,
   `social:instagram`, `social:reddit`, `social:youtube`, `social:tiktok`,
@@ -156,7 +156,8 @@ src/
     whois.ts            whoiser wrapper + text normalization
     dns.ts              NS-record signal after inconclusive WHOIS
     github.ts           /users/{name} login check + repository search collision
-    hosting.ts          {name}.vercel.app / {name}.netlify.app subdomain checks
+    hosting.ts          {name}.vercel.app/.netlify.app/.up.railway.app edge checks
+                        plus DNS-existence checks for pages.dev/fly.dev/supabase.co
     stores.ts           Apple App Store listing check (iTunes Search API)
     npm.ts              npm-name wrapper
     social.ts           X, Bluesky, Instagram, Reddit, YouTube, TikTok handles

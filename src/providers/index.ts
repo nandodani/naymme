@@ -14,7 +14,14 @@ import {
   createGitHubRepoAdapter,
   createGitHubUserAdapter,
 } from "./github.js";
-import { createNetlifyAdapter, createVercelAdapter } from "./hosting.js";
+import {
+  createCloudflarePagesAdapter,
+  createFlyioAdapter,
+  createNetlifyAdapter,
+  createRailwayAdapter,
+  createSupabaseAdapter,
+  createVercelAdapter,
+} from "./hosting.js";
 import { createNpmAdapter } from "./npm.js";
 import {
   createBehanceAdapter,
@@ -92,6 +99,10 @@ export function createAdapters(deps: ProviderDeps): Record<ProviderId, ProviderA
     replit: createReplitAdapter(deps),
     vercel: createVercelAdapter(deps),
     netlify: createNetlifyAdapter(deps),
+    cloudflare: createCloudflarePagesAdapter(deps),
+    flyio: createFlyioAdapter(deps),
+    railway: createRailwayAdapter(deps),
+    supabase: createSupabaseAdapter(deps),
     appstore: createAppStoreAdapter(deps),
     figma: createFigmaAdapter(deps),
     dribbble: createDribbbleAdapter(deps),

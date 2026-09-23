@@ -1,5 +1,5 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import type { ProviderDeps } from "../src/deps.js";
+import type { DnsExistence, ProviderDeps } from "../src/deps.js";
 import {
   clientKeyFromHeaders,
   contentLengthExceeded,
@@ -21,8 +21,12 @@ import { createNameCheckServer, SERVER_NAME, SERVER_VERSION } from "../src/serve
  */
 
 const NPM_REGISTRY = "https://registry.npmjs.org/";
-/** RFC 1035: NS record type in a DNS-over-HTTPS JSON response. */
+/** RFC 1035 record types and NXDOMAIN rcode in a DNS-over-HTTPS JSON response. */
+const DNS_TYPE_A = 1;
 const DNS_TYPE_NS = 2;
+const DNS_TYPE_CNAME = 5;
+const DNS_TYPE_AAAA = 28;
+const DNS_STATUS_NXDOMAIN = 3;
 
 interface DohAnswer {
   type?: number;
@@ -30,21 +34,45 @@ interface DohAnswer {
 }
 
 interface DohResponse {
+  Status?: number;
   Answer?: DohAnswer[];
 }
 
-/** NS-record lookup via Cloudflare's public DoH JSON API (node:dns replacement). */
-async function resolveNsDoh(fqdn: string): Promise<string[]> {
+/** One DNS-over-HTTPS JSON query against Cloudflare's public resolver. */
+async function dohQuery(fqdn: string, type: string): Promise<DohResponse> {
   const res = await fetch(
-    `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(fqdn)}&type=NS`,
+    `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(fqdn)}&type=${type}`,
     { headers: { accept: "application/dns-json" } },
   );
   if (!res.ok) throw new Error(`DoH resolver answered HTTP ${res.status}`);
   const data = (await readJsonCapped(res)) as DohResponse | null;
   if (data === null) throw new Error("DoH resolver returned unreadable JSON");
+  return data;
+}
+
+/** NS-record lookup via Cloudflare's public DoH JSON API (node:dns replacement). */
+async function resolveNsDoh(fqdn: string): Promise<string[]> {
+  const data = await dohQuery(fqdn, "NS");
   return (data.Answer ?? [])
     .filter((a) => a.type === DNS_TYPE_NS && typeof a.data === "string")
     .map((a) => a.data?.replace(/\.$/, "") ?? "");
+}
+
+/**
+ * DNS existence probe over DoH (node:dns resolve4/6/CNAME replacement):
+ * answers are A/AAAA/CNAME data strings; `nxdomain` requires an
+ * NXDOMAIN rcode on both the A and AAAA queries — NODATA stays ambiguous.
+ */
+async function resolveAnyDoh(fqdn: string): Promise<DnsExistence> {
+  const [a, aaaa] = await Promise.all([dohQuery(fqdn, "A"), dohQuery(fqdn, "AAAA")]);
+  const interesting = new Set([DNS_TYPE_A, DNS_TYPE_CNAME, DNS_TYPE_AAAA]);
+  const answers: string[] = [];
+  for (const ans of [...(a.Answer ?? []), ...(aaaa.Answer ?? [])]) {
+    if (typeof ans.data === "string" && interesting.has(ans.type ?? -1)) answers.push(ans.data);
+  }
+  const nxdomain =
+    answers.length === 0 && a.Status === DNS_STATUS_NXDOMAIN && aaaa.Status === DNS_STATUS_NXDOMAIN;
+  return { answers, nxdomain };
 }
 
 async function npmRegistryHasPackage(fetcher: typeof fetch, name: string): Promise<boolean> {
@@ -70,6 +98,7 @@ function workerDeps(): ProviderDeps {
     // to the DNS NS check — Workers can't open raw TCP port 43 for WHOIS.
     whoisDomain: () => Promise.resolve("whois unavailable on this runtime (raw TCP port 43)"),
     resolveNs: resolveNsDoh,
+    resolveAny: resolveAnyDoh,
     npmNameAvailable: async (name) => {
       if (await npmRegistryHasPackage(globalThis.fetch, name)) return false;
       for (const variant of npmPunctuationVariants(name.toLowerCase())) {

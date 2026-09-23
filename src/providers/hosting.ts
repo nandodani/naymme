@@ -1,4 +1,4 @@
-import type { ProviderDeps } from "../deps.js";
+import type { DnsExistence, ProviderDeps } from "../deps.js";
 import type { ProviderId } from "../schemas.js";
 import { readTextCapped } from "../security.js";
 import type { ProviderAdapter, ProviderOutcome } from "../types.js";
@@ -105,5 +105,84 @@ export function createNetlifyAdapter(deps: ProviderDeps): ProviderAdapter {
     id: "netlify",
     suffix: "netlify.app",
     unclaimedMarker: (_res, body) => body.trimStart().startsWith("Not Found"),
+  });
+}
+
+interface SubdomainDnsSpec {
+  id: ProviderId;
+  /**
+   * Platform suffix whose names only resolve once claimed — the zone is not
+   * wildcard, so NXDOMAIN is the verified "nobody holds this" marker.
+   */
+  suffix: string;
+}
+
+/**
+ * DNS-existence check for hosted platforms that provision DNS per claim.
+ * `available` requires an authoritative NXDOMAIN; NODATA (the name node
+ * exists without address records) and resolver failures stay `unknown`.
+ */
+function createSubdomainDnsCheck(deps: ProviderDeps, spec: SubdomainDnsSpec): ProviderAdapter {
+  return {
+    id: spec.id,
+    async check(name, _signal): Promise<ProviderOutcome> {
+      const invalid = invalidOutcome(spec.id, name);
+      if (invalid !== null) return invalid;
+      const subject = `${name}.${spec.suffix}`;
+      let dns: DnsExistence;
+      try {
+        dns = await deps.resolveAny(subject);
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") throw err;
+        return unknown(subject, "DNS lookup failed");
+      }
+      if (dns.answers.length > 0) {
+        return taken(subject, `${subject} resolves to ${dns.answers[0]}`);
+      }
+      return dns.nxdomain
+        ? available(subject, `${subject} does not resolve (NXDOMAIN)`)
+        : unknown(subject, `${spec.id} answered NODATA — name exists without address records`);
+    },
+  };
+}
+
+/**
+ * Cloudflare Pages check via `{name}.pages.dev`: Pages provisions DNS per
+ * project, so NXDOMAIN → verified free, any answer → taken.
+ */
+export function createCloudflarePagesAdapter(deps: ProviderDeps): ProviderAdapter {
+  return createSubdomainDnsCheck(deps, { id: "cloudflare", suffix: "pages.dev" });
+}
+
+/**
+ * Fly.io check via `{name}.fly.dev`: Fly provisions DNS per app, so
+ * NXDOMAIN → verified free, any answer → taken.
+ */
+export function createFlyioAdapter(deps: ProviderDeps): ProviderAdapter {
+  return createSubdomainDnsCheck(deps, { id: "flyio", suffix: "fly.dev" });
+}
+
+/**
+ * Supabase check via `{name}.supabase.co`: the project gateway zone has no
+ * wildcard — only live project/infra subdomains resolve, so NXDOMAIN →
+ * verified free, any answer → taken.
+ */
+export function createSupabaseAdapter(deps: ProviderDeps): ProviderAdapter {
+  return createSubdomainDnsCheck(deps, { id: "supabase", suffix: "supabase.co" });
+}
+
+/**
+ * Railway check via `{name}.up.railway.app`: Railway wildcard-resolves the
+ * zone, so the HTTP edge answers unclaimed names with a JSON
+ * `Application not found` 404 flagged `x-railway-fallback: true` — both
+ * markers required for a verified free (a deployed app's own 404, or an
+ * edge response missing either marker, stays `unknown`).
+ */
+export function createRailwayAdapter(deps: ProviderDeps): ProviderAdapter {
+  return createSubdomainCheck(deps, {
+    id: "railway",
+    suffix: "up.railway.app",
+    unclaimedMarker: (res, body) =>
+      res.headers.get("x-railway-fallback") === "true" && body.includes("Application not found"),
   });
 }

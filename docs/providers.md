@@ -164,7 +164,7 @@ All of the above live in [`devplatforms.ts`](../src/providers/devplatforms.ts)
 and [`platforms.ts`](../src/providers/platforms.ts); non-2xx/4xx statuses and
 network failures → `unknown`.
 
-## Hosted subdomains — Vercel & Netlify
+## Hosted subdomains — Vercel, Netlify & Railway
 
 [`hosting.ts`](../src/providers/hosting.ts) checks `https://{name}.{suffix}/`
 with `redirect: "manual"` — the platform edge's own redirect proves a
@@ -183,8 +183,33 @@ deployment exists, and following it could land on an unrelated origin:
   header **or** `DEPLOYMENT_NOT_FOUND` in the 404 body.
 - **`netlify`** — unclaimed marker: a 404 body that starts with `Not Found`
   (the edge's bare `Not Found - Request ID: …`).
+- **`railway`** (`{name}.up.railway.app`) — unclaimed marker: a 404 carrying
+  **both** the `x-railway-fallback: true` header and `Application not found`
+  in the body (the edge's wildcard-DNS fallback page). A deployed app's own
+  404 lacks the header, so missing either marker → `unknown`.
 
-Both use the shared subdomain rule: 1–63, `[a-z0-9-]`, start/end alphanumeric.
+All three use the shared subdomain rule: 1–63, `[a-z0-9-]`, start/end alphanumeric.
+
+## Hosted subdomains — DNS provisioned (Cloudflare Pages, Fly.io, Supabase)
+
+`createSubdomainDnsCheck` in [`hosting.ts`](../src/providers/hosting.ts)
+checks DNS existence via the injected `deps.resolveAny` (A/AAAA/CNAME —
+Cloudflare DoH JSON in the Worker): these platforms provision DNS per
+claim, so the zone has no wildcard and NXDOMAIN is the verified
+"nobody holds this" marker.
+
+| DNS result                  | Verdict                                      |
+| --------------------------- | -------------------------------------------- |
+| any A/AAAA/CNAME answer     | `taken`                                      |
+| NXDOMAIN                    | `available`                                  |
+| NODATA (empty, no NXDOMAIN) | `unknown`                                    |
+| resolver error              | `unknown` — availability is never fabricated |
+
+- **`cloudflare`** — `{name}.pages.dev`
+- **`flyio`** — `{name}.fly.dev`
+- **`supabase`** — `{name}.supabase.co`
+
+All three use the shared subdomain rule: 1–63, `[a-z0-9-]`, start/end alphanumeric.
 
 ## App stores
 
@@ -283,6 +308,10 @@ for npm, and nowhere else.
 | `replit`                                                                                                                                                                                                                                                                                                   | 2–64    | `A-Za-z0-9_-`                        | —                                                                             |
 | `vercel`                                                                                                                                                                                                                                                                                                   | 1–63    | `a-z0-9-` (lowercase)                | `START_ALNUM`, `END_ALNUM` (`vercel.app` subdomain)                           |
 | `netlify`                                                                                                                                                                                                                                                                                                  | 1–63    | `a-z0-9-` (lowercase)                | `START_ALNUM`, `END_ALNUM` (`netlify.app` subdomain)                          |
+| `cloudflare`                                                                                                                                                                                                                                                                                               | 1–63    | `a-z0-9-` (lowercase)                | `START_ALNUM`, `END_ALNUM` (`pages.dev` subdomain)                            |
+| `flyio`                                                                                                                                                                                                                                                                                                    | 1–63    | `a-z0-9-` (lowercase)                | `START_ALNUM`, `END_ALNUM` (`fly.dev` subdomain)                              |
+| `railway`                                                                                                                                                                                                                                                                                                  | 1–63    | `a-z0-9-` (lowercase)                | `START_ALNUM`, `END_ALNUM` (`up.railway.app` subdomain)                       |
+| `supabase`                                                                                                                                                                                                                                                                                                 | 1–63    | `a-z0-9-` (lowercase)                | `START_ALNUM`, `END_ALNUM` (`supabase.co` subdomain)                          |
 | `appstore`                                                                                                                                                                                                                                                                                                 | 2–30    | `A-Za-z0-9` + ` .,!?&+'"(),:;@#%&*-` | — (the only punctuation-allowed charset)                                      |
 | `figma`                                                                                                                                                                                                                                                                                                    | 1–50    | `A-Za-z0-9_-`                        | `START_ALNUM`                                                                 |
 | `dribbble`                                                                                                                                                                                                                                                                                                 | 1–30    | `A-Za-z0-9_-`                        | `START_ALNUM`                                                                 |

@@ -1,6 +1,6 @@
 # AGENTS.md — guide for AI agents working in this repo
 
-`lmkurname` checks one candidate name's availability across 55+ providers
+`lmkurname` checks one candidate name's availability across 59+ providers
 (domains, developer platforms, package registries, socials, publishing)
 and scores it for brand quality. It ships as three runtimes from a single
 TypeScript codebase:
@@ -14,20 +14,21 @@ TypeScript codebase:
 
 ## Architecture
 
-- `src/schemas.ts` — the provider registry (`PROVIDER_IDS`, 55 ids),
+- `src/schemas.ts` — the provider registry (`PROVIDER_IDS`, 59 ids),
   aliases (`all`, `domains`, `domains:cctld`, `domains:all`, `socials`),
   `resolveProviderIds()` expansion, and all zod IO schemas
   (`nameSchema`, `checkAvailabilityInputSchema`, `...OutputSchema`).
 - `src/types.ts` — `ProviderAdapter` / `ProviderOutcome` /
   `AvailabilityResult` / `ProviderDeps` types.
 - `src/deps.ts` — `ProviderDeps` dependency injection (fetch, whoisDomain,
-  resolveNs, npmNameAvailable, timeoutMs, …) and `defaultDeps()`. Tests
-  substitute fakes here; never `vi.mock` internals.
+  resolveNs, resolveAny, npmNameAvailable, timeoutMs, …) and
+  `defaultDeps()`. Tests substitute fakes here; never `vi.mock` internals.
 - `src/providers/` — one module per adapter family:
   `domain.ts` (RDAP → WHOIS → DNS NS chain), `rdap.ts` (IANA bootstrap
   client), `whois.ts`, `dns.ts`, `github.ts` (user/org/repo), `npm.ts`,
-  `devplatforms.ts`, `platforms.ts`, `hosting.ts` (vercel/netlify
-  subdomain checks with unclaimed-marker verification), `stores.ts`,
+  `devplatforms.ts`, `platforms.ts`, `hosting.ts` (vercel/netlify/railway
+  edge-marker subdomain checks plus DNS-existence checks for cloudflare
+  pages.dev / flyio fly.dev / supabase.co), `stores.ts`,
   `social.ts`, and `index.ts` (`createAdapters`, `selectAdapters`).
 - `src/providers/validation.ts` — `PROVIDER_NAME_RULES` (a
   `Record<ProviderId, NameRule>` — adding a provider id without a rule is
