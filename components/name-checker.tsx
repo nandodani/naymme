@@ -107,12 +107,16 @@ export function NameChecker() {
       }
       if (
         event.key === "/" &&
-        !(event.target instanceof HTMLInputElement) &&
-        !(event.target instanceof HTMLTextAreaElement) &&
-        !(event.target instanceof HTMLSelectElement)
+        (event.target === inputRef.current ||
+          (!(event.target instanceof HTMLInputElement) &&
+            !(event.target instanceof HTMLTextAreaElement) &&
+            !(event.target instanceof HTMLSelectElement)))
       ) {
+        // "/" refocuses and selects — inside the search input itself it is a
+        // no-op rather than a literal "/" (never a valid name character).
         event.preventDefault();
         inputRef.current?.focus();
+        inputRef.current?.select();
       }
     };
     window.addEventListener("keydown", onKeyDown);
