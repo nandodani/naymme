@@ -1,4 +1,4 @@
-import { handleMcpRequest, mcpOptionsResponse, mcpStatusResponse } from "@/lib/mcp-web.js";
+import { handleMcpRequest, handleMcpStatusRequest, mcpOptionsResponse } from "@/lib/mcp-web.js";
 
 /**
  * Versioned alias for /api/mcp — the hosted MCP Streamable HTTP endpoint.
@@ -8,8 +8,8 @@ import { handleMcpRequest, mcpOptionsResponse, mcpStatusResponse } from "@/lib/m
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-export function GET(): Response {
-  return mcpStatusResponse();
+export function GET(request: Request): Response {
+  return handleMcpStatusRequest(request);
 }
 
 export function OPTIONS(): Response {

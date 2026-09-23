@@ -1,9 +1,8 @@
 import { apiNotFound } from "@/lib/api-guard.js";
 
 /**
- * Catch-all for unmapped /api/* paths — agents (and humans) always get the
- * structured error envelope instead of the default HTML 404 page. Static
- * routes take precedence, so this only sees genuinely unknown paths.
+ * Catch-all for unmapped /v1/* paths — same structured JSON 404 envelope
+ * as the /api/* catch-all. Static routes take precedence.
  */
 export const runtime = "nodejs";
 

@@ -30,7 +30,7 @@ function sha256(text: string): string {
 
 describe("openapi.json", () => {
   it("is a valid OpenAPI 3.1 document with unique operationIds", async () => {
-    const res = openapiGET();
+    const res = openapiGET(new Request("https://app.test/openapi.json"));
     expect(res.status).toBe(200);
     const doc = (await res.json()) as {
       openapi: string;
@@ -62,9 +62,16 @@ describe("openapi.json", () => {
   });
 
   it("shares the document across /openapi.json and /api/openapi.json", async () => {
-    const [a, b] = await Promise.all([openapiGET().json(), apiOpenapiGET().json()]);
+    const [a, b] = await Promise.all([
+      openapiGET(new Request("https://app.test/openapi.json")).json(),
+      apiOpenapiGET(new Request("https://app.test/api/openapi.json")).json(),
+    ]);
     expect(b).toEqual(a);
-    expect(apiOpenapiGET().headers.get("access-control-allow-origin")).toBe("*");
+    expect(
+      apiOpenapiGET(new Request("https://app.test/api/openapi.json")).headers.get(
+        "access-control-allow-origin",
+      ),
+    ).toBe("*");
   });
 });
 

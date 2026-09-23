@@ -82,9 +82,10 @@ describe("/api/v1 aliases", () => {
   });
 
   it("v1 mcp GET returns the status document", async () => {
-    const res = v1McpGet();
+    const res = v1McpGet(get("/api/v1/mcp"));
     expect(res.status).toBe(200);
     expect(res.headers.get("api-version")).toBe("1");
+    expect(res.headers.get("ratelimit-limit")).toBeTruthy();
     const body = (await res.json()) as { name: string; transport: string };
     expect(body.name).toBe("lmkurname");
     expect(body.transport).toBe("streamable-http");
@@ -108,6 +109,8 @@ describe("api catch-all 404", () => {
       const body = (await res.json()) as { error: { code: string; hint: string } };
       expect(body.error.code).toBe("not_found");
       expect(body.error.hint).toContain("/openapi.json");
+      expect(res.headers.get("ratelimit-limit")).toBeTruthy();
+      expect(res.headers.get("ratelimit-policy")).toMatch(/^\d+;w=\d+$/);
     }
   });
 

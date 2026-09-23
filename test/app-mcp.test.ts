@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { GET, OPTIONS, POST } from "../app/api/mcp/route.js";
-import { handleMcpRequest, mcpStatusResponse } from "../lib/mcp-web.js";
+import { handleMcpRequest, handleMcpStatusRequest } from "../lib/mcp-web.js";
+import { RateLimiter } from "../src/security.js";
 
 /**
  * The Next.js /api/mcp route delegates to the framework-free handlers in
@@ -76,7 +77,7 @@ describe("/api/mcp route", () => {
   });
 
   it("GET returns the status document with CORS", async () => {
-    const res = GET();
+    const res = GET(new Request("https://app.test/api/mcp"));
     expect(res.status).toBe(200);
     expect(res.headers.get("access-control-allow-origin")).toBe("*");
     expect(await res.json()).toMatchObject({ ok: true, name: "lmkurname" });
@@ -109,9 +110,15 @@ describe("handleMcpRequest", () => {
   });
 });
 
-describe("mcpStatusResponse", () => {
-  it("points clients at POST /api/mcp", async () => {
-    const body = (await mcpStatusResponse().json()) as { usage: string };
+describe("handleMcpStatusRequest", () => {
+  it("points clients at POST /api/mcp with rate-limit headers", async () => {
+    const res = handleMcpStatusRequest(
+      new Request("https://app.test/api/mcp"),
+      new RateLimiter({ windowMs: 60_000, max: 5 }),
+    );
+    const body = (await res.json()) as { usage: string };
     expect(body.usage).toBe("POST /api/mcp");
+    expect(res.headers.get("ratelimit-limit")).toBe("5");
+    expect(res.headers.get("ratelimit-policy")).toBe("5;w=60");
   });
 });
