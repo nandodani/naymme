@@ -8,6 +8,14 @@
 ; with TargetName pointing at the deployment, or under a custom domain
 ; attached to the deployment. Nothing here implies the records are live.
 ;
+; Auditor note (isitagentready.com, verified): the check queries only
+; SVCB/HTTPS _index._agents, TXT _index._agents, and SVCB/HTTPS
+; _a2a._agents + _mcp._agents under the SCANNED hostname over DoH —
+; records under another domain do not move the score for
+; name-check-mcp.vercel.app. To pass, attach a custom domain to the
+; deployment, publish these names beneath that hostname, sign the zone,
+; and scan the custom-domain URL.
+;
 ; bap / well-known are draft-defined SvcParamKeys pending IANA assignment;
 ; where a zone-file parser or provider UI rejects the names, express them
 ; in numeric keyNNNNN form once assigned, or carry the agent protocol in

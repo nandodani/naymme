@@ -18,19 +18,34 @@ DNS-AID uses SVCB (Service Binding, RFC 9460) records — or the equivalent
 
 > **Provider limitation (read first).** The deployment is
 > `naymme.vercel.app`. `vercel.app` is a provider-owned suffix —
-> its owners cannot publish `_agents`/`_index` names under it, and Vercel
-> does not expose zone control for `*.vercel.app` subdomains. The records
-> below therefore cannot exist until the site is attached to a custom
-> domain, OR they are published under a domain you control (e.g.
-> `nandodani.dev`, the maintainer's domain) with `TargetName` pointing at
-> the deployment host. Nothing here claims the records are deployed —
-> they are the exact records to publish.
+> the zone's SOA (`ns1.vercel-dns-*.com` / `awsdns-hostmaster.amazon.com`)
+> belongs to Vercel, and Vercel does not expose record control under
+> `*.vercel.app` subdomains. `_agents` names under
+> `naymme.vercel.app` therefore **cannot be created, period** —
+> not by any setting in the app or the Vercel project. Nothing here
+> claims records are deployed.
+
+> **How the auditor checks (verified against a live scan).**
+> `isitagentready.com` validates DNS-AID **purely via DNS-over-HTTPS** —
+> its scan evidence shows zero HTTP requests for this check, so no
+> endpoint or header on the site can satisfy it (the HTTP discovery
+> surface — Link headers, `/.well-known/*`, llms.txt — is complementary,
+> not a substitute). Against the scanned hostname it issues exactly these
+> queries, via `https://cloudflare-dns.com/dns-query` (`do=1`), with
+> `https://dns.google/resolve` as fallback:
 >
-> The audit that inspired this document (`isitagentready.com`) validates
-> DNS-AID purely via DNS-over-HTTPS lookups — there is **no HTTP fallback
-> in the spec**, so no endpoint or header on the site can satisfy it. The
-> HTTP discovery surface (Link headers, `/.well-known/*`, llms.txt) is
-> complementary, not a substitute.
+> - `SVCB` and `HTTPS` `_index._agents.<scanned-host>`
+> - `SVCB` and `HTTPS` `_a2a._agents.<scanned-host>`
+> - `SVCB` and `HTTPS` `_mcp._agents.<scanned-host>`
+> - `TXT` `_index._agents.<scanned-host>` (TXT index fallback — see
+>   "TXT fallback" below)
+>
+> `domainsChecked` in the scan result is `["naymme.vercel.app"]`
+> — **only the scanned hostname**. Records published under any other
+> zone (e.g. `nandodani.dev`) are valid DNS-AID but are invisible to a
+> scan of the `.vercel.app` URL. Consequence: the only way to turn this
+> check green is to serve the site on a hostname inside a zone you
+> control and scan _that_ hostname.
 
 ## Records
 
@@ -92,32 +107,59 @@ naymme._agents.nandodani.dev. 3600  IN  HTTPS 1  naymme.vercel.app. (
                                        well-known="mcp/server-card.json" )
 ```
 
+### TXT fallback
+
+Draft §4 allows `TXT` records carrying SvcParamKey-style RDATA as a
+fallback where an authoritative portal cannot create SVCB/HTTPS at all,
+and the auditor does probe `TXT _index._agents.<scanned-host>`. The
+draft calls this "not considered desirable" (TXT has no `TargetName`, so
+the service must live at the queried name itself) and §5.9 leaves the
+index TXT encoding unsettled — treat it as a last resort, not a
+substitute for the SVCB/HTTPS records above.
+
 ## Publishing
 
-### Case A — custom domain attached to the deployment
+### Case A — custom domain attached to the deployment (the pass path)
 
-If the site is later attached to a custom domain (say `naymme.dev`),
-publish the same two records under that zone with `TargetName` set to the
-custom domain itself (or keep `naymme.vercel.app.` — both resolve
-to the service).
+This is the **only** configuration that can turn the audit's `dnsAid`
+check green, because the auditor queries `_agents` names under the
+hostname it scans:
 
-### Case B — records under a domain you control (works today)
+1. Attach a custom domain to the Vercel project — e.g.
+   `naymme.nandodani.dev` (a name inside a zone you control).
+2. In that zone, publish the two records **under the attached hostname**
+   — `_index._agents.naymme.nandodani.dev` and
+   `naymme._agents.naymme.nandodani.dev` — with `TargetName` set to
+   the custom domain itself (or keep `naymme.vercel.app.` — both
+   resolve to the service).
+3. Enable DNSSEC on the zone.
+4. Re-scan `https://naymme.nandodani.dev` —
+   `checks.discoverability.dnsAid.status` becomes `"pass"`.
 
-No custom domain needed: publish the records under `nandodani.dev` (or
-any zone you control). `TargetName` stays `naymme.vercel.app.` —
-the draft explicitly supports hosting on a service-provider domain.
+### Case B — records under a domain you control (real DNS-AID, no score change)
+
+Publishing the records under `nandodani.dev` (or any zone you control)
+with `TargetName = naymme.vercel.app.` is valid DNS-AID today —
+resolvers that query `_index._agents.nandodani.dev` will discover the
+service. It does **not** change the audit result for
+`naymme.vercel.app`: the auditor never queries other domains, so
+the check only passes once the site is scanned on the hostname that
+carries the records (Case A).
 
 ### Provider notes
 
 - **Cloudflare DNS** — full `SVCB` + `HTTPS` support and one-click
   DNSSEC: DNS → Records → Add record, type `SVCB`, name
-  `_index._agents`, value `1 naymme.vercel.app. alpn="h2" port=443 mandatory=alpn,port well-known="api-catalog"`;
-  repeat for `naymme._agents` with `bap="mcp"`. Enable DNSSEC under
-  DNS → Settings.
+  `_index._agents.<host>` (e.g. `_index._agents.naymme`), value
+  `1 <TargetName>. alpn="h2" port=443 mandatory=alpn,port well-known="api-catalog"`;
+  repeat for `naymme._agents.<host>` with `bap="mcp"`. Enable DNSSEC
+  under DNS → Settings.
 - **Vercel DNS** — supports `HTTPS` records (RFC 9460) but not the `SVCB`
   type name; use the HTTPS-record variant. If its record editor rejects
   the unregistered `bap`/`well-known` params, keep
   `alpn="mcp,h2" port=443` only, or delegate the zone to Cloudflare.
+  (Vercel DNS is a zone host for _your_ domains — it still cannot create
+  records under `vercel.app` itself.)
 - **DNSSEC** — the draft recommends signing public DNS-AID zones so
   validating resolvers get authenticated data (required if `TLSA` records
   are ever added). Enable it wherever the zone is hosted.
@@ -133,10 +175,11 @@ curl -s https://naymme.vercel.app/.well-known/mcp/server-card.json
 
 The auditor re-checks via DNS-over-HTTPS (Cloudflare resolver with
 dns.google fallback): `POST https://isitagentready.com/api/scan` with
-`{"url": "https://naymme.vercel.app"}` →
+`{"url": "https://<the-hostname-that-carries-the-records>"}` →
 `checks.discoverability.dnsAid.status` becomes `"pass"` once the records
-are live under a domain the scan can reach. Records under `vercel.app`
-are impossible — see the provider limitation above.
+are live under the scanned hostname. Scanning
+`https://naymme.vercel.app` can never pass — `vercel.app` is
+provider-owned; see the limitation above.
 
 ## Non-DNS discovery (always available)
 

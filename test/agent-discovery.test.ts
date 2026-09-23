@@ -269,6 +269,19 @@ describe("DNS-AID documentation", () => {
     expect(dnsAid).toContain("DNSSEC");
     expect(dnsAid).toContain("provider-owned");
   });
+
+  it("documents the auditor's verified DoH query set and scanned-host scoping", () => {
+    // The isitagentready auditor probes exactly these names under the
+    // scanned hostname — records under a different zone cannot pass.
+    for (const text of [dnsAid, zone]) {
+      expect(text).toContain("_a2a._agents");
+      expect(text).toContain("_mcp._agents");
+      expect(text).toContain("TXT");
+    }
+    expect(dnsAid).toContain("cloudflare-dns.com/dns-query");
+    expect(dnsAid).toContain("dns.google/resolve");
+    expect(dnsAid).toContain("domainsChecked");
+  });
 });
 
 describe("shared builders", () => {
