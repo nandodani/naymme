@@ -280,6 +280,29 @@ const CASES: Record<ProviderId, ProviderCases> = {
       { name: "-acme", reason: START_LETTER_OR_DIGIT },
     ],
   },
+  jsr: {
+    valid: ["acme", "a1", "ac-me", "a".repeat(20)],
+    invalid: [
+      { name: "a", reason: TOO_SHORT },
+      { name: "a".repeat(21), reason: TOO_LONG },
+      { name: "Acme", reason: DISALLOWED },
+      { name: "ac_me", reason: DISALLOWED },
+      { name: "9abc", reason: START_LETTER },
+      { name: "-acme", reason: START_LETTER },
+      { name: "acme-", reason: END_LETTER_OR_DIGIT },
+      { name: "a--b", reason: /consecutive hyphens/i },
+    ],
+  },
+  denoland: {
+    valid: ["acme", "ac_me_1", "a".repeat(40)],
+    invalid: [
+      { name: "ab", reason: TOO_SHORT },
+      { name: "a".repeat(41), reason: TOO_LONG },
+      { name: "Acme", reason: DISALLOWED },
+      { name: "ac-me", reason: DISALLOWED },
+      { name: "ac.me", reason: DISALLOWED },
+    ],
+  },
   nuget: {
     valid: ["acme", "ac.me_1-x", "a".repeat(128)],
     invalid: [

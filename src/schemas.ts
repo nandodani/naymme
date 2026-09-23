@@ -36,6 +36,8 @@ export const PROVIDER_IDS = [
   "crates",
   "dockerhub",
   "huggingface",
+  "jsr",
+  "denoland",
   "nuget",
   "rubygems",
   "homebrew",
@@ -157,12 +159,12 @@ export const nameSchema = z
 
 export const checkAvailabilityInputSchema = z.object({
   name: nameSchema.describe(
-    "Bare name to check, e.g. 'acme'. Checked as acme.com/acme.app/..., GitHub user/org 'acme' plus repository-name collisions, GitLab, npm/PyPI/crates.io/Docker Hub, Hugging Face, NuGet, RubyGems, Homebrew, CodePen, Replit, acme.vercel.app, acme.netlify.app, acme.pages.dev, acme.fly.dev, acme.up.railway.app, acme.supabase.co, the Apple App Store, Figma, Dribbble, Behance, Substack, Product Hunt, Telegram, Medium and social handle 'acme'.",
+    "Bare name to check, e.g. 'acme'. Checked as acme.com/acme.app/..., GitHub user/org 'acme' plus repository-name collisions, GitLab, npm/PyPI/crates.io/Docker Hub, Hugging Face, JSR scope '@acme', deno.land/x module 'acme', NuGet, RubyGems, Homebrew, CodePen, Replit, acme.vercel.app, acme.netlify.app, acme.pages.dev, acme.fly.dev, acme.up.railway.app, acme.supabase.co, the Apple App Store, Figma, Dribbble, Behance, Substack, Product Hunt, Telegram, Medium and social handle 'acme'.",
   ),
   providers: z
     .array(providerSelectionSchema)
-    // 59 ids + 5 aliases; anything longer is redundant — cap it.
-    .max(64)
+    // 61 ids + 5 aliases; anything longer is redundant — cap it.
+    .max(66)
     .optional()
     .describe(
       "Providers to query. Defaults to all. Aliases: 'all' (everything), 'domains' (.com/.gg/.dev/.io), 'domains:all' (every TLD), 'domains:cctld' (ccTLDs), 'socials' (all social handles).",

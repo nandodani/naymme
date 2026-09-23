@@ -159,6 +159,17 @@ must not start with a separator or end with a period.
 - **`huggingface`** — `GET https://huggingface.co/{name}` profile page:
   `200` → `taken`, `404` → `available`. Rules: 2–64, `[A-Za-z0-9_-]`, starts
   alphanumeric.
+- **`jsr`** — `GET https://api.jsr.io/scopes/{name}` (the management API's
+  public scope lookup; the scope is the claimable namespace — packages live
+  under it as `@{scope}/{package}`): `200` → `taken`, `404` → `available`.
+  The API answers `400` for malformed names but `PROVIDER_NAME_RULES`
+  rejects them first. Subject is rendered `@name`. Rules: 2–20, lowercase
+  `[a-z0-9-]`, must start with a letter, end alphanumeric, no consecutive
+  hyphens (the documented `^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$` shape).
+- **`denoland`** — `GET https://cdn.deno.land/{name}/meta/versions.json`
+  (the registry CDN endpoint the Deno CLI itself resolves): `200` →
+  `taken`, `404` → `available`. deno.land/x mandates snake_case —
+  no hyphens or capitals. Rules: 3–40, lowercase `[a-z0-9_]`.
 
 All of the above live in [`devplatforms.ts`](../src/providers/devplatforms.ts)
 and [`platforms.ts`](../src/providers/platforms.ts); non-2xx/4xx statuses and
@@ -301,6 +312,8 @@ for npm, and nowhere else.
 | `crates`                                                                                                                                                                                                                                                                                                   | 1–64    | `A-Za-z0-9_-`                        | `START_LETTER`                                                                |
 | `dockerhub`                                                                                                                                                                                                                                                                                                | 4–30    | `a-z0-9._-` (lowercase)              | `START_ALNUM`, `END_ALNUM`, `NO_DOUBLE_SEPARATOR`                             |
 | `huggingface`                                                                                                                                                                                                                                                                                              | 2–64    | `A-Za-z0-9_-`                        | `START_ALNUM`                                                                 |
+| `jsr`                                                                                                                                                                                                                                                                                                      | 2–20    | `a-z0-9-` (lowercase)                | `START_LETTER`, `END_ALNUM`, `NO_DOUBLE_HYPHEN`                               |
+| `denoland`                                                                                                                                                                                                                                                                                                 | 3–40    | `a-z0-9_` (lowercase)                | —                                                                             |
 | `nuget`                                                                                                                                                                                                                                                                                                    | 1–128   | `A-Za-z0-9._-`                       | `START_ALNUM`                                                                 |
 | `rubygems`                                                                                                                                                                                                                                                                                                 | 1–128   | `a-z0-9_-` (lowercase)               | `START_LETTER`                                                                |
 | `homebrew`                                                                                                                                                                                                                                                                                                 | 1–64    | `a-z0-9-` (lowercase)                | `START_ALNUM`                                                                 |

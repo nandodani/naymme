@@ -40,6 +40,8 @@ export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
       { id: "crates", label: "crates.io" },
       { id: "dockerhub", label: "Docker Hub" },
       { id: "huggingface", label: "Hugging Face" },
+      { id: "jsr", label: "JSR" },
+      { id: "denoland", label: "deno.land" },
       { id: "nuget", label: "NuGet" },
       { id: "rubygems", label: "RubyGems" },
       { id: "homebrew", label: "Homebrew" },

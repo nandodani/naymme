@@ -12,7 +12,8 @@ questions about a candidate name:
    (`.pt` / `.es` / `.de` / `.fr` / `.uk` / `.eu` / `.co` / `.me` / `.sh` /
    `.so`), as a GitHub user/org,
    as a package on npm/PyPI/NuGet/RubyGems/crates.io/Docker Hub/Homebrew, on
-   Hugging Face, CodePen, Replit, Figma, Dribbble, Behance, Substack,
+   Hugging Face, as a JSR scope, a deno.land/x module, on
+   CodePen, Replit, Figma, Dribbble, Behance, Substack,
    Product Hunt, Telegram or Medium, and as a social handle on
    X, Bluesky, Instagram, Reddit, YouTube and TikTok?
 2. **`score_name`** — how good is it as a brand, deterministically scored
@@ -74,7 +75,8 @@ npm run check        # typecheck + lint + format:check + test + build
   `domain:sh`, `domain:so`, `domain:xyz`, `domain:design`, `domain:store`,
   `domain:work`, `domain:studio`, `domain:tech`, `domain:agency`,
   `domain:space`, `github:user`, `github:org`, `github:repo`,
-  `gitlab`, `npm`, `pypi`, `crates`, `dockerhub`, `huggingface`, `nuget`,
+  `gitlab`, `npm`, `pypi`, `crates`, `dockerhub`, `huggingface`, `jsr`,
+  `denoland`, `nuget`,
   `rubygems`, `homebrew`, `codepen`, `replit`, `vercel`, `netlify`,
   `cloudflare`, `flyio`, `railway`, `supabase`, `appstore`, `figma`, `dribbble`,
   `behance`, `substack`, `producthunt`, `telegram`, `medium`,

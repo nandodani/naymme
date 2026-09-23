@@ -152,3 +152,56 @@ export function createDockerHubAdapter(deps: ProviderDeps): ProviderAdapter {
     },
   };
 }
+
+/**
+ * JSR scope check via the management API `api.jsr.io/scopes/{name}`:
+ * 200 → taken, 404 → available. The scope is the claimable namespace on
+ * JSR — every package lives under one as `@{scope}/{package}`. The API
+ * answers 400 for malformed scope names, but `PROVIDER_NAME_RULES`
+ * rejects those locally before any request.
+ */
+export function createJsrAdapter(deps: ProviderDeps): ProviderAdapter {
+  return {
+    id: "jsr",
+    async check(name, signal): Promise<ProviderOutcome> {
+      const subject = `@${name}`;
+      const invalidName = invalidOutcome("jsr", name, subject);
+      if (invalidName !== null) return invalidName;
+      const url = `https://api.jsr.io/scopes/${encodeURIComponent(name)}`;
+      const res = await safeFetch(deps, url, signal, { accept: "application/json" });
+      if (!res) return unknown(subject, "request failed");
+      if (res.status === 404) {
+        return available(subject, `https://jsr.io/@${name}`);
+      }
+      if (res.status === 200) {
+        return taken(subject, `https://jsr.io/@${name}`);
+      }
+      return unknown(subject, `JSR API returned HTTP ${res.status}`);
+    },
+  };
+}
+
+/**
+ * deno.land/x module check via the registry CDN
+ * `cdn.deno.land/{name}/meta/versions.json` — the endpoint the Deno CLI
+ * itself resolves: 200 → taken, 404 → available, else `unknown`.
+ */
+export function createDenoLandAdapter(deps: ProviderDeps): ProviderAdapter {
+  return {
+    id: "denoland",
+    async check(name, signal): Promise<ProviderOutcome> {
+      const invalidName = invalidOutcome("denoland", name);
+      if (invalidName !== null) return invalidName;
+      const url = `https://cdn.deno.land/${encodeURIComponent(name)}/meta/versions.json`;
+      const res = await safeFetch(deps, url, signal, { accept: "application/json" });
+      if (!res) return unknown(name, "request failed");
+      if (res.status === 404) {
+        return available(name, `https://deno.land/x/${name}`);
+      }
+      if (res.status === 200) {
+        return taken(name, `https://deno.land/x/${name}`);
+      }
+      return unknown(name, `deno.land CDN returned HTTP ${res.status}`);
+    },
+  };
+}

@@ -208,6 +208,18 @@ export const PROVIDER_NAME_RULES: Readonly<Record<ProviderId, NameRule>> = {
   huggingface: handleRule("Hugging Face name", 2, 64, /[A-Za-z0-9_-]/, UNDERSCORE_HANDLE_LABEL, [
     START_ALNUM,
   ]),
+  jsr: handleRule("JSR scope name", 2, 20, /[a-z0-9-]/, "lowercase letters, digits and hyphens", [
+    START_LETTER,
+    END_ALNUM,
+    NO_DOUBLE_HYPHEN,
+  ]),
+  denoland: handleRule(
+    "deno.land module name",
+    3,
+    40,
+    /[a-z0-9_]/,
+    "lowercase letters, digits and underscores",
+  ),
   nuget: handleRule("NuGet package id", 1, 128, /[A-Za-z0-9._-]/, GENERIC_HANDLE_LABEL, [
     START_ALNUM,
   ]),
