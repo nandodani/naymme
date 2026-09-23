@@ -52,13 +52,13 @@ export function demoAvailabilityService(): AvailabilityService {
 }
 
 /**
- * Pick the service from the environment. `LMKURNAME_AVAILABILITY_MODE=demo`
+ * Pick the service from the environment. `NAYMME_AVAILABILITY_MODE=demo`
  * switches the whole endpoint to the deterministic fixture provider.
  */
 export function availabilityServiceFromEnv(
   env: Record<string, string | undefined> = process.env,
 ): AvailabilityService {
-  return env.LMKURNAME_AVAILABILITY_MODE === "demo"
+  return env.NAYMME_AVAILABILITY_MODE === "demo"
     ? demoAvailabilityService()
     : liveAvailabilityService();
 }

@@ -4,7 +4,7 @@ import { SITE_DESCRIPTION, SITE_NAME } from "./site.js";
 export const OG_IMAGE_SIZE = { width: 1200, height: 630 } as const;
 
 export const OG_CARD_ALT =
-  "lmkurname — check name availability across domains, code registries, and social handles";
+  "naymme — check name availability across domains, code registries, and social handles";
 
 /**
  * Social-card markup rendered by app/opengraph-image and
@@ -50,7 +50,7 @@ export function OgCard() {
               fontSize: 24,
             }}
           >
-            L
+            n
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
             <span style={{ color: "#fafafa", fontSize: 28, letterSpacing: -0.5 }}>{SITE_NAME}</span>
@@ -99,7 +99,7 @@ export function OgCard() {
             </span>
           ))}
           <span style={{ color: "#52525b", fontSize: 22, marginLeft: "auto" }}>
-            name-check-mcp.vercel.app
+            naymme.vercel.app
           </span>
         </div>
       </div>

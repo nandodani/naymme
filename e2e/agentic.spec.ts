@@ -28,7 +28,7 @@ test.describe("markdown content negotiation", () => {
       const body = await res.text();
       expect(body.startsWith("# ")).toBe(true);
       expect(body.length).toBeGreaterThanOrEqual(500);
-      expect(body).toContain("lmkurname");
+      expect(body).toContain("naymme");
     });
 
     test(`${path} still serves HTML to browsers`, async ({ request }) => {
@@ -119,7 +119,7 @@ test.describe("machine-readable files", () => {
   test(".well-known/mcp lists the tools and streamable-http transport", async ({ request }) => {
     const res = await request.get("/.well-known/mcp");
     const body = await res.json();
-    expect(body.name).toBe("lmkurname");
+    expect(body.name).toBe("naymme");
     expect(JSON.stringify(body)).toContain("streamable-http");
     expect(body.tools.map((t: { name: string }) => t.name)).toEqual(
       expect.arrayContaining(["check_availability", "score_name"]),
@@ -144,7 +144,7 @@ test.describe("machine-readable files", () => {
       },
     });
     expect(res.status()).toBe(200);
-    expect(await res.text()).toContain("lmkurname");
+    expect(await res.text()).toContain("naymme");
   });
 });
 
@@ -189,7 +189,7 @@ test.describe("agent discovery endpoints", () => {
     const body = await res.json();
     expect(Array.isArray(body.linkset)).toBe(true);
     expect(body.linkset[0]["service-desc"].map((l: { href: string }) => l.href)).toContain(
-      "https://name-check-mcp.vercel.app/openapi.json",
+      "https://naymme.vercel.app/openapi.json",
     );
   });
 
@@ -197,7 +197,7 @@ test.describe("agent discovery endpoints", () => {
     const res = await request.get("/.well-known/mcp/server-card.json");
     expect(res.status()).toBe(200);
     const card = await res.json();
-    expect(card.serverInfo.name).toBe("lmkurname");
+    expect(card.serverInfo.name).toBe("naymme");
     expect(card.transport).toEqual({ type: "streamable-http", endpoint: "/api/mcp" });
     expect(card.tools).toEqual(["check_availability", "score_name"]);
     expect(card.authentication.required).toBe(false);
@@ -251,11 +251,11 @@ test.describe("agent discovery endpoints", () => {
       expect(res.headers()["content-type"], path).toContain("application/json");
       expect(res.headers()["access-control-allow-origin"], path).toBe("*");
       const doc = await res.json();
-      expect(doc.resource, path).toBe("https://name-check-mcp.vercel.app");
-      expect(doc.authorization_servers, path).toEqual(["https://name-check-mcp.vercel.app"]);
+      expect(doc.resource, path).toBe("https://naymme.vercel.app");
+      expect(doc.authorization_servers, path).toEqual(["https://naymme.vercel.app"]);
       expect(doc.scopes_supported, path).toEqual(["public:read"]);
       expect(doc.bearer_methods_supported, path).toEqual(["header"]);
-      expect(doc.resource_documentation, path).toBe("https://name-check-mcp.vercel.app/docs");
+      expect(doc.resource_documentation, path).toBe("https://naymme.vercel.app/docs");
     }
   });
 
@@ -315,7 +315,7 @@ test.describe("versioned API + agent headers", () => {
     const status = await request.get("/api/v1/mcp");
     expect(status.status()).toBe(200);
     expect(status.headers()["api-version"]).toBe("1");
-    expect((await status.json()).name).toBe("lmkurname");
+    expect((await status.json()).name).toBe("naymme");
   });
 
   test("unversioned /api/* responses carry the same headers", async ({ request }) => {
@@ -364,7 +364,7 @@ test.describe("versioned API + agent headers", () => {
 
     const mcp = await request.get("/v1/mcp");
     expect(mcp.status()).toBe(200);
-    expect((await mcp.json()).name).toBe("lmkurname");
+    expect((await mcp.json()).name).toBe("naymme");
   });
 
   test("unmapped /api/* and /v1/* paths return a JSON 404 envelope (not HTML)", async ({

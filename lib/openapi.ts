@@ -208,7 +208,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
       title: `${SITE_NAME} API`,
       version: SERVER_VERSION,
       description:
-        "lmkurname checks a candidate name's availability across 61 providers (domains, GitHub, npm and other registries, hosted subdomains, stores and socials) and scores it deterministically for brand quality. Public API — no authentication; the API is version 1 (/api/v1/* is canonical, unversioned /api/* are aliases — API-Version: 1 on every response). Errors use {error:{code,message,hint}}; responses carry RFC RateLimit headers (RateLimit-Limit/Remaining/Reset), documented with rate limits in /auth.md.",
+        "naymme checks a candidate name's availability across 61 providers (domains, GitHub, npm and other registries, hosted subdomains, stores and socials) and scores it deterministically for brand quality. Public API — no authentication; the API is version 1 (/api/v1/* is canonical, unversioned /api/* are aliases — API-Version: 1 on every response). Errors use {error:{code,message,hint}}; responses carry RFC RateLimit headers (RateLimit-Limit/Remaining/Reset), documented with rate limits in /auth.md.",
       contact: { name: "nandodani", url: "https://nandodani.dev" },
       "x-api-version": "1.0.0",
       "x-deprecation-policy":

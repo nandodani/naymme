@@ -1,4 +1,4 @@
-# lmkurname
+# naymme
 
 A web app and MCP (Model Context Protocol) server that answers two
 questions about a candidate name:
@@ -226,7 +226,7 @@ report `unknown`.
 
 ### Demo mode
 
-Set `LMKURNAME_AVAILABILITY_MODE=demo` to answer availability checks with
+Set `NAYMME_AVAILABILITY_MODE=demo` to answer availability checks with
 **deterministic fixture data** (a pure function of provider + name — no
 network, no credentials). Every response then carries `"mode": "demo"` and
 the UI badges the grid as demo data. Default (unset or any other value) is
@@ -241,16 +241,16 @@ the UI badges the grid as demo data. Default (unset or any other value) is
 ```json
 {
   "mcpServers": {
-    "lmkurname": {
+    "naymme": {
       "command": "node",
-      "args": ["/absolute/path/to/name-check-mcp/dist/index.js"]
+      "args": ["/absolute/path/to/naymme/dist/index.js"]
     }
   }
 }
 ```
 
 (Run `npm run build` first. Or use `"command": "npx", "args": ["tsx",
-"/absolute/path/to/name-check-mcp/src/index.ts"]` to skip the build.)
+"/absolute/path/to/naymme/src/index.ts"]` to skip the build.)
 
 ### Claude Desktop
 
@@ -260,9 +260,9 @@ the UI badges the grid as demo data. Default (unset or any other value) is
 ```json
 {
   "mcpServers": {
-    "lmkurname": {
+    "naymme": {
       "command": "node",
-      "args": ["/absolute/path/to/name-check-mcp/dist/index.js"]
+      "args": ["/absolute/path/to/naymme/dist/index.js"]
     }
   }
 }
@@ -279,7 +279,7 @@ snippets for you.
 ```json
 {
   "mcpServers": {
-    "lmkurname": {
+    "naymme": {
       "url": "https://<your-deployment>/api/mcp"
     }
   }
@@ -293,7 +293,7 @@ Claude Desktop's config speaks stdio only, so bridge through `mcp-remote`:
 ```json
 {
   "mcpServers": {
-    "lmkurname": {
+    "naymme": {
       "command": "npx",
       "args": ["mcp-remote", "https://<your-deployment>/api/mcp"]
     }
@@ -354,11 +354,11 @@ Works on Render/Fly.io/Railway/a VPS — anywhere a Node process stays alive.
 
 ## Environment variables
 
-| Var                           | Default   | Used by                                 |
-| ----------------------------- | --------- | --------------------------------------- |
-| `PORT`                        | `3000`    | HTTP server (`start:http`)              |
-| `HOST`                        | `0.0.0.0` | HTTP server (`start:http`)              |
-| `LMKURNAME_AVAILABILITY_MODE` | `live`    | `/api/availability` (`demo` → fixtures) |
+| Var                        | Default   | Used by                                 |
+| -------------------------- | --------- | --------------------------------------- |
+| `PORT`                     | `3000`    | HTTP server (`start:http`)              |
+| `HOST`                     | `0.0.0.0` | HTTP server (`start:http`)              |
+| `NAYMME_AVAILABILITY_MODE` | `live`    | `/api/availability` (`demo` → fixtures) |
 
 No API keys required. GitHub checks run unauthenticated (60 req/hour per
 IP); the GitHub provider degrades to `unknown` when rate-limited.

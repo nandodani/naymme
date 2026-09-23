@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import { buildMcpConfigs, claudeCodeCommand } from "../lib/mcp-config.js";
 import { buildClientGuides } from "../lib/mcp-guides.js";
 
-const ENDPOINT = "https://lmkurname.vercel.app/api/mcp";
+const ENDPOINT = "https://naymme.vercel.app/api/mcp";
 
 describe("client guides", () => {
   it("covers every supported client plus the catch-all 'other' tab", () => {
     const guideIds = buildClientGuides(ENDPOINT).map((g) => g.id);
-    const configIds = buildMcpConfigs("https://lmkurname.vercel.app").clients.map((c) => c.id);
+    const configIds = buildMcpConfigs("https://naymme.vercel.app").clients.map((c) => c.id);
     expect(new Set(guideIds).size).toBe(guideIds.length);
     for (const id of configIds) {
       expect(guideIds).toContain(id);

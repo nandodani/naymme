@@ -114,7 +114,7 @@ describe("/.well-known/mcp/server-card.json", () => {
     };
     expect(card.$schema).toContain("modelcontextprotocol");
     expect(card.protocolVersion).toBe("2025-06-18");
-    expect(card.serverInfo.name).toBe("lmkurname");
+    expect(card.serverInfo.name).toBe("naymme");
     expect(card.transport).toEqual({ type: "streamable-http", endpoint: "/api/mcp" });
     expect(card.capabilities.tools).toBeDefined();
     expect(card.authentication.required).toBe(false);
@@ -184,16 +184,16 @@ describe("/.well-known/ai-catalog.json", () => {
       }[];
     };
     expect(catalog.specVersion).toBeTruthy();
-    expect(catalog.host.identifier).toBe("name-check-mcp.vercel.app");
+    expect(catalog.host.identifier).toBe("naymme.vercel.app");
     for (const entry of catalog.entries) {
-      expect(entry.identifier).toMatch(/^urn:air:name-check-mcp\.vercel\.app:/);
+      expect(entry.identifier).toMatch(/^urn:air:naymme\.vercel\.app:/);
       expect(entry.displayName.length).toBeGreaterThan(0);
       expect(entry.mediaType).toMatch(/^[a-z]+\/[a-z0-9.+-]+$/i);
       expect(entry.url).toMatch(/^https:\/\//);
       expect(entry.representativeQueries.length).toBeGreaterThan(0);
     }
     const identifiers = catalog.entries.map((e) => e.identifier);
-    expect(identifiers).toContain("urn:air:name-check-mcp.vercel.app:tools:check");
+    expect(identifiers).toContain("urn:air:naymme.vercel.app:tools:check");
   });
 });
 
@@ -255,12 +255,12 @@ describe("DNS-AID documentation", () => {
   it("documents _index._agents + agent ServiceMode records with required params", () => {
     for (const text of [dnsAid, zone]) {
       expect(text).toContain("_index._agents");
-      expect(text).toContain("lmkurname._agents");
+      expect(text).toContain("naymme._agents");
       expect(text).toContain("SVCB");
       expect(text).toContain('alpn="h2"');
       expect(text).toContain('bap="mcp"');
       expect(text).toContain('well-known="mcp/server-card.json"');
-      expect(text).toContain("name-check-mcp.vercel.app");
+      expect(text).toContain("naymme.vercel.app");
     }
     // Skill requirements: HTTPS variant, numeric keyNNNNN guidance, DNSSEC,
     // and the explicit vercel.app zone-control limitation.

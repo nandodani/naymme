@@ -13,7 +13,7 @@ import {
   type RateLimiter,
   type RateLimitVerdict,
 } from "../src/security.js";
-import { createNameCheckServer, SERVER_NAME, SERVER_VERSION } from "../src/server.js";
+import { createNaymmeServer, SERVER_NAME, SERVER_VERSION } from "../src/server.js";
 
 /**
  * Web-standard (Request/Response) stateless Streamable-HTTP handler for the
@@ -137,7 +137,7 @@ async function dispatch(
   deps: ProviderDeps,
   verdict: RateLimitVerdict,
 ): Promise<Response> {
-  const server = createNameCheckServer(deps);
+  const server = createNaymmeServer(deps);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
   });

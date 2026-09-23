@@ -6,7 +6,7 @@ Schemas live in [`src/schemas.ts`](../src/schemas.ts); tool registration in
 
 ## MCP tools
 
-Two tools, registered by `createNameCheckServer` (name `lmkurname`, version
+Two tools, registered by `createNaymmeServer` (name `naymme`, version
 `0.1.0`). Results are returned both as text JSON and `structuredContent`.
 
 ### `check_availability`
@@ -86,14 +86,14 @@ Deterministic brand score — no lookups, same input → same output.
 
 ### Next.js app (`npm run dev:web` / deployed app)
 
-| Route                                        | Method  | Response                                                                                                                                                                                                       |
-| -------------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                                          | GET     | Checker UI                                                                                                                                                                                                     |
-| `/api/availability?name=<n>[&providers=a,b]` | GET     | `CheckAvailabilityOutput` **plus** `"mode": "live" \| "demo"` — `demo` serves deterministic fixtures (`LMKURNAME_AVAILABILITY_MODE=demo`). `400` invalid input, `502` check failure. `cache-control: no-store` |
-| `/api/score?name=<n>`                        | GET     | `ScoreNameOutput` JSON. `400` invalid input                                                                                                                                                                    |
-| `/api/mcp`                                   | POST    | Stateless Streamable-HTTP MCP — JSON-RPC, SSE-framed unless the client asks for JSON only                                                                                                                      |
-| `/api/mcp`                                   | GET     | Status doc `{ ok, name, version, transport, usage }` — `/health` and `/mcp` rewrite to the same route                                                                                                          |
-| `/api/mcp`                                   | OPTIONS | CORS preflight (`access-control-allow-*: *` for read/write, MCP headers exposed)                                                                                                                               |
+| Route                                        | Method  | Response                                                                                                                                                                                                    |
+| -------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                                          | GET     | Checker UI                                                                                                                                                                                                  |
+| `/api/availability?name=<n>[&providers=a,b]` | GET     | `CheckAvailabilityOutput` **plus** `"mode": "live" \| "demo"` — `demo` serves deterministic fixtures (`NAYMME_AVAILABILITY_MODE=demo`). `400` invalid input, `502` check failure. `cache-control: no-store` |
+| `/api/score?name=<n>`                        | GET     | `ScoreNameOutput` JSON. `400` invalid input                                                                                                                                                                 |
+| `/api/mcp`                                   | POST    | Stateless Streamable-HTTP MCP — JSON-RPC, SSE-framed unless the client asks for JSON only                                                                                                                   |
+| `/api/mcp`                                   | GET     | Status doc `{ ok, name, version, transport, usage }` — `/health` and `/mcp` rewrite to the same route                                                                                                       |
+| `/api/mcp`                                   | OPTIONS | CORS preflight (`access-control-allow-*: *` for read/write, MCP headers exposed)                                                                                                                            |
 
 ### Standalone Node HTTP (`npm run dev:http` / `start:http`, `PORT`/`HOST`)
 

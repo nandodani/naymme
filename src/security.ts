@@ -175,7 +175,7 @@ export class RateLimiter {
   }
 }
 
-/** Requests-per-minute limits per endpoint, tunable via `LMKURNAME_RATE_LIMIT_RPM`. */
+/** Requests-per-minute limits per endpoint, tunable via `NAYMME_RATE_LIMIT_RPM`. */
 export const RATE_LIMITS = {
   /** Fans out up to ~60 upstream calls per request — the expensive one. */
   availability: 30,
@@ -188,7 +188,7 @@ export const RATE_LIMITS = {
 } as const;
 
 /**
- * Build a limiter from the environment. `LMKURNAME_RATE_LIMIT_RPM` overrides
+ * Build a limiter from the environment. `NAYMME_RATE_LIMIT_RPM` overrides
  * the per-endpoint default; a non-positive value disables limiting (the
  * returned limiter allows everything).
  */
@@ -196,7 +196,7 @@ export function rateLimiterFromEnv(
   defaultRpm: number,
   env: Record<string, string | undefined>,
 ): RateLimiter {
-  const override = Number(env.LMKURNAME_RATE_LIMIT_RPM);
+  const override = Number(env.NAYMME_RATE_LIMIT_RPM);
   const rpm = Number.isFinite(override) && override > 0 ? override : defaultRpm;
   return new RateLimiter({ windowMs: 60_000, max: Math.max(1, Math.floor(rpm)) });
 }

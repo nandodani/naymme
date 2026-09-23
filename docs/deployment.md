@@ -58,20 +58,20 @@ Render, Fly.io, Railway, a VPS. Not serverless-compatible for `/sse`.
 
 ## 4. stdio server — local MCP clients
 
-`dist/index.js` is the published `lmkurname` bin. Point Claude Desktop /
+`dist/index.js` is the published `naymme` bin. Point Claude Desktop /
 Cursor at it (config snippets in README "Use it locally"):
 
 ```json
-{ "mcpServers": { "lmkurname": { "command": "node", "args": ["/abs/path/dist/index.js"] } } }
+{ "mcpServers": { "naymme": { "command": "node", "args": ["/abs/path/dist/index.js"] } } }
 ```
 
 ## Environment variables
 
-| Var                           | Default   | Used by                                                    |
-| ----------------------------- | --------- | ---------------------------------------------------------- |
-| `PORT`                        | `3000`    | `start:http`                                               |
-| `HOST`                        | `0.0.0.0` | `start:http`                                               |
-| `LMKURNAME_AVAILABILITY_MODE` | `live`    | `/api/availability` — `demo` serves deterministic fixtures |
+| Var                        | Default   | Used by                                                    |
+| -------------------------- | --------- | ---------------------------------------------------------- |
+| `PORT`                     | `3000`    | `start:http`                                               |
+| `HOST`                     | `0.0.0.0` | `start:http`                                               |
+| `NAYMME_AVAILABILITY_MODE` | `live`    | `/api/availability` — `demo` serves deterministic fixtures |
 
 No API keys are required anywhere — all provider checks are unauthenticated.
 

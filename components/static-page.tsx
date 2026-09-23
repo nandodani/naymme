@@ -23,10 +23,10 @@ export function StaticPage({ content }: { content: PageContent }) {
         <div className="mx-auto flex h-14 w-full max-w-3xl items-center gap-3 px-4 sm:px-6">
           <a
             href="/"
-            aria-label="lmkurname home"
+            aria-label="naymme home"
             className="rounded-md font-mono text-[13px] font-semibold tracking-tight text-zinc-100 outline-none transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-ring"
           >
-            lmkurname
+            naymme
           </a>
           <nav aria-label="Site" className="ml-auto flex items-center gap-4">
             {NAV_LINKS.map((link) => (

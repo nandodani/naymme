@@ -78,7 +78,7 @@ serverless or Workers. Use `POST /mcp` for remote clients.
 
 ## Getting deterministic results locally
 
-`LMKURNAME_AVAILABILITY_MODE=demo` switches `/api/availability` (and the web
+`NAYMME_AVAILABILITY_MODE=demo` switches `/api/availability` (and the web
 UI) to deterministic FNV-1a fixtures — same input → same output, no network,
 no rate limits. Responses carry `"mode": "demo"` and the grid is badged.
 That's what Playwright e2e and offline dev use; unset the var for live checks.

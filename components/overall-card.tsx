@@ -139,7 +139,7 @@ function markdownSummary(
 ): string {
   const a = overall.availability;
   const lines = [
-    `## lmkurname — ${name}`,
+    `## naymme — ${name}`,
     `**${overall.score}% overall availability** — ${a.free}/${a.checked} free${a.unresolved > 0 ? ` · ${a.unresolved} unresolved` : ""}${a.pending > 0 ? ` · ${a.pending} checking` : ""}`,
     "",
     "| Category | Free | Checked | % |",

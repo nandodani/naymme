@@ -26,7 +26,7 @@ export interface McpConfigs {
   clients: readonly McpClientConfig[];
 }
 
-const SERVER_KEY = "lmkurname";
+const SERVER_KEY = "naymme";
 
 /** Strip trailing slashes and append the endpoint path exactly once. */
 export function mcpEndpointUrl(baseUrl: string): string {

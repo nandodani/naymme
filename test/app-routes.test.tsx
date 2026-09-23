@@ -13,12 +13,12 @@ const MCP_HEADERS = {
 };
 
 afterEach(() => {
-  delete process.env.LMKURNAME_AVAILABILITY_MODE;
+  delete process.env.NAYMME_AVAILABILITY_MODE;
 });
 
 describe("app/api/availability route", () => {
-  it("delegates to the demo service when LMKURNAME_AVAILABILITY_MODE=demo", async () => {
-    process.env.LMKURNAME_AVAILABILITY_MODE = "demo";
+  it("delegates to the demo service when NAYMME_AVAILABILITY_MODE=demo", async () => {
+    process.env.NAYMME_AVAILABILITY_MODE = "demo";
     const res = await availabilityGET(
       new Request("https://app.test/api/availability?name=acme&providers=npm,domain:com"),
     );
@@ -51,7 +51,7 @@ describe("app/api/mcp route", () => {
   it("GET returns the status document", async () => {
     const res = mcpGET(new Request("https://app.test/api/mcp"));
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ ok: true, name: "lmkurname" });
+    expect(await res.json()).toMatchObject({ ok: true, name: "naymme" });
   });
 
   it("OPTIONS answers CORS preflight", () => {
@@ -78,7 +78,7 @@ describe("app/api/mcp route", () => {
       }),
     );
     expect(res.status).toBe(200);
-    expect(await res.text()).toContain("lmkurname");
+    expect(await res.text()).toContain("naymme");
   });
 });
 

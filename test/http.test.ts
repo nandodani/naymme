@@ -51,7 +51,7 @@ describe("HTTP transport — streamable /mcp", () => {
     });
     expect(status).toBe(200);
     const msg = messages[0] as { result: { serverInfo: { name: string } } };
-    expect(msg.result.serverInfo.name).toBe("lmkurname");
+    expect(msg.result.serverInfo.name).toBe("naymme");
   });
 
   it("answers tools/call for score_name", async () => {
@@ -73,7 +73,7 @@ describe("HTTP transport — misc", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { ok: boolean; name: string };
     expect(body.ok).toBe(true);
-    expect(body.name).toBe("lmkurname");
+    expect(body.name).toBe("naymme");
   });
 
   it("GET / is a 404", async () => {

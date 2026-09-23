@@ -7,7 +7,7 @@ import { CREDIT_GROUPS } from "@/lib/credits.js";
 export const metadata: Metadata = {
   title: "Credits",
   description:
-    "Credits and attributions — the open-source libraries, fonts, and creative assets lmkurname is built on.",
+    "Credits and attributions — the open-source libraries, fonts, and creative assets naymme is built on.",
   alternates: { canonical: "/credits" },
 };
 
@@ -31,10 +31,10 @@ export default function CreditsPage() {
         <div className="mx-auto flex h-14 w-full max-w-3xl items-center gap-3 px-4 sm:px-6">
           <a
             href="/"
-            aria-label="lmkurname home"
+            aria-label="naymme home"
             className="rounded-md font-mono text-[13px] font-semibold tracking-tight text-zinc-100 outline-none transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-ring"
           >
-            lmkurname
+            naymme
           </a>
           <a
             href="/"
@@ -54,7 +54,7 @@ export default function CreditsPage() {
           Credits
         </h1>
         <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-zinc-400">
-          lmkurname stands on open source. These are the libraries, fonts, and creative assets that
+          naymme stands on open source. These are the libraries, fonts, and creative assets that
           make it work — each links to its project.
         </p>
 

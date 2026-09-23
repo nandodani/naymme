@@ -9,7 +9,7 @@ import type { AvailabilityResult } from "../src/types.js";
  * previews without network egress). Every answer is a pure function of
  * `provider + name` — the same input always yields the same result — and each
  * result is labelled `demo` so the UI can flag it honestly. Swap it out by
- * pointing `LMKURNAME_AVAILABILITY_MODE` back at `live` (the default).
+ * pointing `NAYMME_AVAILABILITY_MODE` back at `live` (the default).
  */
 
 /** FNV-1a 32-bit hash — small, dependency-free, stable across runtimes. */

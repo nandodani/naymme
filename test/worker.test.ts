@@ -46,7 +46,7 @@ describe("worker fetch handler", () => {
       },
     });
     expect(status).toBe(200);
-    expect(messages[0]?.result).toMatchObject({ serverInfo: { name: "lmkurname" } });
+    expect(messages[0]?.result).toMatchObject({ serverInfo: { name: "naymme" } });
   });
 
   it("runs tools/call score_name", async () => {
@@ -66,7 +66,7 @@ describe("worker fetch handler", () => {
     const res = await worker.fetch(new Request("https://worker.test/health"));
     expect(res.status).toBe(200);
     expect(res.headers.get("access-control-allow-origin")).toBe("*");
-    expect(await res.json()).toMatchObject({ ok: true, name: "lmkurname" });
+    expect(await res.json()).toMatchObject({ ok: true, name: "naymme" });
   });
 
   it("answers OPTIONS with CORS headers", async () => {

@@ -128,7 +128,7 @@ describe("JSON-LD", () => {
 describe("og card", () => {
   it("renders the wordmark and summary copy", () => {
     const markup = renderToStaticMarkup(createElement(OgCard));
-    expect(markup).toContain("lmkurname");
+    expect(markup).toContain("naymme");
     expect(markup).toContain("availability");
   });
 

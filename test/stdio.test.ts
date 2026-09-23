@@ -64,7 +64,7 @@ describe("stdio transport (src/index.ts)", () => {
     const init = (await response(1)) as {
       result: { serverInfo: { name: string } };
     };
-    expect(init.result.serverInfo.name).toBe("lmkurname");
+    expect(init.result.serverInfo.name).toBe("naymme");
 
     send({ jsonrpc: "2.0", method: "notifications/initialized" });
     send({

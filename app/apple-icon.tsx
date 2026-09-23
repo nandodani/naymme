@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og.js";
 
-// Apple touch icon — same mark as app/icon.svg (white L + emerald dot on
+// Apple touch icon — same mark as app/icon.svg (white n + emerald dot on
 // a hairline-bordered black tile) as a PNG for clients that need one.
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
@@ -21,7 +21,7 @@ export default function AppleIcon() {
       }}
     >
       <div style={{ display: "flex", alignItems: "baseline", color: "#fafafa", fontSize: 96 }}>
-        L
+        n
         <span
           style={{
             width: 14,

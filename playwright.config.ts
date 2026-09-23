@@ -19,7 +19,7 @@ export default defineConfig({
   },
   webServer: {
     command: "npm run start:web -- -p 3210",
-    env: { LMKURNAME_AVAILABILITY_MODE: "demo" },
+    env: { NAYMME_AVAILABILITY_MODE: "demo" },
     url: "http://127.0.0.1:3210",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

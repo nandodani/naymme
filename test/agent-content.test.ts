@@ -30,7 +30,7 @@ describe("page content catalog", () => {
 
   it("every page copy mentions the product name", () => {
     for (const page of Object.values(PAGE_CONTENTS)) {
-      expect(pageContentToMarkdown(page)).toContain("lmkurname");
+      expect(pageContentToMarkdown(page)).toContain("naymme");
     }
   });
 });

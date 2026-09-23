@@ -36,7 +36,7 @@ async function copyText(text: string): Promise<void> {
   }
 }
 
-export function NameChecker() {
+export function NaymmeChecker() {
   const [query, setQuery] = useState("");
   /** The name a search was explicitly run for (Enter / Search button / ?q=). */
   const [searchedName, setSearchedName] = useState("");

@@ -17,7 +17,7 @@ DNS-AID uses SVCB (Service Binding, RFC 9460) records — or the equivalent
   of agents.
 
 > **Provider limitation (read first).** The deployment is
-> `name-check-mcp.vercel.app`. `vercel.app` is a provider-owned suffix —
+> `naymme.vercel.app`. `vercel.app` is a provider-owned suffix —
 > its owners cannot publish `_agents`/`_index` names under it, and Vercel
 > does not expose zone control for `*.vercel.app` subdomains. The records
 > below therefore cannot exist until the site is attached to a custom
@@ -41,15 +41,15 @@ own zone. A copy-paste zone file lives at [`dns/dnsaid.zone`](dns/dnsaid.zone).
 ; Organizational agent index — requestors query _index._agents to locate
 ; the catalog of this org's agents. TargetName serves the index document
 ; (/.well-known/api-catalog, an RFC 9264 linkset) over HTTPS.
-_index._agents.nandodani.dev.    3600  IN  SVCB  1  name-check-mcp.vercel.app. (
+_index._agents.nandodani.dev.    3600  IN  SVCB  1  naymme.vercel.app. (
                                       alpn="h2"
                                       port=443
                                       mandatory=alpn,port
                                       well-known="api-catalog" )
 
-; Known agent — the lmkurname MCP server. `bap` marks the agent protocol
+; Known agent — the naymme MCP server. `bap` marks the agent protocol
 ; (mcp); `well-known` is the RFC 8615 path to the SEP-1649 server card.
-lmkurname._agents.nandodani.dev. 3600  IN  SVCB  1  name-check-mcp.vercel.app. (
+naymme._agents.nandodani.dev. 3600  IN  SVCB  1  naymme.vercel.app. (
                                       alpn="h2"
                                       port=443
                                       mandatory=alpn,port
@@ -85,9 +85,9 @@ The skill and draft accept `HTTPS` records for HTTPS endpoints — required
 if your DNS provider exposes only that type name:
 
 ```zone
-_index._agents.nandodani.dev.    3600  IN  HTTPS 1  name-check-mcp.vercel.app. (
+_index._agents.nandodani.dev.    3600  IN  HTTPS 1  naymme.vercel.app. (
                                        alpn="h2" port=443 well-known="api-catalog" )
-lmkurname._agents.nandodani.dev. 3600  IN  HTTPS 1  name-check-mcp.vercel.app. (
+naymme._agents.nandodani.dev. 3600  IN  HTTPS 1  naymme.vercel.app. (
                                        alpn="h2" port=443 bap="mcp"
                                        well-known="mcp/server-card.json" )
 ```
@@ -96,23 +96,23 @@ lmkurname._agents.nandodani.dev. 3600  IN  HTTPS 1  name-check-mcp.vercel.app. (
 
 ### Case A — custom domain attached to the deployment
 
-If the site is later attached to a custom domain (say `lmkurname.dev`),
+If the site is later attached to a custom domain (say `naymme.dev`),
 publish the same two records under that zone with `TargetName` set to the
-custom domain itself (or keep `name-check-mcp.vercel.app.` — both resolve
+custom domain itself (or keep `naymme.vercel.app.` — both resolve
 to the service).
 
 ### Case B — records under a domain you control (works today)
 
 No custom domain needed: publish the records under `nandodani.dev` (or
-any zone you control). `TargetName` stays `name-check-mcp.vercel.app.` —
+any zone you control). `TargetName` stays `naymme.vercel.app.` —
 the draft explicitly supports hosting on a service-provider domain.
 
 ### Provider notes
 
 - **Cloudflare DNS** — full `SVCB` + `HTTPS` support and one-click
   DNSSEC: DNS → Records → Add record, type `SVCB`, name
-  `_index._agents`, value `1 name-check-mcp.vercel.app. alpn="h2" port=443 mandatory=alpn,port well-known="api-catalog"`;
-  repeat for `lmkurname._agents` with `bap="mcp"`. Enable DNSSEC under
+  `_index._agents`, value `1 naymme.vercel.app. alpn="h2" port=443 mandatory=alpn,port well-known="api-catalog"`;
+  repeat for `naymme._agents` with `bap="mcp"`. Enable DNSSEC under
   DNS → Settings.
 - **Vercel DNS** — supports `HTTPS` records (RFC 9460) but not the `SVCB`
   type name; use the HTTPS-record variant. If its record editor rejects
@@ -126,14 +126,14 @@ the draft explicitly supports hosting on a service-provider domain.
 
 ```sh
 dig SVCB _index._agents.nandodani.dev +dnssec
-dig SVCB lmkurname._agents.nandodani.dev +dnssec
-curl -s https://name-check-mcp.vercel.app/.well-known/api-catalog
-curl -s https://name-check-mcp.vercel.app/.well-known/mcp/server-card.json
+dig SVCB naymme._agents.nandodani.dev +dnssec
+curl -s https://naymme.vercel.app/.well-known/api-catalog
+curl -s https://naymme.vercel.app/.well-known/mcp/server-card.json
 ```
 
 The auditor re-checks via DNS-over-HTTPS (Cloudflare resolver with
 dns.google fallback): `POST https://isitagentready.com/api/scan` with
-`{"url": "https://name-check-mcp.vercel.app"}` →
+`{"url": "https://naymme.vercel.app"}` →
 `checks.discoverability.dnsAid.status` becomes `"pass"` once the records
 are live under a domain the scan can reach. Records under `vercel.app`
 are impossible — see the provider limitation above.

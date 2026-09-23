@@ -87,7 +87,7 @@ describe("/api/v1 aliases", () => {
     expect(res.headers.get("api-version")).toBe("1");
     expect(res.headers.get("ratelimit-limit")).toBeTruthy();
     const body = (await res.json()) as { name: string; transport: string };
-    expect(body.name).toBe("lmkurname");
+    expect(body.name).toBe("naymme");
     expect(body.transport).toBe("streamable-http");
   });
 
@@ -270,7 +270,7 @@ describe("JSON-LD discoverability", () => {
     const graph = jsonLdGraph()["@graph"] as { "@type": string; name?: string; url?: string }[];
     const api = graph.find((node) => node["@type"] === "APIReference");
     expect(api).toBeDefined();
-    expect(api?.name).toContain("lmkurname");
+    expect(api?.name).toContain("naymme");
     expect(api?.url).toContain("openapi.json");
   });
 });

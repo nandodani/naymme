@@ -14,10 +14,10 @@ import {
   type RateLimiter,
   type RateLimitVerdict,
 } from "./security.js";
-import { createNameCheckServer, SERVER_NAME, SERVER_VERSION } from "./server.js";
+import { createNaymmeServer, SERVER_NAME, SERVER_VERSION } from "./server.js";
 
 interface SseSession {
-  server: ReturnType<typeof createNameCheckServer>;
+  server: ReturnType<typeof createNaymmeServer>;
   transport: SSEServerTransport;
 }
 
@@ -67,7 +67,7 @@ export function createHttpServer(options: HttpServerOptions = {}): http.Server {
   const sseSessions = new Map<string, SseSession>();
   const maxSseSessions = options.maxSseSessions ?? MAX_SSE_SESSIONS;
   const limiter = options.limiter ?? rateLimiterFromEnv(RATE_LIMITS.mcp, process.env);
-  const trustProxy = process.env.LMKURNAME_TRUST_PROXY === "1";
+  const trustProxy = process.env.NAYMME_TRUST_PROXY === "1";
   const transportOptions: StatelessTransportOptions =
     options.allowedHosts !== undefined
       ? { enableDnsRebindingProtection: true, allowedHosts: options.allowedHosts }
@@ -150,7 +150,7 @@ export function createHttpServer(options: HttpServerOptions = {}): http.Server {
           );
           return;
         }
-        const server = createNameCheckServer(defaultDeps());
+        const server = createNaymmeServer(defaultDeps());
         const transport = new SSEServerTransport("/messages", res, transportOptions);
         sseSessions.set(transport.sessionId, { server, transport });
         res.on("close", () => {

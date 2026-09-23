@@ -12,7 +12,7 @@ const NOT_FOUND_CONTENT: PageContent = {
   path: "/404",
   title: "404 — page not found",
   description:
-    "That URL does not exist on lmkurname. Nothing is published here — head back to the checker or one of the resources below.",
+    "That URL does not exist on naymme. Nothing is published here — head back to the checker or one of the resources below.",
   sections: [
     {
       links: [

@@ -32,7 +32,7 @@ describe("GET /api/markdown", () => {
     const body = await res.text();
     expect(body.startsWith("# ")).toBe(true);
     expect(body.length).toBeGreaterThanOrEqual(500);
-    expect(body).toContain("lmkurname");
+    expect(body).toContain("naymme");
   });
 
   it.each(["/docs", "/about", "/contact", "/privacy"])("serves %s as markdown", async (path) => {
@@ -41,7 +41,7 @@ describe("GET /api/markdown", () => {
     expect(res.headers.get("content-type")).toContain("text/markdown");
     const body = await res.text();
     expect(body.length).toBeGreaterThanOrEqual(500);
-    expect(body).toContain("lmkurname");
+    expect(body).toContain("naymme");
   });
 
   it("returns a markdown 404 for unknown paths", async () => {
@@ -67,7 +67,7 @@ describe("GET /.well-known/mcp", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("application/json");
     const body = await res.json();
-    expect(body.name).toBe("lmkurname");
+    expect(body.name).toBe("naymme");
     expect(body.tools.map((t: { name: string }) => t.name)).toEqual(
       expect.arrayContaining(["check_availability", "score_name"]),
     );
@@ -93,7 +93,7 @@ describe("GET /.well-known/mcp", () => {
       }),
     );
     expect(res.status).toBe(200);
-    expect(await res.text()).toContain("lmkurname");
+    expect(await res.text()).toContain("naymme");
   });
 
   it("OPTIONS answers the CORS preflight", () => {
@@ -108,7 +108,7 @@ describe("llms.txt files", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/markdown");
     const body = await res.text();
-    expect(body).toContain("# lmkurname");
+    expect(body).toContain("# naymme");
     expect(body).toContain("When to use");
     expect(body).toContain("check_availability");
     expect(body).toContain("/api/mcp");
@@ -138,7 +138,7 @@ describe("static pages", () => {
   ])("%s renders an h1 with >=500 chars of copy", (_label, Page) => {
     const markup = renderToStaticMarkup(createElement(Page));
     expect(markup).toContain("<h1");
-    expect(markup).toContain("lmkurname");
+    expect(markup).toContain("naymme");
     const text = markup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
     expect(text.length).toBeGreaterThanOrEqual(500);
   });

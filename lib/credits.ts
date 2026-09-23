@@ -1,6 +1,6 @@
 /**
  * Credits & attributions data for the /credits page — the third-party
- * libraries, fonts, and creative assets lmkurname is built on. Keep this in
+ * libraries, fonts, and creative assets naymme is built on. Keep this in
  * sync with package.json and public/fonts/.
  */
 
@@ -12,7 +12,7 @@ export interface CreditEntry {
   href: string;
   /** SPDX-style license label shown as a badge ("MIT", "ISC", "OFL-1.1"). */
   license: string;
-  /** One line on how lmkurname uses it. */
+  /** One line on how naymme uses it. */
   usedFor: string;
 }
 

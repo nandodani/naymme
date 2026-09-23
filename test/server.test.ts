@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { defaultDeps } from "../src/deps.js";
-import { createNameCheckServer } from "../src/server.js";
+import { createNaymmeServer } from "../src/server.js";
 
 async function makeClientServer() {
   const deps = defaultDeps({
@@ -12,7 +12,7 @@ async function makeClientServer() {
     npmNameAvailable: async () => true,
     timeoutMs: 50,
   });
-  const server = createNameCheckServer(deps);
+  const server = createNaymmeServer(deps);
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "test-client", version: "0.0.0" });
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);

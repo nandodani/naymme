@@ -20,7 +20,7 @@ interface SearchInputProps {
  * search glyph and a tactile text-only Search button pinned inside the bar.
  * Search only executes on explicit submit — Enter or the button — never
  * while typing. `/` and `⌘K` focus the input from anywhere (wired in
- * NameChecker).
+ * NaymmeChecker).
  */
 export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(function SearchInput(
   { value, onChange, onSubmit, valid, variant = "compact" },

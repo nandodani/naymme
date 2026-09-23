@@ -48,7 +48,7 @@ describe("/api/mcp route", () => {
       },
     });
     expect(status).toBe(200);
-    expect(messages[0]?.result).toMatchObject({ serverInfo: { name: "lmkurname" } });
+    expect(messages[0]?.result).toMatchObject({ serverInfo: { name: "naymme" } });
   });
 
   it("lists both tools", async () => {
@@ -80,7 +80,7 @@ describe("/api/mcp route", () => {
     const res = GET(new Request("https://app.test/api/mcp"));
     expect(res.status).toBe(200);
     expect(res.headers.get("access-control-allow-origin")).toBe("*");
-    expect(await res.json()).toMatchObject({ ok: true, name: "lmkurname" });
+    expect(await res.json()).toMatchObject({ ok: true, name: "naymme" });
   });
 
   it("OPTIONS answers a CORS preflight", async () => {

@@ -9,14 +9,14 @@ import {
 } from "./schemas.js";
 import { checkAvailability } from "./tools/checkAvailability.js";
 
-export const SERVER_NAME = "lmkurname";
+export const SERVER_NAME = "naymme";
 export const SERVER_VERSION = "0.1.0";
 
 /**
  * Build a configured MCP server. One instance is created per transport —
  * and in stateless HTTP mode, per request.
  */
-export function createNameCheckServer(deps: ProviderDeps): McpServer {
+export function createNaymmeServer(deps: ProviderDeps): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
 
   server.registerTool(

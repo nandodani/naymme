@@ -88,8 +88,8 @@ describe("availabilityServiceFromEnv", () => {
     expect(availabilityServiceFromEnv({}).mode).toBe("live");
   });
 
-  it("switches to demo on LMKURNAME_AVAILABILITY_MODE=demo", () => {
-    expect(availabilityServiceFromEnv({ LMKURNAME_AVAILABILITY_MODE: "demo" }).mode).toBe("demo");
+  it("switches to demo on NAYMME_AVAILABILITY_MODE=demo", () => {
+    expect(availabilityServiceFromEnv({ NAYMME_AVAILABILITY_MODE: "demo" }).mode).toBe("demo");
   });
 });
 

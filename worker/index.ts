@@ -10,7 +10,7 @@ import {
   readJsonCapped,
   tooManyRequestsResponse,
 } from "../src/security.js";
-import { createNameCheckServer, SERVER_NAME, SERVER_VERSION } from "../src/server.js";
+import { createNaymmeServer, SERVER_NAME, SERVER_VERSION } from "../src/server.js";
 
 /**
  * Cloudflare Workers entry point — stateless Streamable HTTP at /mcp plus
@@ -110,7 +110,7 @@ function workerDeps(): ProviderDeps {
     rdapBootstrapUrl: "https://data.iana.org/rdap/dns.json",
     githubApiBase: "https://api.github.com",
     timeoutMs: 5000,
-    userAgent: "lmkurname/0.1 (+https://name-check-mcp.vercel.app)",
+    userAgent: "naymme/0.1 (+https://naymme.vercel.app)",
   };
 }
 
@@ -184,7 +184,7 @@ async function handleMcp(request: Request): Promise<Response> {
     );
   }
 
-  const server = createNameCheckServer(workerDeps());
+  const server = createNaymmeServer(workerDeps());
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
   });

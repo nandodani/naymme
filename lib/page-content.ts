@@ -31,13 +31,13 @@ export interface PageContent {
 
 export const HOME_CONTENT: PageContent = {
   path: "/",
-  title: "lmkurname — check your name everywhere",
+  title: "naymme — check your name everywhere",
   description:
-    "lmkurname checks whether a project or brand name is available across domains, developer platforms, package registries and social networks, then scores it for brand quality — from this web UI, a JSON API, or any MCP-compatible AI assistant.",
+    "naymme checks whether a project or brand name is available across domains, developer platforms, package registries and social networks, then scores it for brand quality — from this web UI, a JSON API, or any MCP-compatible AI assistant.",
   sections: [
     {
       paragraphs: [
-        "Type a candidate name once and lmkurname fans out to more than 55 independent providers, each queried live and reported back with its own verdict — available, taken, invalid, or unknown when the source cannot be checked. Beyond availability, it computes a deterministic 0–100 brand score covering punchiness, pronounceability, uniqueness and cleanliness.",
+        "Type a candidate name once and naymme fans out to more than 55 independent providers, each queried live and reported back with its own verdict — available, taken, invalid, or unknown when the source cannot be checked. Beyond availability, it computes a deterministic 0–100 brand score covering punchiness, pronounceability, uniqueness and cleanliness.",
         "Everything the site exposes — the JSON API, the hosted MCP endpoint, the per-provider semantics and the agent surface — is documented on the docs page.",
       ],
       links: [
@@ -59,12 +59,12 @@ export const DOCS_CONTENT: PageContent = {
   path: "/docs",
   title: "Documentation",
   description:
-    "How lmkurname checks a name, what the verdicts mean, and how to call it from the JSON API or an MCP-compatible AI assistant.",
+    "How naymme checks a name, what the verdicts mean, and how to call it from the JSON API or an MCP-compatible AI assistant.",
   sections: [
     {
       heading: "What a check covers",
       paragraphs: [
-        "Type a candidate name once and lmkurname fans out to more than 55 independent providers, each queried live and reported back with its own verdict — available, taken, invalid, or unknown when the source cannot be checked. Nothing is fabricated: a provider only reports available after seeing a verified unclaimed marker such as an RDAP 404, a registry not-found response, or a WHOIS no-match phrase.",
+        "Type a candidate name once and naymme fans out to more than 55 independent providers, each queried live and reported back with its own verdict — available, taken, invalid, or unknown when the source cannot be checked. Nothing is fabricated: a provider only reports available after seeing a verified unclaimed marker such as an RDAP 404, a registry not-found response, or a WHOIS no-match phrase.",
       ],
       list: [
         "Core domains — .com, .net, .org, .io, .dev, .app, .ai, .gg and more, resolved through the RDAP → WHOIS → DNS nameserver chain.",
@@ -80,7 +80,7 @@ export const DOCS_CONTENT: PageContent = {
       heading: "How a check runs",
       list: [
         "Enter a bare name — 1 to 63 characters, starting with a letter or digit, using only ASCII letters, digits, dots, underscores and hyphens.",
-        "lmkurname validates the name against each provider's own rules before any network call, so an illegal handle shows as invalid instead of a false 'taken'.",
+        "naymme validates the name against each provider's own rules before any network call, so an illegal handle shows as invalid instead of a false 'taken'.",
         "All providers run concurrently, each with its own 5-second timeout. A provider that fails or stays inconclusive degrades to 'unknown' — it never fails the batch or invents a verdict.",
         "Available domains surface registrar deep links with rough price estimates; taken subjects link out so you can see who holds them.",
       ],
@@ -88,13 +88,13 @@ export const DOCS_CONTENT: PageContent = {
     {
       heading: "Brand scoring",
       paragraphs: [
-        "Beyond availability, lmkurname computes a deterministic score out of 100 for how a name works as a brand. Punchiness rewards the 5–8 character sweet spot, pronounceability weighs familiar English bigrams and estimated syllables, uniqueness rewards novel coinages over common words, and cleanliness penalizes digits, separators and repeated characters. Same input, same score — every time, with no lookups.",
+        "Beyond availability, naymme computes a deterministic score out of 100 for how a name works as a brand. Punchiness rewards the 5–8 character sweet spot, pronounceability weighs familiar English bigrams and estimated syllables, uniqueness rewards novel coinages over common words, and cleanliness penalizes digits, separators and repeated characters. Same input, same score — every time, with no lookups.",
       ],
     },
     {
       heading: "Use it from your AI assistant",
       paragraphs: [
-        "lmkurname is a Model Context Protocol server first. Point any MCP client at the hosted Streamable HTTP endpoint — POST /api/mcp on this origin — and it exposes two tools: check_availability(name, providers?) for the live 55-provider sweep, and score_name(name) for the deterministic brand score. Cursor, Windsurf and VS Code speak HTTP natively; Claude Desktop bridges through mcp-remote; Claude Code registers the endpoint with one CLI command. The Connect MCP button on the homepage generates the exact config for each client.",
+        "naymme is a Model Context Protocol server first. Point any MCP client at the hosted Streamable HTTP endpoint — POST /api/mcp on this origin — and it exposes two tools: check_availability(name, providers?) for the live 55-provider sweep, and score_name(name) for the deterministic brand score. Cursor, Windsurf and VS Code speak HTTP natively; Claude Desktop bridges through mcp-remote; Claude Code registers the endpoint with one CLI command. The Connect MCP button on the homepage generates the exact config for each client.",
       ],
       list: [
         "check_availability — { name, providers? } → { name, results, summary }. Each result reports provider, status (available | taken | unknown | invalid), subject, available flag, optional detail and durationMs.",
@@ -157,7 +157,7 @@ export const DOCS_CONTENT: PageContent = {
     {
       heading: "Run it locally or self-host",
       paragraphs: [
-        "The same codebase ships as the npm package lmkurname: `npx lmkurname` runs the full MCP server over stdio with zero configuration — the setup Claude Desktop and other local agents use when they should not depend on the hosted endpoint. A Cloudflare Worker build exposes the identical tools at the edge; deployment notes live in the deployment doc.",
+        "The same codebase ships as the npm package naymme: `npx naymme` runs the full MCP server over stdio with zero configuration — the setup Claude Desktop and other local agents use when they should not depend on the hosted endpoint. A Cloudflare Worker build exposes the identical tools at the edge; deployment notes live in the deployment doc.",
       ],
     },
     {
@@ -190,13 +190,13 @@ export const DOCS_CONTENT: PageContent = {
 
 export const ABOUT_CONTENT: PageContent = {
   path: "/about",
-  title: "About lmkurname",
+  title: "About naymme",
   description:
-    "What lmkurname is, who maintains it, and how the availability engine works under the hood.",
+    "What naymme is, who maintains it, and how the availability engine works under the hood.",
   sections: [
     {
       paragraphs: [
-        "lmkurname is a name-availability checker built for the moment every project starts with: you have a candidate name, and you need to know whether you can actually have it — as a domain, a package, a repository, a handle — before you fall in love with it.",
+        "naymme is a name-availability checker built for the moment every project starts with: you have a candidate name, and you need to know whether you can actually have it — as a domain, a package, a repository, a handle — before you fall in love with it.",
         "One input fans out to more than 55 providers across domain TLDs, developer platforms, package registries, hosted subdomains, app stores, publishing platforms and social networks, then distills the sweep into a per-provider grid plus a deterministic brand-quality score. The point is not just 'is it free' but 'is it free where it matters, and is it any good'.",
       ],
     },
@@ -206,7 +206,7 @@ export const ABOUT_CONTENT: PageContent = {
       list: [
         "This web app — the Next.js UI you are reading, plus the JSON API under /api.",
         "A hosted MCP server at /api/mcp (Streamable HTTP, stateless) so AI assistants can call the checks as tools.",
-        "An npm package — the lmkurname bin is a stdio MCP server for fully local use.",
+        "An npm package — the naymme bin is a stdio MCP server for fully local use.",
         "A Cloudflare Worker edge deployment exposing the same tools over web-standard fetch APIs.",
       ],
     },
@@ -220,7 +220,7 @@ export const ABOUT_CONTENT: PageContent = {
     {
       heading: "Maintainer",
       paragraphs: [
-        "lmkurname is maintained by @nandodani as an independent project. It is not affiliated with, endorsed by, or associated with any of the brands, platforms or registries it checks.",
+        "naymme is maintained by @nandodani as an independent project. It is not affiliated with, endorsed by, or associated with any of the brands, platforms or registries it checks.",
       ],
       links: [
         { label: "nandodani.dev", href: "https://nandodani.dev" },
@@ -234,18 +234,18 @@ export const ABOUT_CONTENT: PageContent = {
 export const CONTACT_CONTENT: PageContent = {
   path: "/contact",
   title: "Contact",
-  description: "How to reach the maintainer of lmkurname — bugs, provider issues, feature ideas.",
+  description: "How to reach the maintainer of naymme — bugs, provider issues, feature ideas.",
   sections: [
     {
       paragraphs: [
-        "lmkurname is maintained by @nandodani. The way to reach out is through the contact links on nandodani.dev — every message is read, and concrete reports are what keep the provider checks honest.",
+        "naymme is maintained by @nandodani. The way to reach out is through the contact links on nandodani.dev — every message is read, and concrete reports are what keep the provider checks honest.",
       ],
       links: [{ label: "nandodani.dev", href: "https://nandodani.dev" }],
     },
     {
       heading: "Report a bug or a wrong result",
       paragraphs: [
-        "Availability checks depend on third-party sources, so the more concrete the report the faster it lands: include the name you searched, the provider that looked wrong (for example domain:com or github), the verdict lmkurname showed, and what you expected instead. A URL or registry lookup showing the real state is ideal.",
+        "Availability checks depend on third-party sources, so the more concrete the report the faster it lands: include the name you searched, the provider that looked wrong (for example domain:com or github), the verdict naymme showed, and what you expected instead. A URL or registry lookup showing the real state is ideal.",
       ],
       links: [
         { label: "Documentation", href: "/docs" },
@@ -275,11 +275,11 @@ export const PRIVACY_CONTENT: PageContent = {
   path: "/privacy",
   title: "Privacy",
   description:
-    "What lmkurname sends where: no accounts, no tracking, and exactly which third parties see your search.",
+    "What naymme sends where: no accounts, no tracking, and exactly which third parties see your search.",
   sections: [
     {
       paragraphs: [
-        "lmkurname is designed to need almost nothing from you. There are no accounts, no sign-in, no cookies set by this app, no analytics or advertising trackers, and no client-side persistent storage — a search lives in the page's ?q= parameter and nowhere else.",
+        "naymme is designed to need almost nothing from you. There are no accounts, no sign-in, no cookies set by this app, no analytics or advertising trackers, and no client-side persistent storage — a search lives in the page's ?q= parameter and nowhere else.",
       ],
     },
     {
@@ -303,7 +303,7 @@ export const PRIVACY_CONTENT: PageContent = {
     {
       heading: "Changes",
       paragraphs: [
-        "This policy describes the deployed site at name-check-mcp.vercel.app. If the data handling changes, this page changes with it. Questions about privacy are welcome via the contact page.",
+        "This policy describes the deployed site at naymme.vercel.app. If the data handling changes, this page changes with it. Questions about privacy are welcome via the contact page.",
       ],
       links: [
         { label: "Documentation", href: "/docs" },
@@ -317,11 +317,11 @@ export const CREDITS_CONTENT: PageContent = {
   path: "/credits",
   title: "Credits",
   description:
-    "Credits and attributions — the open-source libraries, fonts, and creative assets lmkurname is built on.",
+    "Credits and attributions — the open-source libraries, fonts, and creative assets naymme is built on.",
   sections: [
     {
       paragraphs: [
-        "lmkurname stands on the work of open-source projects. These are the libraries, fonts, and creative assets that make it work — each links to its project.",
+        "naymme stands on the work of open-source projects. These are the libraries, fonts, and creative assets that make it work — each links to its project.",
       ],
     },
     ...CREDIT_GROUPS.map((group) => ({

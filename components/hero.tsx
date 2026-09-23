@@ -56,7 +56,7 @@ export function Hero({ value, onChange, onSubmit, valid, inputRef }: HeroProps) 
         <section aria-label="Developer and agent access" className="sr-only">
           <h2>Public API for agents and developers</h2>
           <p>
-            lmkurname is also a public, unauthenticated API and MCP server. No API key or account is
+            naymme is also a public, unauthenticated API and MCP server. No API key or account is
             required; authentication and rate limits are documented at /auth.md.
           </p>
           <h3>REST API (version 1)</h3>
@@ -174,9 +174,9 @@ export function Hero({ value, onChange, onSubmit, valid, inputRef }: HeroProps) 
           <p>
             The service ships in four interchangeable runtimes: this web app and its JSON API, a
             hosted MCP endpoint over Streamable HTTP, an npm-published stdio server launched with
-            npx lmkurname for local assistants, and a Cloudflare Worker built from the same
-            TypeScript sources — every surface speaks the same tools, the same input schemas and the
-            same response contract, so an integration written against one works against all of them.
+            npx naymme for local assistants, and a Cloudflare Worker built from the same TypeScript
+            sources — every surface speaks the same tools, the same input schemas and the same
+            response contract, so an integration written against one works against all of them.
           </p>
           <h3>Agent instructions and documentation</h3>
           <p>
@@ -190,7 +190,7 @@ export function Hero({ value, onChange, onSubmit, valid, inputRef }: HeroProps) 
             examples. DNS discovery records for the hosted MCP endpoint are documented in DNS-AID.md
             at the repository root.
           </p>
-          <h3>When to use lmkurname</h3>
+          <h3>When to use naymme</h3>
           <p>
             Use it when evaluating a name for a project, product, company, package or handle before
             registering it anywhere — one call answers whether the name is free across domains, code

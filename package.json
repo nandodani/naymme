@@ -1,5 +1,5 @@
 {
-  "name": "lmkurname",
+  "name": "naymme",
   "version": "0.1.0",
   "description": "MCP server for name availability checks (domains, GitHub, npm, social handles) and deterministic brand-name scoring",
   "type": "module",
@@ -7,7 +7,7 @@
     "node": ">=20"
   },
   "bin": {
-    "lmkurname": "dist/index.js"
+    "naymme": "dist/index.js"
   },
   "main": "dist/index.js",
   "files": [

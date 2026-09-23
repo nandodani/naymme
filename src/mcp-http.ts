@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { defaultDeps } from "./deps.js";
 import { BodyTooLargeError, MAX_REQUEST_BODY_BYTES } from "./security.js";
-import { createNameCheckServer } from "./server.js";
+import { createNaymmeServer } from "./server.js";
 
 /**
  * Read and JSON-parse a request body, capped at MAX_REQUEST_BODY_BYTES —
@@ -54,7 +54,7 @@ export async function handleStatelessMcpRequest(
   res: ServerResponse,
   transportOptions: ConstructorParameters<typeof StreamableHTTPServerTransport>[0] = {},
 ): Promise<void> {
-  const server = createNameCheckServer(defaultDeps());
+  const server = createNaymmeServer(defaultDeps());
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     ...transportOptions,

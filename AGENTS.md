@@ -1,13 +1,13 @@
 # AGENTS.md — guide for AI agents working in this repo
 
-`lmkurname` checks one candidate name's availability across 61+ providers
+`naymme` checks one candidate name's availability across 61+ providers
 (domains, developer platforms, package registries, socials, publishing)
 and scores it for brand quality. It ships as three runtimes from a single
 TypeScript codebase:
 
 | Surface                        | Entry                             | Notes                                                                                   |
 | ------------------------------ | --------------------------------- | --------------------------------------------------------------------------------------- |
-| MCP stdio server (npm package) | `src/index.ts`                    | published bin `lmkurname` (`dist/index.js`)                                             |
+| MCP stdio server (npm package) | `src/index.ts`                    | published bin `naymme` (`dist/index.js`)                                                |
 | Node HTTP (Streamable HTTP)    | `src/http.ts` + `src/mcp-http.ts` | `npm run dev:http` / `start:http`                                                       |
 | Next.js web app                | `app/`, `components/`, `lib/`     | UI + `/api/availability`, `/api/score`, `/api/mcp` (`/mcp` and `/health` rewrite to it) |
 | Cloudflare Worker              | `worker/index.ts`                 | same MCP tools; web-standard APIs only (no `node:dns`/TCP)                              |
@@ -37,16 +37,16 @@ TypeScript codebase:
   `AbortController` + deadline race) and `runAvailabilityChecks`
   (`Promise.allSettled` — one failing adapter degrades to `unknown`,
   never fails the batch).
-- `src/server.ts` — `createNameCheckServer(deps)`: registers the two MCP
+- `src/server.ts` — `createNaymmeServer(deps)`: registers the two MCP
   tools. `src/mcp-http.ts` adapts it to Node HTTP; `lib/mcp-web.ts` and
   `worker/index.ts` to web-standard Request/Response.
 - `lib/` — web-side services: `availability.ts` (live vs demo service,
-  `LMKURNAME_AVAILABILITY_MODE=demo` switches to deterministic FNV-1a
+  `NAYMME_AVAILABILITY_MODE=demo` switches to deterministic FNV-1a
   fixtures in `demo.ts`), `score-api.ts`, `mcp-web.ts`, `links.ts`
   (registrar deep links + `TLD_PRICE_ESTIMATES`), `provider-meta.ts`
   (grid grouping in `PROVIDER_GROUPS`), `result-filter.ts`,
   `overall-display.ts`, `mcp-config.ts`, `mcp-guides.ts`, `utils.ts`.
-- `components/` — React client components (`name-checker.tsx` is the app;
+- `components/` — React client components (`naymme-checker.tsx` is the app;
   `silk.tsx` is the R3F background — needs WebGL, not covered in Node).
 - `src/scoring/` — deterministic brand scoring (`score.ts` → `total` 0–100
   and `grade`; `overall.ts` availability tallies/percent for the UI card).
@@ -93,7 +93,7 @@ Every adapter **must**:
 - React components are checked with `react-dom/server`
   `renderToStaticMarkup` (`test/components.test.tsx`) — no DOM/jsdom.
 - `test:e2e` — Playwright smoke against `next start` in
-  `LMKURNAME_AVAILABILITY_MODE=demo` (deterministic, offline-safe).
+  `NAYMME_AVAILABILITY_MODE=demo` (deterministic, offline-safe).
   `e2e/a11y.spec.ts` runs `@axe-core/playwright` (WCAG 2.2 A/AA tags) on
   every page state plus keyboard-path checks; keep new UI axe-clean.
 - Coverage: `npm run test:coverage` (v8 provider). Thresholds in

@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 /**
  * WebMCP integration: when the browser exposes a model-context API, this
- * registers lmkurname's tools so an in-page agent can check name
+ * registers naymme's tools so an in-page agent can check name
  * availability and brand scores without leaving the tab.
  *
  * The surface is still in flux across proposals, so this feature-detects
@@ -93,7 +93,7 @@ const TOOLS: ModelContextTool[] = [
   },
 ];
 
-/** Registers lmkurname's tools on the browser's model context, if any. */
+/** Registers naymme's tools on the browser's model context, if any. */
 export function WebMcp() {
   useEffect(() => {
     const modelContext = document.modelContext ?? navigator.modelContext;

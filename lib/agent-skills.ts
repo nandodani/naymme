@@ -22,11 +22,11 @@ export const AGENT_SKILLS: readonly AgentSkillDoc[] = [
   {
     name: "name-availability-check",
     description:
-      "Check whether a candidate project or brand name is available across domains, GitHub, npm and other dev registries, hosted subdomains, stores and social handles via lmkurname's public API or MCP tools. Use when asked whether a name, domain, package or handle is free, when naming a project or brand, or when vetting a name before registering it.",
+      "Check whether a candidate project or brand name is available across domains, GitHub, npm and other dev registries, hosted subdomains, stores and social handles via naymme's public API or MCP tools. Use when asked whether a name, domain, package or handle is free, when naming a project or brand, or when vetting a name before registering it.",
     markdown:
       FRONTMATTER(
         "name-availability-check",
-        "Check name availability across 61 providers with lmkurname",
+        "Check name availability across 61 providers with naymme",
       ) +
       [
         "",
@@ -72,7 +72,7 @@ export const AGENT_SKILLS: readonly AgentSkillDoc[] = [
   {
     name: "brand-name-scoring",
     description:
-      "Score a candidate name 0–100 for brand quality — punchiness, syllables, pronounceability, uniqueness and cleanliness — with lmkurname's deterministic scorer. Use when comparing candidate names, scoring a brand name, or sanity-checking a name's brand quality before or after an availability check.",
+      "Score a candidate name 0–100 for brand quality — punchiness, syllables, pronounceability, uniqueness and cleanliness — with naymme's deterministic scorer. Use when comparing candidate names, scoring a brand name, or sanity-checking a name's brand quality before or after an availability check.",
     markdown:
       FRONTMATTER("brand-name-scoring", "Deterministically score a name for brand quality") +
       [

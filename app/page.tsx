@@ -1,4 +1,4 @@
-import { NameChecker } from "@/components/name-checker.js";
+import { NaymmeChecker } from "@/components/naymme-checker.js";
 import { jsonLdGraph } from "@/lib/json-ld.js";
 
 export default function Page() {
@@ -8,7 +8,7 @@ export default function Page() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdGraph()) }}
       />
-      <NameChecker />
+      <NaymmeChecker />
     </>
   );
 }

@@ -1,4 +1,4 @@
-# lmkurname — technical documentation
+# naymme — technical documentation
 
 Deep-dive docs for how the availability engine, providers and transports
 actually work under the hood. Everything here was written against the code

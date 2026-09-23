@@ -1,5 +1,5 @@
 ; ============================================================================
-; DNS-AID records for the lmkurname agent
+; DNS-AID records for the naymme agent
 ; (draft-mozleywilliams-dnsop-dnsaid-02 — DNS for AI Discovery)
 ;
 ; IMPORTANT: these cannot be published under vercel.app — it is a
@@ -21,17 +21,17 @@ $ORIGIN nandodani.dev.
 ; Requestors query _index._agents.<domain> to enumerate the org's agents.
 ; TargetName serves /.well-known/api-catalog (RFC 9264 linkset) over HTTPS.
 
-_index._agents          IN  SVCB  1  name-check-mcp.vercel.app. (
+_index._agents          IN  SVCB  1  naymme.vercel.app. (
                             alpn="h2"
                             port=443
                             mandatory=alpn,port
                             well-known="api-catalog" )
 
-; --- Known agent: lmkurname (MCP server) ------------------------------------
+; --- Known agent: naymme (MCP server) ------------------------------------
 ; bap="mcp" marks the agent protocol; well-known is the RFC 8615 path to
 ; the SEP-1649 MCP server card on the TargetName host.
 
-lmkurname._agents       IN  SVCB  1  name-check-mcp.vercel.app. (
+naymme._agents       IN  SVCB  1  naymme.vercel.app. (
                             alpn="h2"
                             port=443
                             mandatory=alpn,port
@@ -42,8 +42,8 @@ lmkurname._agents       IN  SVCB  1  name-check-mcp.vercel.app. (
 ; For providers that expose the HTTPS type but not SVCB (e.g. Vercel DNS),
 ; use these instead — HTTPS records are SVCB records for HTTPS endpoints.
 
-; _index._agents        IN  HTTPS 1  name-check-mcp.vercel.app. (
+; _index._agents        IN  HTTPS 1  naymme.vercel.app. (
 ;                            alpn="h2" port=443 well-known="api-catalog" )
-; lmkurname._agents     IN  HTTPS 1  name-check-mcp.vercel.app. (
+; naymme._agents     IN  HTTPS 1  naymme.vercel.app. (
 ;                            alpn="h2" port=443 bap="mcp"
 ;                            well-known="mcp/server-card.json" )

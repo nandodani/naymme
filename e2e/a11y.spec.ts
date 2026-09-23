@@ -40,7 +40,7 @@ test.describe("accessibility", () => {
 
     // Raw-config disclosure open — re-scan with the snippet visible.
     await page.getByRole("button", { name: /raw config json/i }).click();
-    await expect(page.getByText(/mcpServers|lmkurname/).first()).toBeVisible();
+    await expect(page.getByText(/mcpServers|naymme/).first()).toBeVisible();
     // Let the expand animation finish so axe reads final colors.
     await page.waitForTimeout(400);
     await audit(page, "dialog + disclosure");
