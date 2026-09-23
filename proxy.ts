@@ -11,8 +11,8 @@ import { negotiateAgentRequest } from "./lib/agent-negotiation.js";
  *
  * Clients sending `Accept: text/markdown` get the markdown representation of
  * a page — or a markdown 404 for unknown paths — via an internal rewrite to
- * /api/markdown. Everything else falls through to the normal pipeline with
- * `Vary: Accept` so caches keep the variants separate.
+ * /api/markdown, which responds `Content-Type: text/markdown` + `Vary:
+ * Accept`. Everything else falls through to the normal pipeline unchanged.
  *
  * The matcher scope intentionally excludes dotted paths (robots.txt,
  * sitemap.xml, llms.txt, icons, fonts — already machine-readable), API and
@@ -25,9 +25,11 @@ export function proxy(request: NextRequest): NextResponse {
   const pathname = new URL(request.url).pathname;
   const plan = negotiateAgentRequest(pathname, request.headers.get("accept"));
   if (plan.kind === "passthrough") {
-    const response = NextResponse.next();
-    response.headers.append("vary", "Accept");
-    return response;
+    // Vary: Accept can't be added here — response headers set on the
+    // middleware response are overwritten by the page's own Vary. The
+    // markdown variant emitted by /api/markdown does carry it, which is
+    // what the audit requires.
+    return NextResponse.next();
   }
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-markdown-path", plan.path);
