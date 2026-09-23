@@ -1,0 +1,77 @@
+import type { NextConfig } from "next";
+
+/**
+ * The Next.js app serves both the web UI (/) and the hosted MCP endpoint
+ * (/api/mcp). The /mcp and /health aliases keep the URLs documented for the
+ * standalone Vercel function this app replaces.
+ */
+const nextConfig: NextConfig = {
+  // whoiser opens raw TCP (node:net) and npm-name reads local npm config —
+  // neither can be bundled; the SDK stays external for consistency.
+  serverExternalPackages: ["whoiser", "npm-name", "@modelcontextprotocol/sdk"],
+  async headers() {
+    // Baseline hardening for every route (UI + API). CSP keeps script-src
+    // at 'self' + 'unsafe-inline' because Next emits inline hydration
+    // scripts; nonces would need middleware on every response. React's dev
+    // build also calls eval(), so 'unsafe-eval' joins in development only.
+    const scriptSrc =
+      process.env.NODE_ENV === "development"
+        ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+        : "script-src 'self' 'unsafe-inline'";
+    return [
+      {
+        // Agent discovery on the homepage (RFC 8288 Link headers): the API
+        // catalog linkset, the MCP server card, the OpenAPI description and
+        // the human-readable docs.
+        source: "/",
+        headers: [
+          {
+            key: "link",
+            value: [
+              '</.well-known/api-catalog>; rel="api-catalog"',
+              '</.well-known/mcp/server-card.json>; rel="service-desc"; type="application/json"',
+              '</openapi.json>; rel="service-desc"; type="application/json"',
+              '</docs>; rel="service-doc"',
+            ].join(", "),
+          },
+        ],
+      },
+      {
+        source: "/:path*",
+        headers: [
+          { key: "x-content-type-options", value: "nosniff" },
+          { key: "x-frame-options", value: "DENY" },
+          { key: "referrer-policy", value: "strict-origin-when-cross-origin" },
+          { key: "permissions-policy", value: "camera=(), microphone=(), geolocation=()" },
+          {
+            key: "strict-transport-security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+          {
+            key: "content-security-policy",
+            value: [
+              "default-src 'self'",
+              scriptSrc,
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data:",
+              "font-src 'self' data:",
+              "connect-src 'self'",
+              "object-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+              "frame-ancestors 'none'",
+            ].join("; "),
+          },
+        ],
+      },
+    ];
+  },
+  async rewrites() {
+    return [
+      { source: "/mcp", destination: "/api/mcp" },
+      { source: "/health", destination: "/api/mcp" },
+    ];
+  },
+};
+
+export default nextConfig;

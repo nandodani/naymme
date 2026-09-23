@@ -1,0 +1,207 @@
+import type { ProviderDeps } from "../deps.js";
+import { readJsonCapped } from "../security.js";
+import type { ProviderAdapter, ProviderOutcome } from "../types.js";
+import { invalidOutcome } from "./validation.js";
+
+function unknown(subject: string, detail: string): ProviderOutcome {
+  return { status: "unknown", subject, available: null, detail };
+}
+
+function taken(subject: string, detail: string): ProviderOutcome {
+  return { status: "taken", subject, available: false, detail };
+}
+
+function available(subject: string, detail: string): ProviderOutcome {
+  return { status: "available", subject, available: true, detail };
+}
+
+/** fetch wrapper: network failures → null, aborts propagate to the runner. */
+async function safeFetch(
+  deps: ProviderDeps,
+  url: string,
+  signal: AbortSignal,
+  headers: Record<string, string> = {},
+): Promise<Response | null> {
+  try {
+    return await deps.fetch(url, {
+      signal,
+      headers: { "user-agent": deps.userAgent, ...headers },
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") throw err;
+    return null;
+  }
+}
+
+/**
+ * GitLab check via the public REST API: `/users?username=` answers an exact
+ * user match and `/groups/{path}` answers for groups. A name is `available`
+ * only when both lookups miss — anything else that responds unexpectedly
+ * (rate limits, auth walls) reports `unknown`.
+ */
+export function createGitLabAdapter(deps: ProviderDeps): ProviderAdapter {
+  return {
+    id: "gitlab",
+    async check(name, signal): Promise<ProviderOutcome> {
+      const invalidName = invalidOutcome("gitlab", name);
+      if (invalidName !== null) return invalidName;
+      const usersUrl = `https://gitlab.com/api/v4/users?username=${encodeURIComponent(name)}`;
+      const users = await safeFetch(deps, usersUrl, signal, { accept: "application/json" });
+      if (!users) return unknown(name, "request failed");
+      if (users.status === 200) {
+        const body = await readJsonCapped(users);
+        if (!Array.isArray(body)) return unknown(name, "unexpected /users response body");
+        if (body.length > 0) return taken(name, `https://gitlab.com/${name}`);
+
+        // No user match — a group may still hold the path.
+        const groupUrl = `https://gitlab.com/api/v4/groups/${encodeURIComponent(name)}`;
+        const group = await safeFetch(deps, groupUrl, signal, { accept: "application/json" });
+        if (!group) return unknown(name, "request failed");
+        if (group.status === 404) return available(name, `https://gitlab.com/${name}`);
+        // 200 = public group; 403 = private group — the path is held either way.
+        if (group.status === 200) return taken(name, `https://gitlab.com/${name}`);
+        if (group.status === 403) {
+          return taken(name, `https://gitlab.com/${name} (private group)`);
+        }
+        return unknown(name, `GitLab groups lookup returned HTTP ${group.status}`);
+      }
+      return unknown(name, `GitLab API returned HTTP ${users.status}`);
+    },
+  };
+}
+
+/**
+ * PyPI package names are case-insensitive and normalize `-`, `_` and `.`
+ * runs to a single `-` (PEP 503). Unscoped names only.
+ */
+const PYPI_NORMALIZE = /[-_.]+/g;
+
+/**
+ * PyPI check via the public JSON API `pypi.org/pypi/{name}/json`:
+ * 200 → taken, 404 → available, anything else → `unknown`.
+ */
+export function createPyPiAdapter(deps: ProviderDeps): ProviderAdapter {
+  return {
+    id: "pypi",
+    async check(name, signal): Promise<ProviderOutcome> {
+      const invalidName = invalidOutcome("pypi", name);
+      if (invalidName !== null) return invalidName;
+      const normalized = name.toLowerCase().replaceAll(PYPI_NORMALIZE, "-");
+      const url = `https://pypi.org/pypi/${encodeURIComponent(normalized)}/json`;
+      const res = await safeFetch(deps, url, signal, { accept: "application/json" });
+      if (!res) return unknown(normalized, "request failed");
+      if (res.status === 404) {
+        return available(normalized, `https://pypi.org/project/${normalized}/`);
+      }
+      if (res.status === 200) {
+        return taken(normalized, `https://pypi.org/project/${normalized}/`);
+      }
+      return unknown(normalized, `PyPI returned HTTP ${res.status}`);
+    },
+  };
+}
+
+/**
+ * crates.io check via `crates.io/api/v1/crates/{name}`: 200 → taken,
+ * 404 → available. The API rejects requests without a User-Agent — the
+ * shared `deps.userAgent` is sent.
+ */
+export function createCratesAdapter(deps: ProviderDeps): ProviderAdapter {
+  return {
+    id: "crates",
+    async check(name, signal): Promise<ProviderOutcome> {
+      const invalidName = invalidOutcome("crates", name);
+      if (invalidName !== null) return invalidName;
+      const url = `https://crates.io/api/v1/crates/${encodeURIComponent(name)}`;
+      const res = await safeFetch(deps, url, signal, { accept: "application/json" });
+      if (!res) return unknown(name, "request failed");
+      if (res.status === 404) {
+        return available(name, `https://crates.io/crates/${name}`);
+      }
+      if (res.status === 200) {
+        return taken(name, `https://crates.io/crates/${name}`);
+      }
+      return unknown(name, `crates.io returned HTTP ${res.status}`);
+    },
+  };
+}
+
+/**
+ * Docker Hub check via the public repository API `hub.docker.com/v2/
+ * repositories/{namespace}/`: 200 means the namespace exists and owns
+ * public repositories (taken); 404 means no namespace or no public repos
+ * (reported `available` — namespaces that exist but are empty or fully
+ * private also answer 404, so availability is best-effort).
+ */
+export function createDockerHubAdapter(deps: ProviderDeps): ProviderAdapter {
+  return {
+    id: "dockerhub",
+    async check(name, signal): Promise<ProviderOutcome> {
+      const invalidName = invalidOutcome("dockerhub", name);
+      if (invalidName !== null) return invalidName;
+      const url = `https://hub.docker.com/v2/repositories/${encodeURIComponent(name)}/`;
+      const res = await safeFetch(deps, url, signal, { accept: "application/json" });
+      if (!res) return unknown(name, "request failed");
+      if (res.status === 404) {
+        return available(name, `https://hub.docker.com/u/${name}`);
+      }
+      if (res.status === 200) {
+        return taken(name, `https://hub.docker.com/u/${name}`);
+      }
+      return unknown(name, `Docker Hub returned HTTP ${res.status}`);
+    },
+  };
+}
+
+/**
+ * JSR scope check via the management API `api.jsr.io/scopes/{name}`:
+ * 200 → taken, 404 → available. The scope is the claimable namespace on
+ * JSR — every package lives under one as `@{scope}/{package}`. The API
+ * answers 400 for malformed scope names, but `PROVIDER_NAME_RULES`
+ * rejects those locally before any request.
+ */
+export function createJsrAdapter(deps: ProviderDeps): ProviderAdapter {
+  return {
+    id: "jsr",
+    async check(name, signal): Promise<ProviderOutcome> {
+      const subject = `@${name}`;
+      const invalidName = invalidOutcome("jsr", name, subject);
+      if (invalidName !== null) return invalidName;
+      const url = `https://api.jsr.io/scopes/${encodeURIComponent(name)}`;
+      const res = await safeFetch(deps, url, signal, { accept: "application/json" });
+      if (!res) return unknown(subject, "request failed");
+      if (res.status === 404) {
+        return available(subject, `https://jsr.io/@${name}`);
+      }
+      if (res.status === 200) {
+        return taken(subject, `https://jsr.io/@${name}`);
+      }
+      return unknown(subject, `JSR API returned HTTP ${res.status}`);
+    },
+  };
+}
+
+/**
+ * deno.land/x module check via the registry CDN
+ * `cdn.deno.land/{name}/meta/versions.json` — the endpoint the Deno CLI
+ * itself resolves: 200 → taken, 404 → available, else `unknown`.
+ */
+export function createDenoLandAdapter(deps: ProviderDeps): ProviderAdapter {
+  return {
+    id: "denoland",
+    async check(name, signal): Promise<ProviderOutcome> {
+      const invalidName = invalidOutcome("denoland", name);
+      if (invalidName !== null) return invalidName;
+      const url = `https://cdn.deno.land/${encodeURIComponent(name)}/meta/versions.json`;
+      const res = await safeFetch(deps, url, signal, { accept: "application/json" });
+      if (!res) return unknown(name, "request failed");
+      if (res.status === 404) {
+        return available(name, `https://deno.land/x/${name}`);
+      }
+      if (res.status === 200) {
+        return taken(name, `https://deno.land/x/${name}`);
+      }
+      return unknown(name, `deno.land CDN returned HTTP ${res.status}`);
+    },
+  };
+}

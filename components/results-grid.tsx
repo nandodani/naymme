@@ -1,0 +1,187 @@
+"use client";
+
+import { useState } from "react";
+import { SearchX } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
+
+import type { AvailabilityResponse } from "@/lib/availability.js";
+import { ALL_PROVIDER_IDS, PROVIDER_GROUPS } from "@/lib/provider-meta.js";
+import { resultCounts, type ResultFilter } from "@/lib/result-filter.js";
+import { cn } from "@/lib/utils.js";
+import type { AvailabilityResult } from "@/src/types.js";
+import { OverallCard } from "./overall-card.js";
+import { ProviderColumn } from "./provider-column.js";
+import { Button } from "./ui/button.js";
+
+interface ResultsGridProps {
+  name: string;
+  data: AvailabilityResponse | null;
+  checking: boolean;
+  error: string | null;
+  onRetry: () => void;
+  onCopy: (text: string, label: string) => void;
+}
+
+const container = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.06 } },
+};
+const item = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] as const } },
+};
+
+const FILTERS: readonly { id: ResultFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "available", label: "Available only" },
+];
+
+/** Every provider id the grid groups render — the count denominator. */
+const EXPECTED_PROVIDER_IDS = ALL_PROVIDER_IDS;
+
+/**
+ * The searched state: the overall availability card plus one free column
+ * per provider group, rendered in PROVIDER_GROUPS order. There are no
+ * cards — sections tile a `repeat(auto-fill, minmax(17rem, 1fr))` grid:
+ * as many columns as fit, each flexing equally to fill the container.
+ * DOM order matches reading order — Overall first, then the groups — so
+ * the stagger, tab order and screen-reader order all agree.
+ */
+export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: ResultsGridProps) {
+  const [filter, setFilter] = useState<ResultFilter>("all");
+  const reduceMotion = useReducedMotion();
+  const resultsByProvider = new Map<string, AvailabilityResult>(
+    (data?.results ?? []).map((r) => [r.provider, r]),
+  );
+  const pending = checking;
+  // Expected providers = every row the grid renders; free + taken +
+  // unresolved + pending always reconcile to it — no ghost items.
+  const counts = resultCounts(data?.results ?? [], EXPECTED_PROVIDER_IDS);
+  const emptyFiltered = filter === "available" && counts.available === 0 && !checking;
+
+  // Polite live-region copy: announced as the run streams in and once it
+  // completes, without spamming per-row updates.
+  const liveSummary =
+    data === null
+      ? ""
+      : checking
+        ? `Checking — ${counts.settled} of ${counts.expected} providers settled`
+        : `Checks complete — ${counts.available} free, ${counts.taken} taken${
+            counts.unresolved > 0 ? `, ${counts.unresolved} unresolved` : ""
+          }`;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div aria-live="polite" className="sr-only">
+        {liveSummary}
+      </div>
+      {error !== null ? (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-xl border border-red-400/25 bg-red-400/5 px-4 py-2.5"
+        >
+          <p className="text-[12px] text-red-300">Availability check failed — {error}</p>
+          <Button variant="outline" size="sm" onClick={onRetry}>
+            Retry
+          </Button>
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="flex min-w-0 items-center gap-3 font-mono text-[11px] text-zinc-400">
+          <h1 className="truncate font-normal">
+            results for <span className="text-zinc-300">{name}</span>
+          </h1>
+          {data !== null ? (
+            <span
+              className="shrink-0 border-l border-zinc-800 pl-3 tabular-nums"
+              title={`${counts.settled} settled of ${counts.expected} checked`}
+            >
+              {counts.available} free · {counts.taken} taken
+              {counts.unresolved > 0 ? (
+                <span className="text-amber-400/80"> · {counts.unresolved} unresolved</span>
+              ) : null}
+              {counts.pending > 0 ? (
+                <span className={checking ? "animate-pulse" : undefined}>
+                  {" "}
+                  · {counts.pending} pending
+                </span>
+              ) : null}
+            </span>
+          ) : null}
+        </div>
+        {/* Toggle-button group (not a tablist): filters switch the grid's
+            visibility predicate, they don't swap tab panels. */}
+        <div
+          role="group"
+          aria-label="Filter results by availability"
+          className="inline-flex w-fit shrink-0 items-center rounded-full border border-zinc-800 bg-zinc-950/80 p-0.5"
+        >
+          {FILTERS.map(({ id, label }) => {
+            const active = filter === id;
+            const count = id === "all" ? counts.expected : counts.available;
+            return (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={active}
+                aria-controls="provider-results"
+                onClick={() => setFilter(id)}
+                className="relative rounded-full px-3 py-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {active ? (
+                  <motion.span
+                    layoutId="activeFilter"
+                    transition={
+                      reduceMotion
+                        ? { duration: 0 }
+                        : { type: "spring", bounce: 0.2, duration: 0.4 }
+                    }
+                    className="absolute inset-0 rounded-full border border-zinc-700 bg-white/10"
+                  />
+                ) : null}
+                <span className={cn("relative", active ? "text-zinc-100" : "text-zinc-400")}>
+                  {label} ({count})
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <motion.div
+        id="provider-results"
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-[repeat(auto-fill,minmax(17rem,1fr))] items-start gap-x-8 gap-y-6"
+      >
+        <motion.div variants={item}>
+          <OverallCard availability={data} checking={checking} name={name} onCopy={onCopy} />
+        </motion.div>
+
+        {emptyFiltered ? (
+          <motion.div
+            variants={item}
+            className="flex items-center justify-center gap-2.5 rounded-xl border border-zinc-800 bg-card px-4 py-10"
+          >
+            <SearchX aria-hidden="true" className="size-4 text-zinc-400" />
+            <p className="text-[12px] text-zinc-400">No available handles found for this search.</p>
+          </motion.div>
+        ) : (
+          PROVIDER_GROUPS.map((group) => (
+            <motion.div key={group.id} variants={item}>
+              <ProviderColumn
+                group={group}
+                name={name}
+                resultsByProvider={resultsByProvider}
+                pending={pending}
+                filter={filter}
+              />
+            </motion.div>
+          ))
+        )}
+      </motion.div>
+    </div>
+  );
+}

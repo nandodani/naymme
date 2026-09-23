@@ -1,0 +1,8 @@
+name = "naymme"
+main = "worker/index.ts"
+compatibility_date = "2026-03-01"
+workers_dev = true
+
+# No nodejs_compat on purpose: the Worker bundle is web-standard APIs only.
+# WHOIS (raw TCP port 43) and node:dns are replaced with portable equivalents
+# in worker/index.ts — see the README's Cloudflare Workers caveats.

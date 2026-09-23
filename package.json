@@ -1,0 +1,107 @@
+{
+  "name": "naymme",
+  "version": "0.1.0",
+  "description": "MCP server for name availability checks (domains, GitHub, npm, social handles) and deterministic brand-name scoring",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "naymme": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "dev:http": "tsx src/http.ts",
+    "dev:worker": "wrangler dev",
+    "dev:web": "next dev",
+    "deploy:worker": "wrangler deploy",
+    "build": "next build && tsc -p tsconfig.build.json",
+    "build:core": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "start:http": "node dist/http.js",
+    "start:web": "next start",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "check": "npm run typecheck && npm run lint && npm run knip && npm run format:check && npm run test && npm run build && npm run size",
+    "knip": "knip",
+    "test:e2e": "playwright test",
+    "size": "size-limit"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "domain",
+    "availability",
+    "naming",
+    "branding",
+    "social",
+    "handle"
+  ],
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@base-ui/react": "^1.8.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@react-three/fiber": "^9.8.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "loading-dev": "^0.3.4",
+    "lucide-react": "^1.47.0",
+    "motion": "^13.4.0",
+    "next": "^16.3.6",
+    "npm-name": "^8.1.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tailwind-merge": "^3.7.0",
+    "three": "^0.180.0",
+    "whoiser": "^1.18.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.63.0",
+    "@size-limit/file": "^14.0.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.20.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
+    "@vitest/coverage-v8": "^5.0.1",
+    "eslint": "^10.10.0",
+    "eslint-config-prettier": "^9.1.2",
+    "knip": "^6.36.0",
+    "msw": "^2.15.0",
+    "prettier": "^3.9.6",
+    "size-limit": "^14.0.0",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.70.0",
+    "vite": "^7.3.6",
+    "vitest": "^5.0.1",
+    "wrangler": "^4.132.0"
+  },
+  "size-limit": [
+    {
+      "name": "core MCP bundle (dist)",
+      "path": "dist/**/*.js",
+      "limit": "50 kB"
+    },
+    {
+      "name": "web client chunks",
+      "path": ".next/static/chunks/*.js",
+      "limit": "3 MB"
+    }
+  ]
+}
