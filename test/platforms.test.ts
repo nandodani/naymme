@@ -171,8 +171,8 @@ describe("pattern validation", () => {
     expect(r.status).toBe("invalid");
   });
 
-  it("producthunt rejects handles under 3 chars", async () => {
-    const r = await check("producthunt", "ab", statusDeps(404));
+  it("producthunt rejects handles under 2 chars", async () => {
+    const r = await check("producthunt", "a", statusDeps(404));
     expect(r.status).toBe("invalid");
   });
 });

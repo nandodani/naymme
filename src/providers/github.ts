@@ -1,13 +1,13 @@
 import type { ProviderDeps } from "../deps.js";
 import type { ProviderAdapter, ProviderOutcome } from "../types.js";
+import { invalidOutcome } from "./validation.js";
 
 /**
- * GitHub login rules: ≤39 chars, alphanumeric and single hyphens, may not
- * start or end with a hyphen. Usernames and organization names share one
- * namespace, so `GET /users/{name}` covers both — the `type` field in the
- * response says which of the two actually holds the name.
+ * GitHub login rules (≤39 chars, letters/digits/hyphens, no edge or
+ * consecutive hyphens) live in PROVIDER_NAME_RULES — user and org share
+ * one namespace, so `GET /users/{name}` covers both: the `type` field in
+ * the response says which of the two actually holds the name.
  */
-const GITHUB_LOGIN = /^[A-Za-z0-9](?:-?[A-Za-z0-9]){0,38}$/;
 
 export type GitHubLookup =
   { kind: "absent" } | { kind: "user" | "org"; url: string } | { kind: "unknown"; detail: string };
@@ -57,16 +57,6 @@ export function createGitHubLookup(deps: ProviderDeps) {
   };
 }
 
-function invalidName(name: string): ProviderOutcome {
-  return {
-    status: "invalid",
-    subject: name,
-    available: false,
-    detail:
-      "not a valid GitHub name (≤39 chars, letters/digits/single hyphens, no leading/trailing hyphen)",
-  };
-}
-
 /** Personal-account check — the name is unusable when anything holds it. */
 export function createGitHubUserAdapter(
   lookup: ReturnType<typeof createGitHubLookup>,
@@ -74,7 +64,8 @@ export function createGitHubUserAdapter(
   return {
     id: "github:user",
     async check(name, signal): Promise<ProviderOutcome> {
-      if (!GITHUB_LOGIN.test(name)) return invalidName(name);
+      const invalid = invalidOutcome("github:user", name);
+      if (invalid !== null) return invalid;
       const hit = await lookup(name, signal);
       if (hit.kind === "absent") {
         return {
@@ -100,12 +91,6 @@ export function createGitHubUserAdapter(
   };
 }
 
-/**
- * Repository names allow letters/digits plus `-`, `_` and `.` separators
- * (≤100 chars, must start with a letter or digit).
- */
-const GITHUB_REPO = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
-
 interface GitHubSearchItem {
   name?: unknown;
   full_name?: unknown;
@@ -123,15 +108,8 @@ export function createGitHubRepoAdapter(deps: ProviderDeps): ProviderAdapter {
   return {
     id: "github:repo",
     async check(name, signal): Promise<ProviderOutcome> {
-      if (!GITHUB_REPO.test(name)) {
-        return {
-          status: "invalid",
-          subject: name,
-          available: false,
-          detail:
-            "not a valid GitHub repository name (≤100 chars, letters/digits with '-', '_' or '.' separators)",
-        };
-      }
+      const invalid = invalidOutcome("github:repo", name);
+      if (invalid !== null) return invalid;
       const url = `${deps.githubApiBase}/search/repositories?q=${encodeURIComponent(`${name} in:name`)}&per_page=10`;
       let res: Response;
       try {
@@ -198,7 +176,8 @@ export function createGitHubOrgAdapter(
   return {
     id: "github:org",
     async check(name, signal): Promise<ProviderOutcome> {
-      if (!GITHUB_LOGIN.test(name)) return invalidName(name);
+      const invalid = invalidOutcome("github:org", name);
+      if (invalid !== null) return invalid;
       const hit = await lookup(name, signal);
       if (hit.kind === "absent") {
         return {

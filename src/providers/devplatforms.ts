@@ -1,9 +1,6 @@
 import type { ProviderDeps } from "../deps.js";
 import type { ProviderAdapter, ProviderOutcome } from "../types.js";
-
-function invalid(subject: string, detail: string): ProviderOutcome {
-  return { status: "invalid", subject, available: false, detail };
-}
+import { invalidOutcome } from "./validation.js";
 
 function unknown(subject: string, detail: string): ProviderOutcome {
   return { status: "unknown", subject, available: null, detail };
@@ -36,13 +33,6 @@ async function safeFetch(
 }
 
 /**
- * GitLab usernames and group paths share one namespace (`gitlab.com/{name}`
- * routes to whichever holds it). Path rules: letters/digits/underscore plus
- * `-` and `.` separators, may not start or end with a separator.
- */
-const GITLAB_PATH = /^[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_-])?$/;
-
-/**
  * GitLab check via the public REST API: `/users?username=` answers an exact
  * user match and `/groups/{path}` answers for groups. A name is `available`
  * only when both lookups miss — anything else that responds unexpectedly
@@ -52,12 +42,8 @@ export function createGitLabAdapter(deps: ProviderDeps): ProviderAdapter {
   return {
     id: "gitlab",
     async check(name, signal): Promise<ProviderOutcome> {
-      if (!GITLAB_PATH.test(name) || name.length > 255) {
-        return invalid(
-          name,
-          "not a valid GitLab path (letters/digits/underscore with '-' and '.' separators, no edge separators)",
-        );
-      }
+      const invalidName = invalidOutcome("gitlab", name);
+      if (invalidName !== null) return invalidName;
       const usersUrl = `https://gitlab.com/api/v4/users?username=${encodeURIComponent(name)}`;
       const users = await safeFetch(deps, usersUrl, signal, { accept: "application/json" });
       if (!users) return unknown(name, "request failed");
@@ -87,7 +73,6 @@ export function createGitLabAdapter(deps: ProviderDeps): ProviderAdapter {
  * PyPI package names are case-insensitive and normalize `-`, `_` and `.`
  * runs to a single `-` (PEP 503). Unscoped names only.
  */
-const PYPI_NAME = /^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/;
 const PYPI_NORMALIZE = /[-_.]+/g;
 
 /**
@@ -98,12 +83,8 @@ export function createPyPiAdapter(deps: ProviderDeps): ProviderAdapter {
   return {
     id: "pypi",
     async check(name, signal): Promise<ProviderOutcome> {
-      if (!PYPI_NAME.test(name)) {
-        return invalid(
-          name,
-          "not a valid PyPI name (letters/digits with '-', '_' or '.' separators)",
-        );
-      }
+      const invalidName = invalidOutcome("pypi", name);
+      if (invalidName !== null) return invalidName;
       const normalized = name.toLowerCase().replaceAll(PYPI_NORMALIZE, "-");
       const url = `https://pypi.org/pypi/${encodeURIComponent(normalized)}/json`;
       const res = await safeFetch(deps, url, signal, { accept: "application/json" });
@@ -120,12 +101,6 @@ export function createPyPiAdapter(deps: ProviderDeps): ProviderAdapter {
 }
 
 /**
- * crates.io package names: ≤64 chars, ASCII alphanumeric plus `-`/`_`,
- * must start with a letter or digit.
- */
-const CRATES_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
-
-/**
  * crates.io check via `crates.io/api/v1/crates/{name}`: 200 → taken,
  * 404 → available. The API rejects requests without a User-Agent — the
  * shared `deps.userAgent` is sent.
@@ -134,12 +109,8 @@ export function createCratesAdapter(deps: ProviderDeps): ProviderAdapter {
   return {
     id: "crates",
     async check(name, signal): Promise<ProviderOutcome> {
-      if (!CRATES_NAME.test(name)) {
-        return invalid(
-          name,
-          "not a valid crates.io name (≤64 chars, letters/digits/hyphens/underscores, starts with a letter or digit)",
-        );
-      }
+      const invalidName = invalidOutcome("crates", name);
+      if (invalidName !== null) return invalidName;
       const url = `https://crates.io/api/v1/crates/${encodeURIComponent(name)}`;
       const res = await safeFetch(deps, url, signal, { accept: "application/json" });
       if (!res) return unknown(name, "request failed");
@@ -155,12 +126,6 @@ export function createCratesAdapter(deps: ProviderDeps): ProviderAdapter {
 }
 
 /**
- * Docker Hub namespaces (users and orgs share it): 4-30 chars, lowercase
- * alphanumerics separated by `-`, `_` or `.`.
- */
-const DOCKER_NAMESPACE = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
-
-/**
  * Docker Hub check via the public repository API `hub.docker.com/v2/
  * repositories/{namespace}/`: 200 means the namespace exists and owns
  * public repositories (taken); 404 means no namespace or no public repos
@@ -171,12 +136,8 @@ export function createDockerHubAdapter(deps: ProviderDeps): ProviderAdapter {
   return {
     id: "dockerhub",
     async check(name, signal): Promise<ProviderOutcome> {
-      if (!DOCKER_NAMESPACE.test(name) || name.length < 4 || name.length > 30) {
-        return invalid(
-          name,
-          "not a valid Docker Hub namespace (4-30 chars, lowercase letters/digits with '-', '_' or '.' separators)",
-        );
-      }
+      const invalidName = invalidOutcome("dockerhub", name);
+      if (invalidName !== null) return invalidName;
       const url = `https://hub.docker.com/v2/repositories/${encodeURIComponent(name)}/`;
       const res = await safeFetch(deps, url, signal, { accept: "application/json" });
       if (!res) return unknown(name, "request failed");

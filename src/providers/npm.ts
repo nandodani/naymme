@@ -1,26 +1,17 @@
 import type { ProviderDeps } from "../deps.js";
 import type { ProviderAdapter, ProviderOutcome } from "../types.js";
+import { invalidOutcome } from "./validation.js";
 
 /**
- * npm package name rules (unscoped): ≤214 chars, lowercase, may not start
- * with a dot or underscore, url-safe characters only.
+ * npm package name rules (unscoped, ≤214 chars, lowercase, no leading dot
+ * or underscore) live in PROVIDER_NAME_RULES.
  */
-const NPM_NAME = /^[a-z0-9][a-z0-9._-]*$/;
-const NPM_MAX_LENGTH = 214;
-
 export function createNpmAdapter(deps: ProviderDeps): ProviderAdapter {
   return {
     id: "npm",
     async check(name): Promise<ProviderOutcome> {
-      if (name.length > NPM_MAX_LENGTH || !NPM_NAME.test(name) || name !== name.toLowerCase()) {
-        return {
-          status: "invalid",
-          subject: name,
-          available: false,
-          detail:
-            "not a valid npm package name (lowercase, url-safe, ≤214 chars, no leading dot/underscore)",
-        };
-      }
+      const invalid = invalidOutcome("npm", name);
+      if (invalid !== null) return invalid;
 
       let available: boolean;
       try {
