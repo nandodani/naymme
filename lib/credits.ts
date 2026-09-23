@@ -122,10 +122,10 @@ export const CREDIT_GROUPS: CreditGroup[] = [
         usedFor: "React renderer driving the Silk canvas.",
       },
       {
-        name: "loading-dev · loading.io",
-        href: "https://github.com/jakubkrehel/loading",
+        name: "loading.dev (by Jakub Krehel & Paul Faivret)",
+        href: "https://loading.dev",
         license: "MIT",
-        usedFor: "The Atom loader shown while availability checks stream in.",
+        usedFor: "React loading indicator (Atom orbit spinner) used for checking state.",
       },
       {
         name: "Geist",
@@ -174,12 +174,6 @@ export const CREDIT_GROUPS: CreditGroup[] = [
         href: "https://vercel.com",
         license: "Platform",
         usedFor: "Hosts this web app and the hosted MCP endpoint.",
-      },
-      {
-        name: "Cloudflare Workers",
-        href: "https://workers.cloudflare.com",
-        license: "Platform",
-        usedFor: "The edge runtime shipping the same MCP tools (worker/).",
       },
     ],
   },
