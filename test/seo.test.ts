@@ -65,8 +65,8 @@ describe("robots.txt", () => {
 });
 
 describe("sitemap.xml", () => {
-  it("lists the canonical root with change frequency and priority", () => {
-    const [entry, ...rest] = sitemap();
+  it("lists the canonical root and /credits with change frequency and priority", () => {
+    const [entry, credits, ...rest] = sitemap();
     expect(rest).toHaveLength(0);
     expect(entry).toMatchObject({
       url: SITE_URL,
@@ -74,6 +74,12 @@ describe("sitemap.xml", () => {
       priority: 1,
     });
     expect(entry?.lastModified).toBeTruthy();
+    expect(credits).toMatchObject({
+      url: `${SITE_URL}/credits`,
+      changeFrequency: "monthly",
+      priority: 0.3,
+    });
+    expect(credits?.lastModified).toBeTruthy();
   });
 });
 
