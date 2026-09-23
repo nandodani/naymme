@@ -37,7 +37,7 @@ export const HOME_CONTENT: PageContent = {
   sections: [
     {
       paragraphs: [
-        "Type a candidate name once and naymme fans out to more than 55 independent providers, each queried live and reported back with its own verdict — available, taken, invalid, or unknown when the source cannot be checked. Beyond availability, it computes a deterministic 0–100 brand score covering punchiness, pronounceability, uniqueness and cleanliness.",
+        "Type a candidate name once and naymme fans out to 61 independent providers, each queried live and reported back with its own verdict — available, taken, invalid, or unknown when the source cannot be checked. Beyond availability, it computes a deterministic 0–100 brand score covering punchiness, pronounceability, uniqueness and cleanliness.",
         "Everything the site exposes — the JSON API, the hosted MCP endpoint, the per-provider semantics and the agent surface — is documented on the docs page.",
       ],
       links: [
@@ -64,7 +64,7 @@ export const DOCS_CONTENT: PageContent = {
     {
       heading: "What a check covers",
       paragraphs: [
-        "Type a candidate name once and naymme fans out to more than 55 independent providers, each queried live and reported back with its own verdict — available, taken, invalid, or unknown when the source cannot be checked. Nothing is fabricated: a provider only reports available after seeing a verified unclaimed marker such as an RDAP 404, a registry not-found response, or a WHOIS no-match phrase.",
+        "Type a candidate name once and naymme fans out to 61 independent providers, each queried live and reported back with its own verdict — available, taken, invalid, or unknown when the source cannot be checked. Nothing is fabricated: a provider only reports available after seeing a verified unclaimed marker such as an RDAP 404, a registry not-found response, or a WHOIS no-match phrase.",
       ],
       list: [
         "Core domains — .com, .net, .org, .io, .dev, .app, .ai, .gg and more, resolved through the RDAP → WHOIS → DNS nameserver chain.",
@@ -94,7 +94,7 @@ export const DOCS_CONTENT: PageContent = {
     {
       heading: "Use it from your AI assistant",
       paragraphs: [
-        "naymme is a Model Context Protocol server first. Point any MCP client at the hosted Streamable HTTP endpoint — POST /api/mcp on this origin — and it exposes two tools: check_availability(name, providers?) for the live 55-provider sweep, and score_name(name) for the deterministic brand score. Cursor, Windsurf and VS Code speak HTTP natively; Claude Desktop bridges through mcp-remote; Claude Code registers the endpoint with one CLI command. The Connect MCP button on the homepage generates the exact config for each client.",
+        "naymme is a Model Context Protocol server first. Point any MCP client at the hosted Streamable HTTP endpoint — POST /api/mcp on this origin — and it exposes two tools: check_availability(name, providers?) for the live 61-provider sweep, and score_name(name) for the deterministic brand score. Cursor, Windsurf and VS Code speak HTTP natively; Claude Desktop bridges through mcp-remote; Claude Code registers the endpoint with one CLI command. The Connect MCP button on the homepage generates the exact config for each client.",
       ],
       list: [
         "check_availability — { name, providers? } → { name, results, summary }. Each result reports provider, status (available | taken | unknown | invalid), subject, available flag, optional detail and durationMs.",
@@ -197,7 +197,7 @@ export const ABOUT_CONTENT: PageContent = {
     {
       paragraphs: [
         "naymme is a name-availability checker built for the moment every project starts with: you have a candidate name, and you need to know whether you can actually have it — as a domain, a package, a repository, a handle — before you fall in love with it.",
-        "One input fans out to more than 55 providers across domain TLDs, developer platforms, package registries, hosted subdomains, app stores, publishing platforms and social networks, then distills the sweep into a per-provider grid plus a deterministic brand-quality score. The point is not just 'is it free' but 'is it free where it matters, and is it any good'.",
+        "One input fans out to 61 providers across domain TLDs, developer platforms, package registries, hosted subdomains, app stores, publishing platforms and social networks, then distills the sweep into a per-provider grid plus a deterministic brand-quality score. The point is not just 'is it free' but 'is it free where it matters, and is it any good'.",
       ],
     },
     {
@@ -220,10 +220,11 @@ export const ABOUT_CONTENT: PageContent = {
     {
       heading: "Maintainer",
       paragraphs: [
-        "naymme is maintained by @nandodani as an independent project. It is not affiliated with, endorsed by, or associated with any of the brands, platforms or registries it checks.",
+        "naymme is maintained by @nandodani as an independent open-source project (MIT). It is not affiliated with, endorsed by, or associated with any of the brands, platforms or registries it checks.",
       ],
       links: [
         { label: "nandodani.dev", href: "https://nandodani.dev" },
+        { label: "GitHub", href: "https://github.com/nandodani/naymme" },
         { label: "Documentation", href: "/docs" },
         { label: "llms.txt", href: "/llms.txt" },
       ],
@@ -245,9 +246,10 @@ export const CONTACT_CONTENT: PageContent = {
     {
       heading: "Report a bug or a wrong result",
       paragraphs: [
-        "Availability checks depend on third-party sources, so the more concrete the report the faster it lands: include the name you searched, the provider that looked wrong (for example domain:com or github), the verdict naymme showed, and what you expected instead. A URL or registry lookup showing the real state is ideal.",
+        "Availability checks depend on third-party sources, so the more concrete the report the faster it lands: include the name you searched, the provider that looked wrong (for example domain:com or github), the verdict naymme showed, and what you expected instead. A URL or registry lookup showing the real state is ideal. Bugs are tracked on GitHub Issues.",
       ],
       links: [
+        { label: "GitHub Issues", href: "https://github.com/nandodani/naymme/issues" },
         { label: "Documentation", href: "/docs" },
         { label: "Back to the checker", href: "/" },
       ],
@@ -255,9 +257,10 @@ export const CONTACT_CONTENT: PageContent = {
     {
       heading: "Request a provider or a feature",
       paragraphs: [
-        "New providers land through a small adapter contract — if a platform has a deterministic way to confirm a name is free, it can usually be added. Send the platform name and how availability can be verified through the contact links on nandodani.dev.",
+        "New providers land through a small adapter contract — if a platform has a deterministic way to confirm a name is free, it can usually be added. Open a feature request on GitHub with the platform name and how availability can be verified, or send it through the contact links on nandodani.dev.",
       ],
       links: [
+        { label: "GitHub Issues", href: "https://github.com/nandodani/naymme/issues" },
         { label: "Documentation", href: "/docs" },
         { label: "nandodani.dev", href: "https://nandodani.dev" },
       ],
