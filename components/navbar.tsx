@@ -22,9 +22,10 @@ export function Navbar({ onCopy }: { onCopy: (text: string, label: string) => vo
             href="https://nandodani.dev"
             target="_blank"
             rel="noopener noreferrer"
-            className="mr-1 hidden rounded-md text-[11px] text-zinc-600 transition-colors outline-none hover:text-zinc-300 focus-visible:ring-2 focus-visible:ring-ring sm:inline"
+            className="mr-1 hidden rounded-md text-[11px] text-zinc-400 transition-colors outline-none hover:text-zinc-300 focus-visible:ring-2 focus-visible:ring-ring sm:inline"
           >
             crafted by @nandodani
+            <span className="sr-only">(opens in a new tab)</span>
           </a>
           <ConnectMcpDialog onCopy={onCopy} />
         </div>

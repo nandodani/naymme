@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { CheckCircle2, Clock, Globe, XCircle } from "lucide-react";
+import { CheckCircle2, CircleQuestionMark, Globe, OctagonX, XCircle } from "lucide-react";
 
 import { BRAND_ICONS } from "./brand-icons.js";
 import { RegistrarIcon } from "./registrar-icons.js";
@@ -14,8 +14,8 @@ import type { AvailabilityResult, AvailabilityStatus } from "@/src/types.js";
 const STATUS_GLYPHS: Record<AvailabilityStatus, typeof CheckCircle2> = {
   available: CheckCircle2,
   taken: XCircle,
-  unknown: Clock,
-  invalid: XCircle,
+  unknown: CircleQuestionMark,
+  invalid: OctagonX,
 };
 
 /** Brand-icon tint keyed off availability — green glow when free, muted
@@ -26,7 +26,7 @@ const ICON_TINTS: Record<AvailabilityStatus, string> = {
   available: "text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.4)]",
   taken: "text-red-400/70",
   unknown: "text-amber-400/70",
-  invalid: "text-zinc-600",
+  invalid: "text-zinc-500",
 };
 
 /** Floating availability chip tint — matches the icon's status color. */
@@ -64,7 +64,7 @@ function RowIcon({
     return (
       <Icon
         aria-hidden="true"
-        className={cn("size-3.5 shrink-0 text-zinc-600", pending && "animate-pulse")}
+        className={cn("size-3.5 shrink-0 text-zinc-400", pending && "animate-pulse")}
       />
     );
   }
@@ -164,6 +164,7 @@ function PriceChips({ provider, subject }: { provider: string; subject: string }
   );
   return (
     <span
+      role="group"
       className="scrollbar-none marquee-mask mt-0.5 mb-0.5 flex min-w-44 flex-1 items-center gap-1 overflow-x-auto overscroll-x-contain pl-9"
       aria-label="First-year price estimates"
     >
@@ -172,9 +173,9 @@ function PriceChips({ provider, subject }: { provider: string; subject: string }
           <span
             key={registrar.id}
             title={`${registrar.label} does not carry this TLD`}
-            className="inline-flex h-5 shrink-0 items-center gap-1 rounded border border-zinc-800/60 px-1.5 font-mono text-[9px] text-zinc-600"
+            className="inline-flex h-5 shrink-0 items-center gap-1 rounded border border-zinc-800/60 px-1.5 font-mono text-[9px] text-zinc-400"
           >
-            <RegistrarIcon id={registrar.id} className="text-zinc-600" />—
+            <RegistrarIcon id={registrar.id} className="text-zinc-500" />—
           </span>
         ) : (
           <a
@@ -218,6 +219,9 @@ interface ProviderRowProps {
  */
 export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
   const [revealed, setRevealed] = useState(false);
+  // Escape dismisses the hover/focus chip without moving the pointer
+  // (WCAG 1.4.13); leaving the trigger resets it for the next reveal.
+  const [dismissed, setDismissed] = useState(false);
   const reduceMotion = useReducedMotion();
   const isDomain = meta.id.startsWith("domain:");
   const subject =
@@ -262,7 +266,7 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
   const identity = (
     <>
       {isDomain ? null : (
-        <span className="shrink-0 text-[10px] font-medium text-zinc-600">{meta.label}</span>
+        <span className="shrink-0 text-[10px] font-medium text-zinc-400">{meta.label}</span>
       )}
       {/* <wbr> after each dot gives the wrap a soft break point so a TLD
           (or dotted name segment) wraps as a unit instead of splitting
@@ -284,6 +288,20 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
         ))}
       </span>
       <span className="sr-only">{statusText}</span>
+      {/* Persistent status glyph — availability is never carried by icon
+          tint alone (WCAG 1.4.1): a distinct shape per status sits beside
+          the subject, matching the chip's glyph. */}
+      {status !== undefined && !pending
+        ? (() => {
+            const StatusGlyph = STATUS_GLYPHS[status];
+            return (
+              <StatusGlyph
+                aria-hidden="true"
+                className={cn("size-3 shrink-0", ICON_TINTS[status])}
+              />
+            );
+          })()
+        : null}
     </>
   );
 
@@ -319,12 +337,22 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
         {/* Icon-scoped status trigger: hover/focus on this target alone
             reveals the chip — the rest of the row never does. */}
         <span
+          role="img"
           tabIndex={0}
           aria-label={`${meta.label} ${subject} — ${statusText}`}
           onMouseEnter={() => setRevealed(true)}
-          onMouseLeave={() => setRevealed(false)}
+          onMouseLeave={() => {
+            setRevealed(false);
+            setDismissed(false);
+          }}
           onFocus={() => setRevealed(true)}
-          onBlur={() => setRevealed(false)}
+          onBlur={() => {
+            setRevealed(false);
+            setDismissed(false);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setDismissed(true);
+          }}
           className="flex shrink-0 cursor-default items-center self-stretch pr-1 pl-3 outline-none focus-visible:bg-zinc-900/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         >
           <RowIcon id={meta.id} status={status} pending={pending} revealed={revealed} />
@@ -347,7 +375,7 @@ export function ProviderRow({ meta, name, result, pending }: ProviderRowProps) {
         )}
 
         {status !== undefined && !pending ? (
-          <StatusChip status={status} visible={revealed} />
+          <StatusChip status={status} visible={revealed && !dismissed} />
         ) : null}
       </div>
 

@@ -65,7 +65,7 @@ export function ProviderColumn({
         >
           {group.title}
         </h3>
-        <span className="font-mono text-[11px] text-zinc-500 tabular-nums">
+        <span className="font-mono text-[11px] text-zinc-400 tabular-nums">
           {showSkeleton ? (
             <span className="animate-pulse">checking…</span>
           ) : (
@@ -90,7 +90,7 @@ export function ProviderColumn({
             ))}
           </AnimatePresence>
           {visibleProviders.length === 0 ? (
-            <li className="py-6 text-[12px] text-zinc-600">
+            <li className="py-6 text-[12px] text-zinc-400">
               {pending ? "Checking…" : `No available ${group.title.toLowerCase()} found.`}
             </li>
           ) : null}

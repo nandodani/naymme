@@ -1,9 +1,9 @@
 "use client";
 
 import type { ComponentType, SVGProps } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { Globe } from "lucide-react";
+import { Globe, Pause, Play } from "lucide-react";
 import {
   motion,
   useAnimationFrame,
@@ -73,7 +73,7 @@ function RibbonRow({
             aria-hidden="true"
             className="size-4 opacity-70 transition-opacity duration-200 hover:opacity-100"
           />
-          <span className="text-[12px] font-medium tracking-wide">{label}</span>
+          <span className="text-[12px] font-medium tracking-wide text-zinc-400">{label}</span>
         </li>
       ))}
     </ul>
@@ -91,6 +91,8 @@ function RibbonRow({
  */
 export function ProviderRibbon() {
   const reduceMotion = useReducedMotion();
+  // WCAG 2.2.2: auto-moving content needs a user-operable pause.
+  const [paused, setPaused] = useState(false);
   const x = useMotionValue(0);
   const rowRef = useRef<HTMLUListElement>(null);
   const rowWidth = useRef(0);
@@ -122,13 +124,14 @@ export function ProviderRibbon() {
   });
 
   useAnimationFrame((_, delta) => {
-    if (reduceMotion || dragging.current || hovered.current || rowWidth.current <= 0) return;
+    if (paused || reduceMotion || dragging.current || hovered.current || rowWidth.current <= 0)
+      return;
     x.set(x.get() - (SCROLL_PX_PER_S * delta) / 1000);
   });
 
   return (
     <div
-      className="marquee-mask mt-3 w-full max-w-xl overflow-hidden"
+      className="marquee-mask relative mt-3 w-full max-w-xl overflow-hidden"
       onMouseEnter={() => {
         hovered.current = true;
       }}
@@ -154,6 +157,21 @@ export function ProviderRibbon() {
         <RibbonRow hidden={true} />
         <RibbonRow hidden={true} />
       </motion.div>
+      {/* Pause/play for the auto-drift — draggable state is unaffected, so
+          the ticker stays operable while paused. */}
+      <button
+        type="button"
+        aria-pressed={paused}
+        aria-label={paused ? "Resume provider ticker" : "Pause provider ticker"}
+        onClick={() => setPaused((p) => !p)}
+        className="absolute top-1/2 right-1 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-800 bg-black/80 text-zinc-400 backdrop-blur transition-colors outline-none hover:border-zinc-700 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {paused ? (
+          <Play aria-hidden="true" className="size-3" />
+        ) : (
+          <Pause aria-hidden="true" className="size-3" />
+        )}
+      </button>
     </div>
   );
 }

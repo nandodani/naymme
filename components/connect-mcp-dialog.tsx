@@ -86,12 +86,18 @@ function SnippetBlock({ config }: { config: McpClientConfig }) {
   return (
     <div className="overflow-hidden rounded-xl border border-zinc-800 bg-black">
       <div className="flex h-9 items-center justify-between gap-3 border-b border-white/5 bg-white/[0.02] px-3.5">
-        <span className="truncate font-mono text-[10px] text-zinc-600">{config.destination}</span>
-        <span className="shrink-0 text-[10px] font-medium tracking-[0.08em] text-zinc-600 uppercase">
+        <span className="truncate font-mono text-[10px] text-zinc-400">{config.destination}</span>
+        <span className="shrink-0 text-[10px] font-medium tracking-[0.08em] text-zinc-400 uppercase">
           {config.language}
         </span>
       </div>
-      <pre className="max-h-36 overflow-auto px-3.5 py-3 font-mono text-[11px] leading-relaxed whitespace-pre text-zinc-400">
+      {/* tabIndex makes the scrollable snippet region keyboard-scrollable
+          (WCAG 2.1.1 / axe scrollable-region-focusable). */}
+      <pre
+        tabIndex={0}
+        aria-label={`${config.language} config for ${config.destination}`}
+        className="max-h-36 overflow-auto rounded-b-lg px-3.5 py-3 font-mono text-[11px] leading-relaxed whitespace-pre text-zinc-400 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
         <code>{config.snippet}</code>
       </pre>
     </div>
@@ -109,7 +115,7 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-[12px] font-medium text-zinc-200">{title}</p>
-        <div className="mt-1 text-[12px] leading-5 text-zinc-500">{children}</div>
+        <div className="mt-1 text-[12px] leading-5 text-zinc-400">{children}</div>
       </div>
     </div>
   );
@@ -126,6 +132,7 @@ export function ConnectMcpDialog({ onCopy }: { onCopy: (text: string, label: str
   const [selected, setSelected] = useState<ClientGuideId>("claude-desktop");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const reduceMotion = useReducedMotion();
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -161,39 +168,70 @@ export function ConnectMcpDialog({ onCopy }: { onCopy: (text: string, label: str
               <DialogPrimitive.Title className="text-[14px] font-semibold tracking-tight text-zinc-100">
                 Connect a client
               </DialogPrimitive.Title>
-              <DialogPrimitive.Description className="mt-1 text-[12px] leading-5 text-zinc-500">
+              <DialogPrimitive.Description className="mt-1 text-[12px] leading-5 text-zinc-400">
                 Point your favorite AI tool at this server — no install, no API key.
               </DialogPrimitive.Description>
             </div>
             <DialogPrimitive.Close
               aria-label="Close dialog"
-              className="flex size-7 shrink-0 items-center justify-center rounded-md text-zinc-500 transition-colors outline-none hover:bg-white/5 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex size-7 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors outline-none hover:bg-white/5 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-ring"
             >
               <X aria-hidden="true" className="size-4" />
             </DialogPrimitive.Close>
           </div>
 
           <div className="px-5 py-4">
+            {/* APG tabs with automatic activation: roving tabindex plus
+                arrow/Home/End keys move focus and selection together. */}
             <div
               role="tablist"
               aria-label="Choose your client"
               className="grid grid-cols-3 gap-2 sm:grid-cols-6"
             >
-              {guides.map((g) => {
+              {guides.map((g, index) => {
                 const Icon = CLIENT_ICONS[g.id];
                 const active = g.id === selected;
                 return (
                   <button
                     key={g.id}
+                    ref={(el) => {
+                      tabRefs.current[index] = el;
+                    }}
                     type="button"
                     role="tab"
+                    id={`mcp-client-tab-${g.id}`}
                     aria-selected={active}
+                    aria-controls="mcp-client-guide"
+                    tabIndex={active ? 0 : -1}
                     onClick={() => setSelected(g.id)}
+                    onKeyDown={(event) => {
+                      const last = guides.length - 1;
+                      const next =
+                        event.key === "ArrowRight" || event.key === "ArrowDown"
+                          ? index === last
+                            ? 0
+                            : index + 1
+                          : event.key === "ArrowLeft" || event.key === "ArrowUp"
+                            ? index === 0
+                              ? last
+                              : index - 1
+                            : event.key === "Home"
+                              ? 0
+                              : event.key === "End"
+                                ? last
+                                : -1;
+                      const target = next >= 0 ? guides[next] : undefined;
+                      if (target !== undefined) {
+                        event.preventDefault();
+                        setSelected(target.id);
+                        tabRefs.current[next]?.focus();
+                      }
+                    }}
                     className={cn(
                       "flex flex-col items-center gap-2 rounded-xl border px-2 py-3 text-[11px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       active
                         ? "border-zinc-700 bg-white/[0.07] text-zinc-100"
-                        : "border-zinc-800 bg-transparent text-zinc-500 hover:border-zinc-700 hover:text-zinc-300",
+                        : "border-zinc-800 bg-transparent text-zinc-400 hover:border-zinc-700 hover:text-zinc-300",
                     )}
                   >
                     <Icon aria-hidden="true" className="size-5" />
@@ -204,47 +242,53 @@ export function ConnectMcpDialog({ onCopy }: { onCopy: (text: string, label: str
             </div>
 
             {guide !== undefined ? (
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={guide.id}
-                  initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 10 }}
-                  animate={reduceMotion ? { opacity: 1 } : { opacity: 1, x: 0 }}
-                  exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -10 }}
-                  transition={{ duration: 0.16, ease: "easeOut" }}
-                  className="mt-4 flex flex-col gap-3.5"
-                >
-                  {guide.mode === "simple" ? (
-                    <>
-                      <p className="text-[12px] leading-5 text-zinc-500">{guide.openSettings}</p>
-                      <CopyField
-                        value={guide.copyValue}
-                        copyLabel={guide.copyLabel}
-                        toastLabel={guide.copyToast}
-                        onCopy={onCopy}
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <Step n={1} title="Open settings">
-                        {guide.openSettings}
-                      </Step>
-                      <Step n={2} title={`Copy the ${guide.copyLabel.toLowerCase()}`}>
-                        <div className="mt-1">
-                          <CopyField
-                            value={guide.copyValue}
-                            copyLabel={guide.copyLabel}
-                            toastLabel={guide.copyToast}
-                            onCopy={onCopy}
-                          />
-                        </div>
-                      </Step>
-                      <Step n={3} title="Paste and save">
-                        {guide.pasteAndSave}
-                      </Step>
-                    </>
-                  )}
-                </motion.div>
-              </AnimatePresence>
+              <div
+                role="tabpanel"
+                id="mcp-client-guide"
+                aria-labelledby={`mcp-client-tab-${guide.id}`}
+              >
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={guide.id}
+                    initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 10 }}
+                    animate={reduceMotion ? { opacity: 1 } : { opacity: 1, x: 0 }}
+                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -10 }}
+                    transition={{ duration: 0.16, ease: "easeOut" }}
+                    className="mt-4 flex flex-col gap-3.5"
+                  >
+                    {guide.mode === "simple" ? (
+                      <>
+                        <p className="text-[12px] leading-5 text-zinc-400">{guide.openSettings}</p>
+                        <CopyField
+                          value={guide.copyValue}
+                          copyLabel={guide.copyLabel}
+                          toastLabel={guide.copyToast}
+                          onCopy={onCopy}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <Step n={1} title="Open settings">
+                          {guide.openSettings}
+                        </Step>
+                        <Step n={2} title={`Copy the ${guide.copyLabel.toLowerCase()}`}>
+                          <div className="mt-1">
+                            <CopyField
+                              value={guide.copyValue}
+                              copyLabel={guide.copyLabel}
+                              toastLabel={guide.copyToast}
+                              onCopy={onCopy}
+                            />
+                          </div>
+                        </Step>
+                        <Step n={3} title="Paste and save">
+                          {guide.pasteAndSave}
+                        </Step>
+                      </>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
             ) : null}
 
             {activeConfig !== undefined ? (
@@ -253,7 +297,8 @@ export function ConnectMcpDialog({ onCopy }: { onCopy: (text: string, label: str
                   type="button"
                   onClick={() => setAdvancedOpen((open) => !open)}
                   aria-expanded={advancedOpen}
-                  className="flex w-full items-center justify-between rounded-md px-1 py-1 text-[12px] font-medium text-zinc-500 transition-colors outline-none hover:text-zinc-300 focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-controls="mcp-advanced-config"
+                  className="flex w-full items-center justify-between rounded-md px-1 py-1 text-[12px] font-medium text-zinc-400 transition-colors outline-none hover:text-zinc-300 focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   Need raw config JSON?
                   <ChevronDown
@@ -267,6 +312,7 @@ export function ConnectMcpDialog({ onCopy }: { onCopy: (text: string, label: str
                 <AnimatePresence initial={false}>
                   {advancedOpen && activeConfig !== undefined ? (
                     <motion.div
+                      id="mcp-advanced-config"
                       key="advanced"
                       initial={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
                       animate={reduceMotion ? { opacity: 1 } : { height: "auto", opacity: 1 }}
@@ -275,7 +321,7 @@ export function ConnectMcpDialog({ onCopy }: { onCopy: (text: string, label: str
                       className="overflow-hidden"
                     >
                       <div className="pt-3">
-                        <p className="mb-2 text-[11px] leading-4 text-zinc-600">
+                        <p className="mb-2 text-[11px] leading-4 text-zinc-400">
                           Paste this into{" "}
                           <span className="font-mono text-zinc-400">
                             {activeConfig.destination}

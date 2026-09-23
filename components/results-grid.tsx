@@ -59,8 +59,22 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
   const counts = resultCounts(data?.results ?? [], EXPECTED_PROVIDER_IDS);
   const emptyFiltered = filter === "available" && counts.available === 0 && !checking;
 
+  // Polite live-region copy: announced as the run streams in and once it
+  // completes, without spamming per-row updates.
+  const liveSummary =
+    data === null
+      ? ""
+      : checking
+        ? `Checking — ${counts.settled} of ${counts.expected} providers settled`
+        : `Checks complete — ${counts.available} free, ${counts.taken} taken${
+            counts.unresolved > 0 ? `, ${counts.unresolved} unresolved` : ""
+          }`;
+
   return (
     <div className="flex flex-col gap-3">
+      <div aria-live="polite" className="sr-only">
+        {liveSummary}
+      </div>
       {error !== null ? (
         <div
           role="alert"
@@ -74,8 +88,8 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <div className="flex min-w-0 items-center gap-3 font-mono text-[11px] text-zinc-500">
-          <h1 className="truncate">
+        <div className="flex min-w-0 items-center gap-3 font-mono text-[11px] text-zinc-400">
+          <h1 className="truncate font-normal">
             results for <span className="text-zinc-300">{name}</span>
           </h1>
           {data !== null ? (
@@ -96,8 +110,10 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
             </span>
           ) : null}
         </div>
+        {/* Toggle-button group (not a tablist): filters switch the grid's
+            visibility predicate, they don't swap tab panels. */}
         <div
-          role="tablist"
+          role="group"
           aria-label="Filter results by availability"
           className="inline-flex w-fit shrink-0 items-center rounded-full border border-zinc-800 bg-zinc-950/80 p-0.5"
         >
@@ -108,8 +124,8 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
               <button
                 key={id}
                 type="button"
-                role="tab"
-                aria-selected={active}
+                aria-pressed={active}
+                aria-controls="provider-results"
                 onClick={() => setFilter(id)}
                 className="relative rounded-full px-3 py-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
               >
@@ -124,7 +140,7 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
                     className="absolute inset-0 rounded-full border border-zinc-700 bg-white/10"
                   />
                 ) : null}
-                <span className={cn("relative", active ? "text-zinc-100" : "text-zinc-500")}>
+                <span className={cn("relative", active ? "text-zinc-100" : "text-zinc-400")}>
                   {label} ({count})
                 </span>
               </button>
@@ -134,6 +150,7 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
       </div>
 
       <motion.div
+        id="provider-results"
         variants={container}
         initial="hidden"
         animate="show"
@@ -148,8 +165,8 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
             variants={item}
             className="flex items-center justify-center gap-2.5 rounded-xl border border-zinc-800 bg-card px-4 py-10"
           >
-            <SearchX aria-hidden="true" className="size-4 text-zinc-600" />
-            <p className="text-[12px] text-zinc-500">No available handles found for this search.</p>
+            <SearchX aria-hidden="true" className="size-4 text-zinc-400" />
+            <p className="text-[12px] text-zinc-400">No available handles found for this search.</p>
           </motion.div>
         ) : (
           PROVIDER_GROUPS.map((group) => (

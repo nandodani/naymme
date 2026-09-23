@@ -21,7 +21,11 @@ interface HeroProps {
  */
 export function Hero({ value, onChange, onSubmit, valid, inputRef }: HeroProps) {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center px-4 pb-16 sm:px-6">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="flex flex-1 flex-col items-center justify-center px-4 pb-16 outline-none sm:px-6"
+    >
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -31,7 +35,7 @@ export function Hero({ value, onChange, onSubmit, valid, inputRef }: HeroProps) 
         <h1 className="max-w-xl bg-gradient-to-b from-white via-white to-zinc-500 bg-clip-text text-center text-[28px] leading-[1.15] font-semibold tracking-tight text-balance text-transparent sm:text-[40px]">
           Check name availability across domains, code, and socials
         </h1>
-        <p className="mt-4 text-center text-[14px] leading-relaxed text-zinc-500 sm:text-[15px]">
+        <p className="mt-4 text-center text-[14px] leading-relaxed text-zinc-400 sm:text-[15px]">
           Real-time availability across code registries, social handles, and top-level domains.
         </p>
         <div className="mt-8 w-full">
@@ -44,7 +48,7 @@ export function Hero({ value, onChange, onSubmit, valid, inputRef }: HeroProps) 
             variant="hero"
           />
         </div>
-        <p className="mt-12 text-[11px] tracking-wide text-zinc-600 uppercase">search on</p>
+        <p className="mt-12 text-[11px] tracking-wide text-zinc-400 uppercase">search on</p>
         <ProviderRibbon />
       </motion.div>
     </main>
