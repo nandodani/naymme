@@ -1,10 +1,9 @@
 import { buildOauthProtectedResource } from "@/lib/agent-discovery.js";
 
 /**
- * /.well-known/oauth-protected-resource — RFC 9728 Protected Resource
- * Metadata, cross-origin readable. The API is public: the document points
- * authorization_servers at this origin, whose RFC 8414 stub declares that
- * issuer grants no tokens — the definitive "no token tier" answer.
+ * /.well-known/oauth-protected-resource.json — explicit .json alias for
+ * the RFC 9728 Protected Resource Metadata document (same payload as the
+ * extensionless path), cross-origin readable.
  */
 export const dynamic = "force-static";
 

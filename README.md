@@ -212,8 +212,8 @@ Discovery endpoints for agents: `/openapi.json` (OpenAPI 3.1),
 `/.well-known/api-catalog` (RFC 9264 linkset), `/.well-known/mcp` +
 `/.well-known/mcp/server-card.json` (SEP-1649),
 `/.well-known/agent-skills/index.json` (agent-skills RFC v0.2.0 + sha256),
-`/.well-known/ai-catalog.json`, `/.well-known/oauth-protected-resource` (RFC 9728) and `/.well-known/oauth-authorization-server` (RFC 8414) — both OAuth
-stubs declaring the public no-token tier — plus `/llms.txt`,
+`/.well-known/ai-catalog.json`, `/.well-known/oauth-protected-resource` (RFC 9728, plus the `.json` alias) and `/.well-known/oauth-authorization-server` (RFC 8414) — the OAuth
+pair declaring the public no-token tier — plus `/llms.txt`,
 `/llms-full.txt`, `/auth.md`, and `Accept: text/markdown` on any page.
 DNS-based discovery records (`_index._agents` SVCB/HTTPS) are documented in
 [DNS-AID.md](DNS-AID.md).
