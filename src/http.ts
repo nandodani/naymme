@@ -1,5 +1,6 @@
 import http from "node:http";
 import { pathToFileURL } from "node:url";
+import { apiErrorBody, API_ERROR_CODES } from "./api-errors.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import type { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { defaultDeps } from "./deps.js";
@@ -75,7 +76,16 @@ export function createHttpServer(options: HttpServerOptions = {}): http.Server {
       "content-type": "application/json",
       "retry-after": String(retryAfterSeconds),
     });
-    res.end(JSON.stringify({ error: "rate limit exceeded", retryAfterSeconds }));
+    res.end(
+      JSON.stringify(
+        apiErrorBody(
+          API_ERROR_CODES.rateLimited,
+          "rate limit exceeded",
+          `Retry after ${retryAfterSeconds} seconds.`,
+          { retryAfterSeconds },
+        ),
+      ),
+    );
   }
 
   return http.createServer((req, res) => {
@@ -107,7 +117,11 @@ export function createHttpServer(options: HttpServerOptions = {}): http.Server {
           if (Number.isFinite(declared) && declared > MAX_REQUEST_BODY_BYTES) {
             sendJson(res, 413, {
               jsonrpc: "2.0",
-              error: { code: -32600, message: "request body too large" },
+              error: {
+                code: -32600,
+                message: "request body too large",
+                data: { hint: `Bodies are capped at ${MAX_REQUEST_BODY_BYTES} bytes.` },
+              },
               id: null,
             });
             return;
@@ -119,7 +133,15 @@ export function createHttpServer(options: HttpServerOptions = {}): http.Server {
 
       if (url.pathname === "/sse" && req.method === "GET") {
         if (sseSessions.size >= maxSseSessions) {
-          sendJson(res, 503, { error: "too many open sessions" });
+          sendJson(
+            res,
+            503,
+            apiErrorBody(
+              API_ERROR_CODES.tooManySessions,
+              "too many open sessions",
+              `At most ${maxSseSessions} concurrent SSE sessions are allowed; use POST /mcp (stateless) instead.`,
+            ),
+          );
           return;
         }
         const server = createNameCheckServer(defaultDeps());
@@ -141,7 +163,11 @@ export function createHttpServer(options: HttpServerOptions = {}): http.Server {
         if (!session) {
           sendJson(res, 400, {
             jsonrpc: "2.0",
-            error: { code: -32000, message: "unknown or missing sessionId" },
+            error: {
+              code: -32000,
+              message: "unknown or missing sessionId",
+              data: { hint: "Open a session with GET /sse first, or use stateless POST /mcp." },
+            },
             id: null,
           });
           return;
@@ -150,7 +176,11 @@ export function createHttpServer(options: HttpServerOptions = {}): http.Server {
         if (Number.isFinite(declared) && declared > MAX_REQUEST_BODY_BYTES) {
           sendJson(res, 413, {
             jsonrpc: "2.0",
-            error: { code: -32600, message: "request body too large" },
+            error: {
+              code: -32600,
+              message: "request body too large",
+              data: { hint: `Bodies are capped at ${MAX_REQUEST_BODY_BYTES} bytes.` },
+            },
             id: null,
           });
           return;
@@ -160,19 +190,43 @@ export function createHttpServer(options: HttpServerOptions = {}): http.Server {
         return;
       }
 
-      sendJson(res, 404, {
-        error: "not found",
-        endpoints: ["/mcp", "/sse", "/messages", "/health"],
-      });
+      sendJson(
+        res,
+        404,
+        apiErrorBody(
+          API_ERROR_CODES.notFound,
+          "not found",
+          "Endpoints: POST /mcp (MCP Streamable HTTP), GET /sse + POST /messages (legacy SSE), GET /health.",
+          { endpoints: ["/mcp", "/sse", "/messages", "/health"] },
+        ),
+      );
     })().catch((err: unknown) => {
       if (err instanceof BodyTooLargeError) {
-        if (!res.headersSent) sendJson(res, 413, { error: "request body too large" });
-        else res.destroy();
+        if (!res.headersSent) {
+          sendJson(
+            res,
+            413,
+            apiErrorBody(
+              API_ERROR_CODES.bodyTooLarge,
+              "request body too large",
+              `Bodies are capped at ${MAX_REQUEST_BODY_BYTES} bytes.`,
+            ),
+          );
+        } else res.destroy();
         return;
       }
       console.error("http request error:", err);
-      if (!res.headersSent) sendJson(res, 500, { error: "internal server error" });
-      else res.destroy();
+      if (!res.headersSent) {
+        sendJson(
+          res,
+          500,
+          apiErrorBody(
+            API_ERROR_CODES.internal,
+            "internal server error",
+            "Retry; if it persists, check the server logs.",
+          ),
+        );
+      } else res.destroy();
     });
   });
 }

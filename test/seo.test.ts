@@ -4,8 +4,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { metadata as layoutMetadata, viewport } from "../app/layout.js";
 import manifest from "../app/manifest.js";
-import robots from "../app/robots.js";
 import sitemap from "../app/sitemap.js";
+import { buildRobotsTxt } from "../lib/agent-discovery.js";
 import { jsonLdGraph } from "../lib/json-ld.js";
 import { OG_CARD_ALT, OgCard, OG_IMAGE_SIZE } from "../lib/og-card.js";
 import { SITE_NAME, SITE_URL } from "../lib/site.js";
@@ -54,13 +54,16 @@ describe("layout metadata", () => {
 
 describe("robots.txt", () => {
   it("allows crawlers, excludes API routes and points at the sitemap", () => {
-    const r = robots();
-    const rules = Array.isArray(r.rules) ? r.rules : [r.rules];
-    expect(rules).toContainEqual(
-      expect.objectContaining({ userAgent: "*", allow: "/", disallow: "/api/" }),
-    );
-    expect(r.sitemap).toBe(`${SITE_URL}/sitemap.xml`);
-    expect(r.host).toBe(SITE_URL);
+    const body = buildRobotsTxt();
+    expect(body).toContain("User-agent: *");
+    expect(body).toContain("Allow: /");
+    expect(body).toContain("Disallow: /api/");
+    expect(body).toContain(`Sitemap: ${SITE_URL}/sitemap.xml`);
+    expect(body).toContain(`Host: ${SITE_URL}`);
+  });
+
+  it("publishes AI-usage content signals", () => {
+    expect(buildRobotsTxt()).toContain("Content-Signal: ai-train=no, search=yes, ai-input=no");
   });
 });
 

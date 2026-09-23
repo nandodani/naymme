@@ -5,6 +5,8 @@
  * run identically in all three places.
  */
 
+import { apiErrorBody, API_ERROR_CODES } from "./api-errors.js";
+
 /** Largest JSON-RPC/HTTP request body accepted: 1 MiB. */
 export const MAX_REQUEST_BODY_BYTES = 1024 * 1024;
 
@@ -180,13 +182,18 @@ export function clientKeyFromHeaders(headers: Headers): string {
   return "unknown";
 }
 
-/** 429 JSON body with `Retry-After`. CORS headers are applied by the caller. */
+/** 429 JSON error envelope with `Retry-After`. CORS headers are applied by the caller. */
 export function tooManyRequestsResponse(
   retryAfterSeconds: number,
   headers: Record<string, string> = {},
 ): Response {
   return Response.json(
-    { error: "rate limit exceeded", retryAfterSeconds },
+    apiErrorBody(
+      API_ERROR_CODES.rateLimited,
+      "rate limit exceeded",
+      `Retry after ${retryAfterSeconds} seconds. Per-endpoint request budgets are documented in /auth.md.`,
+      { retryAfterSeconds },
+    ),
     { status: 429, headers: { "retry-after": String(retryAfterSeconds), ...headers } },
   );
 }

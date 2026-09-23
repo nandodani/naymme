@@ -89,7 +89,15 @@ export async function handleMcpRequest(
   if (!verdict.ok) return tooManyRequestsResponse(verdict.retryAfterSeconds, CORS_HEADERS);
   if (contentLengthExceeded(request, MAX_REQUEST_BODY_BYTES)) {
     return Response.json(
-      { jsonrpc: "2.0", error: { code: -32600, message: "request body too large" }, id: null },
+      {
+        jsonrpc: "2.0",
+        error: {
+          code: -32600,
+          message: "request body too large",
+          data: { hint: `Bodies are capped at ${MAX_REQUEST_BODY_BYTES} bytes.` },
+        },
+        id: null,
+      },
       { status: 413, headers: CORS_HEADERS },
     );
   }
@@ -99,7 +107,15 @@ export async function handleMcpRequest(
   } catch (err) {
     console.error("mcp request error:", err);
     return Response.json(
-      { jsonrpc: "2.0", error: { code: -32603, message: "internal error" }, id: null },
+      {
+        jsonrpc: "2.0",
+        error: {
+          code: -32603,
+          message: "internal error",
+          data: { hint: "Retry; if it persists, report the request id and timestamp." },
+        },
+        id: null,
+      },
       { status: 500, headers: CORS_HEADERS },
     );
   }

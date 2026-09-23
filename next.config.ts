@@ -20,6 +20,23 @@ const nextConfig: NextConfig = {
         : "script-src 'self' 'unsafe-inline'";
     return [
       {
+        // Agent discovery on the homepage (RFC 8288 Link headers): the API
+        // catalog linkset, the MCP server card, the OpenAPI description and
+        // the human-readable docs.
+        source: "/",
+        headers: [
+          {
+            key: "link",
+            value: [
+              '</.well-known/api-catalog>; rel="api-catalog"',
+              '</.well-known/mcp/server-card.json>; rel="service-desc"; type="application/json"',
+              '</openapi.json>; rel="service-desc"; type="application/json"',
+              '</docs>; rel="service-doc"',
+            ].join(", "),
+          },
+        ],
+      },
+      {
         source: "/:path*",
         headers: [
           { key: "x-content-type-options", value: "nosniff" },

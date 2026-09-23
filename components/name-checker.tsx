@@ -13,6 +13,7 @@ import { SearchInput } from "./search-input.js";
 import Silk from "./silk.js";
 import { SiteFooter } from "./site-footer.js";
 import { CopyToast } from "./toast.js";
+import { WebMcp } from "./web-mcp.js";
 import { TooltipProvider } from "./ui/tooltip.js";
 
 function normalize(raw: string): string {
@@ -162,8 +163,13 @@ export function NameChecker() {
       signal: controller.signal,
     })
       .then(async (res) => {
-        const body = (await res.json()) as AvailabilityResponse & { error?: string };
-        if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+        const body = (await res.json()) as AvailabilityResponse & {
+          error?: { message?: string } | string;
+        };
+        if (!res.ok) {
+          const message = typeof body.error === "object" ? body.error?.message : body.error;
+          throw new Error(message ?? `HTTP ${res.status}`);
+        }
         if (seq === requestSeq.current) setAvailability(body);
       })
       .catch((err: unknown) => {
@@ -261,6 +267,7 @@ export function NameChecker() {
 
         <SiteFooter />
 
+        <WebMcp />
         <CopyToast message={toast} />
       </div>
     </TooltipProvider>
