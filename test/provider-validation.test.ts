@@ -339,6 +339,43 @@ const CASES: Record<ProviderId, ProviderCases> = {
       { name: "acme-", reason: END_LETTER_OR_DIGIT },
     ],
   },
+  cloudflare: {
+    valid: ["acme", "ac-me1"],
+    invalid: [
+      { name: "a".repeat(64), reason: TOO_LONG },
+      { name: "Acme", reason: DISALLOWED },
+      { name: "ac_me", reason: DISALLOWED },
+      { name: "-acme", reason: START_LETTER_OR_DIGIT },
+      { name: "acme-", reason: END_LETTER_OR_DIGIT },
+    ],
+  },
+  flyio: {
+    valid: ["acme", "ac-me1"],
+    invalid: [
+      { name: "Acme", reason: DISALLOWED },
+      { name: "ac_me", reason: DISALLOWED },
+      { name: "-acme", reason: START_LETTER_OR_DIGIT },
+      { name: "acme-", reason: END_LETTER_OR_DIGIT },
+    ],
+  },
+  railway: {
+    valid: ["acme", "ac-me1"],
+    invalid: [
+      { name: "Acme", reason: DISALLOWED },
+      { name: "ac_me", reason: DISALLOWED },
+      { name: "-acme", reason: START_LETTER_OR_DIGIT },
+      { name: "acme-", reason: END_LETTER_OR_DIGIT },
+    ],
+  },
+  supabase: {
+    valid: ["acme", "ac-me1"],
+    invalid: [
+      { name: "Acme", reason: DISALLOWED },
+      { name: "ac_me", reason: DISALLOWED },
+      { name: "-acme", reason: START_LETTER_OR_DIGIT },
+      { name: "acme-", reason: END_LETTER_OR_DIGIT },
+    ],
+  },
   appstore: {
     valid: ["ab", "Acme X!", "a".repeat(30)],
     invalid: [

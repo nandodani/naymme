@@ -29,9 +29,18 @@ const server = setupServer(
   ),
   http.get("https://rdap.test/*", () => new HttpResponse(null, { status: 404 })),
   http.get("https://cloudflare-dns.com/dns-query", ({ request }) => {
-    const name = new URL(request.url).searchParams.get("name");
-    const answer = name === "taken.gg" ? [{ type: 2, data: "ns1.dynadot.com." }] : [];
-    return HttpResponse.json({ Answer: answer });
+    const url = new URL(request.url);
+    const name = url.searchParams.get("name");
+    const type = url.searchParams.get("type");
+    if (type === "NS") {
+      const answer = name === "taken.gg" ? [{ type: 2, data: "ns1.dynadot.com." }] : [];
+      return HttpResponse.json({ Status: 0, Answer: answer });
+    }
+    // A/AAAA existence probes: claimed subdomains resolve, the rest NXDOMAIN.
+    if (name === "taken.pages.dev" || name === "taken.fly.dev" || name === "taken.supabase.co") {
+      return HttpResponse.json({ Status: 0, Answer: [{ type: 1, data: "1.2.3.4" }] });
+    }
+    return HttpResponse.json({ Status: 3 });
   }),
   http.head("https://registry.npmjs.org/:name", ({ params }) => {
     const taken = new Set(["takenpkg", "foobar"]);
@@ -48,6 +57,15 @@ const server = setupServer(
   http.all("https://*.netlify.app/*", () =>
     HttpResponse.text("Not Found - Request ID: abc", { status: 404 }),
   ),
+  http.all("https://*.up.railway.app/*", ({ request }) => {
+    if (new URL(request.url).hostname === "taken.up.railway.app") {
+      return new HttpResponse("ok", { status: 200 });
+    }
+    return HttpResponse.json(
+      { status: "error", message: "Application not found" },
+      { status: 404, headers: { "x-railway-fallback": "true" } },
+    );
+  }),
   http.all("*", () => new HttpResponse(null, { status: 404 })),
 );
 
@@ -84,6 +102,10 @@ describe("worker check_availability — mocked egress", () => {
       "domain:com",
       "vercel",
       "netlify",
+      "cloudflare",
+      "flyio",
+      "railway",
+      "supabase",
       "github:user",
       "npm",
     ]);
@@ -92,8 +114,26 @@ describe("worker check_availability — mocked egress", () => {
     expect(byProvider.get("domain:com")?.subject).toBe("acme.com");
     expect(byProvider.get("vercel")?.status).toBe("available");
     expect(byProvider.get("netlify")?.status).toBe("available");
+    expect(byProvider.get("cloudflare")?.status).toBe("available");
+    expect(byProvider.get("flyio")?.status).toBe("available");
+    expect(byProvider.get("railway")?.status).toBe("available");
+    expect(byProvider.get("supabase")?.status).toBe("available");
     expect(byProvider.get("github:user")?.status).toBe("available");
     expect(byProvider.get("npm")?.status).toBe("available");
+  });
+
+  it("reports taken for claimed hosting subdomains", async () => {
+    const results = await checkAvailability("taken", [
+      "cloudflare",
+      "flyio",
+      "railway",
+      "supabase",
+    ]);
+    const byProvider = new Map(results.map((r) => [r.provider, r]));
+    expect(byProvider.get("cloudflare")?.status).toBe("taken");
+    expect(byProvider.get("flyio")?.status).toBe("taken");
+    expect(byProvider.get("railway")?.status).toBe("taken");
+    expect(byProvider.get("supabase")?.status).toBe("taken");
   });
 
   it("reports taken when the npm registry HEAD probe answers 200", async () => {

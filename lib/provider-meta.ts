@@ -13,7 +13,7 @@ export interface ProviderMeta {
 }
 
 export type ProviderGroupId =
-  "domains" | "regions" | "niche" | "code" | "platforms" | "socials" | "community";
+  "domains" | "regions" | "niche" | "code" | "platforms" | "hosting" | "socials" | "community";
 
 export interface ProviderGroup {
   id: ProviderGroupId;
@@ -107,9 +107,19 @@ export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
     providers: [
       { id: "codepen", label: "CodePen" },
       { id: "replit", label: "Replit" },
+      { id: "appstore", label: "App Store" },
+    ],
+  },
+  {
+    id: "hosting",
+    title: "Hosting & deploy",
+    providers: [
       { id: "vercel", label: "Vercel" },
       { id: "netlify", label: "Netlify" },
-      { id: "appstore", label: "App Store" },
+      { id: "cloudflare", label: "Cloudflare Pages" },
+      { id: "flyio", label: "Fly.io" },
+      { id: "railway", label: "Railway" },
+      { id: "supabase", label: "Supabase" },
     ],
   },
   {

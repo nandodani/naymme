@@ -231,6 +231,10 @@ export const PROVIDER_NAME_RULES: Readonly<Record<ProviderId, NameRule>> = {
   replit: handleRule("Replit username", 2, 64, /[A-Za-z0-9_-]/, UNDERSCORE_HANDLE_LABEL),
   vercel: SUBDOMAIN_RULE("vercel.app"),
   netlify: SUBDOMAIN_RULE("netlify.app"),
+  cloudflare: SUBDOMAIN_RULE("pages.dev"),
+  flyio: SUBDOMAIN_RULE("fly.dev"),
+  railway: SUBDOMAIN_RULE("up.railway.app"),
+  supabase: SUBDOMAIN_RULE("supabase.co"),
   appstore: handleRule(
     "App Store app name",
     2,

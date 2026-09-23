@@ -459,6 +459,22 @@ const PLATFORM_LINKS: Partial<Record<ProviderId, PlatformLinks>> = {
     claim: () => "https://app.netlify.com/start",
     profile: (name) => `https://${name}.netlify.app`,
   },
+  cloudflare: {
+    claim: () => "https://dash.cloudflare.com/sign-up?to=/:account/pages",
+    profile: (name) => `https://${name}.pages.dev`,
+  },
+  flyio: {
+    claim: () => "https://fly.io/app/sign-up",
+    profile: (name) => `https://${name}.fly.dev`,
+  },
+  railway: {
+    claim: () => "https://railway.com/new",
+    profile: (name) => `https://${name}.up.railway.app`,
+  },
+  supabase: {
+    claim: () => "https://supabase.com/dashboard/sign-up",
+    profile: (name) => `https://${name}.supabase.co`,
+  },
   appstore: {
     claim: () => "https://developer.apple.com/",
     profile: (name) => `https://apps.apple.com/us/search?term=${encodeURIComponent(name)}`,

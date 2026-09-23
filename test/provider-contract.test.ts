@@ -40,6 +40,7 @@ const outcomeSchema = z
 const deps: ProviderDeps = defaultDeps({
   whoisDomain: async () => ({}),
   resolveNs: async () => [],
+  resolveAny: async () => ({ answers: [], nxdomain: true }),
   timeoutMs: 10_000,
 });
 
