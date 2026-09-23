@@ -180,6 +180,27 @@ export function buildOauthProtectedResource(): Record<string, unknown> {
 }
 
 /**
+ * RFC 8414 OAuth 2.0 Authorization Server Metadata stub at
+ * /.well-known/oauth-authorization-server. There is no authorization
+ * server behind this host — the document exists so agents probing the
+ * standard discovery path get a definitive answer instead of a 404:
+ * `issuer` identifies the host, the supported-flow lists are empty, and
+ * `service_documentation` points at /auth.md for the full public tier.
+ */
+export function buildOauthAuthorizationServer(): Record<string, unknown> {
+  return {
+    issuer: SITE_URL,
+    service_documentation: `${SITE_URL}/auth.md`,
+    response_types_supported: [],
+    response_modes_supported: [],
+    grant_types_supported: [],
+    token_endpoint_auth_methods_supported: [],
+    scopes_supported: [],
+    code_challenge_methods_supported: [],
+  };
+}
+
+/**
  * robots.txt body. The `Content-Signal` directives inside the `User-agent: *`
  * group publish AI-usage preferences (Cloudflare Content Signals
  * convention): no model training, search indexing welcome, no use of site
@@ -199,53 +220,83 @@ export function buildRobotsTxt(): string {
 }
 
 /**
- * /auth.md — the authentication document agents fetch to learn how (not)
- * to authenticate: the public tier, rate limits, required headers and what
- * registration means here (none — just a descriptive User-Agent).
+ * /auth.md — the WorkOS-style auth.md document agents fetch to learn how
+ * to authenticate. Follows the auth.md convention (`# auth.md` heading,
+ * numbered steps an agent can walk top to bottom); since the service is
+ * fully public, the steps resolve to "no registration — call directly".
  */
 export function buildAuthMarkdown(): string {
   return [
-    `# ${SITE_NAME} — authentication & API access`,
+    "# auth.md",
     "",
-    `All lmkurname endpoints are **public and unauthenticated**. No API key, token, OAuth flow or account registration is required — call them directly.`,
+    `You are an agent. ${SITE_NAME} (${SITE_URL}) is a **public, unauthenticated service**: there is no registration, claim ceremony, credential, or OAuth flow — every step below resolves to calling the endpoints directly. The resource server is ${SITE_URL}; no authorization server exists (the RFC 8414 document below says so explicitly).`,
     "",
-    "## Public endpoints",
+    "## Step 1 — Discover",
     "",
-    `- \`GET ${SITE_URL}/api/availability?name=<name>[&providers=<csv>]\` — name availability results`,
-    `- \`GET ${SITE_URL}/api/score?name=<name>\` — deterministic brand score`,
-    `- \`POST ${SITE_URL}/api/mcp\` — MCP Streamable HTTP transport (JSON-RPC 2.0)`,
+    `The structured discovery documents confirm the no-token tier:`,
+    "",
+    `- \`GET ${SITE_URL}/.well-known/oauth-protected-resource\` — RFC 9728 Protected Resource Metadata; \`authorization_servers\` is an empty list`,
+    `- \`GET ${SITE_URL}/.well-known/oauth-authorization-server\` — RFC 8414 Authorization Server Metadata stub; \`grant_types_supported\` and \`response_types_supported\` are empty lists`,
+    `- \`GET ${SITE_URL}/openapi.json\` — OpenAPI 3.1 description of every endpoint`,
+    `- \`GET ${SITE_URL}/.well-known/mcp\` — MCP discovery document (transport, tools, input schemas)`,
+    `- \`GET ${SITE_URL}/.well-known/mcp/server-card.json\` — SEP-1649 MCP server card`,
+    "",
+    "## Step 2 — Pick a method",
+    "",
+    `There is exactly one method: **anonymous public access**. No API key, bearer token, OAuth client, or account exists for this service. Do not attempt \`/agent/identity\`, \`/oauth2/token\`, or any registration call — those endpoints do not exist and return a structured 404.`,
+    "",
+    "## Step 3 — Register",
+    "",
+    `Nothing to register. If you operate an agent, a descriptive \`User-Agent\` (e.g. \`my-agent/1.0 (+https://you.example)\`) is appreciated but not required or enforced.`,
+    "",
+    "## Step 4 — Claim ceremony",
+    "",
+    `Not applicable — no credentials are issued, so nothing is ever claimed.`,
+    "",
+    "## Step 5 — Use the public tier",
+    "",
+    `Call any endpoint directly:`,
+    "",
+    `- \`GET ${SITE_URL}/api/availability?name=<name>[&providers=<csv>]\` — name availability results (v1 alias: \`/api/v1/availability\`)`,
+    `- \`GET ${SITE_URL}/api/score?name=<name>\` — deterministic brand score (v1 alias: \`/api/v1/score\`)`,
+    `- \`POST ${SITE_URL}/api/mcp\` — MCP Streamable HTTP transport, JSON-RPC 2.0 (v1 alias: \`/api/v1/mcp\`)`,
     `- \`GET ${SITE_URL}/api/mcp\` (also \`/mcp\`, \`/health\`) — endpoint status`,
     `- \`GET ${SITE_URL}/api/markdown?path=</page>\` — markdown representations of pages`,
-    `- \`GET ${SITE_URL}/openapi.json\` — OpenAPI 3.1 description of this API`,
+    "",
+    `A 401 never happens here — there is no credential to expire or revoke.`,
     "",
     "## Rate limits",
     "",
     `Limits are per client IP per 60-second window, enforced per server instance:`,
     "",
-    `- \`/api/availability\` — ${RATE_LIMITS.availability} requests/minute (each request fans out to ~60 upstream checks)`,
-    `- \`/api/score\` — ${RATE_LIMITS.score} requests/minute`,
-    `- \`/api/mcp\` — ${RATE_LIMITS.mcp} requests/minute`,
+    `- \`/api/availability\` (+ \`/api/v1/availability\`) — ${RATE_LIMITS.availability} requests/minute (each request fans out to ~60 upstream checks)`,
+    `- \`/api/score\` (+ \`/api/v1/score\`) — ${RATE_LIMITS.score} requests/minute`,
+    `- \`/api/mcp\` (+ \`/api/v1/mcp\`) — ${RATE_LIMITS.mcp} requests/minute`,
     "",
-    `Exceeding a limit returns \`429\` with a \`Retry-After\` header and an \`{ "error": { "code": "rate_limited", ... } }\` body. Set \`LMKURNAME_RATE_LIMIT_RPM\` when self-hosting to tune.`,
+    `Every API response carries RFC RateLimit headers — \`RateLimit-Limit\`, \`RateLimit-Remaining\`, \`RateLimit-Reset\` (seconds until the window resets) — so agents can budget proactively. Exceeding a limit returns \`429\` with \`Retry-After\` and an \`{ "error": { "code": "rate_limited", ... } }\` body. Set \`LMKURNAME_RATE_LIMIT_RPM\` when self-hosting to tune.`,
+    "",
+    "## Versioning",
+    "",
+    `The API is version 1. \`/api/v1/*\` and the unversioned \`/api/*\` paths are the same handlers — every response carries \`API-Version: 1\`. A future breaking v2 will keep v1 serving and mark it with \`Deprecation: true\` and \`Sunset\` headers plus a \`Link: <…>; rel="deprecation"\` pointer before any removal.`,
     "",
     "## Headers",
     "",
-    `- \`Accept: application/json\` — JSON everywhere; on unknown URLs it also yields a structured \`{error:{code,message,hint}}\` 404`,
+    `- \`Accept: application/json\` — JSON everywhere; unknown URLs (including unmapped \`/api/*\` paths) return a structured \`{error:{code,message,hint}}\` 404`,
     `- \`Accept: text/markdown\` — markdown representations of any page`,
     `- \`Accept: application/json, text/event-stream\` + \`Content-Type: application/json\` — required on \`POST /api/mcp\``,
-    `- \`User-Agent\` — please send a descriptive agent name, e.g. \`my-agent/1.0 (+https://you.example)\``,
+    `- \`User-Agent\` — a descriptive agent name is appreciated, e.g. \`my-agent/1.0 (+https://you.example)\``,
     "",
     "## Errors",
     "",
-    `Every API error is structured: \`{ "error": { "code": "<stable code>", "message": "<summary>", "hint": "<how to fix>" } }\`. MCP JSON-RPC errors keep their protocol shape and carry the hint under \`error.data.hint\`.`,
+    `Every API error is structured: \`{ "error": { "code": "<stable code>", "message": "<summary>", "hint": "<how to fix>", "details?": … } }\`. Stable codes: \`invalid_request\`, \`not_found\`, \`rate_limited\`, \`body_too_large\`, \`upstream_failed\`, \`too_many_sessions\`, \`internal_error\`. MCP JSON-RPC errors keep their protocol shape and carry the hint under \`error.data.hint\`. Nothing here requires re-auth — there is no auth to renew.`,
     "",
-    "## Agent registration",
+    "## Revocation",
     "",
-    `None needed — the service is open. If you operate an agent, identifying yourself in \`User-Agent\` is appreciated but not enforced.`,
+    `No credentials exist, so nothing is revoked. If a \`429\` arrives, honor \`Retry-After\`; if a \`404\` arrives on a previously working path, re-read \`/openapi.json\`.`,
     "",
-    "## OAuth",
+    "## DNS-AID",
     "",
-    `No OAuth tier exists: nothing here requires a token. \`/.well-known/oauth-protected-resource\` is published as an RFC 9728 stub declaring an empty authorization-server list, which is how this host documents its public/no-token tier.`,
+    `This host documents its DNS-AID (draft-mozleywilliams-dnsop-dnsaid) SVCB/HTTPS records — the \`_index._agents\` organizational index pointer and the known-agent record — in DNS-AID.md in the repository.`,
     "",
   ].join("\n");
 }

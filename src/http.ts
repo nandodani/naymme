@@ -10,7 +10,9 @@ import {
   MAX_REQUEST_BODY_BYTES,
   RATE_LIMITS,
   rateLimiterFromEnv,
+  rateLimitHeaders,
   type RateLimiter,
+  type RateLimitVerdict,
 } from "./security.js";
 import { createNameCheckServer, SERVER_NAME, SERVER_VERSION } from "./server.js";
 
@@ -71,18 +73,22 @@ export function createHttpServer(options: HttpServerOptions = {}): http.Server {
       ? { enableDnsRebindingProtection: true, allowedHosts: options.allowedHosts }
       : {};
 
-  function sendTooMany(res: http.ServerResponse, retryAfterSeconds: number): void {
+  function sendTooMany(
+    res: http.ServerResponse,
+    verdict: Extract<RateLimitVerdict, { ok: false }>,
+  ): void {
     res.writeHead(429, {
       "content-type": "application/json",
-      "retry-after": String(retryAfterSeconds),
+      "retry-after": String(verdict.retryAfterSeconds),
+      ...rateLimitHeaders(verdict),
     });
     res.end(
       JSON.stringify(
         apiErrorBody(
           API_ERROR_CODES.rateLimited,
           "rate limit exceeded",
-          `Retry after ${retryAfterSeconds} seconds.`,
-          { retryAfterSeconds },
+          `Retry after ${verdict.retryAfterSeconds} seconds.`,
+          { retryAfterSeconds: verdict.retryAfterSeconds },
         ),
       ),
     );
@@ -112,7 +118,7 @@ export function createHttpServer(options: HttpServerOptions = {}): http.Server {
       if (url.pathname === "/mcp") {
         if (req.method === "POST") {
           const verdict = limiter.allow(clientKey(req, trustProxy));
-          if (!verdict.ok) return sendTooMany(res, verdict.retryAfterSeconds);
+          if (!verdict.ok) return sendTooMany(res, verdict);
           const declared = Number(req.headers["content-length"]);
           if (Number.isFinite(declared) && declared > MAX_REQUEST_BODY_BYTES) {
             sendJson(res, 413, {
@@ -157,7 +163,7 @@ export function createHttpServer(options: HttpServerOptions = {}): http.Server {
 
       if (url.pathname === "/messages" && req.method === "POST") {
         const verdict = limiter.allow(clientKey(req, trustProxy));
-        if (!verdict.ok) return sendTooMany(res, verdict.retryAfterSeconds);
+        if (!verdict.ok) return sendTooMany(res, verdict);
         const sessionId = url.searchParams.get("sessionId");
         const session = sessionId ? sseSessions.get(sessionId) : undefined;
         if (!session) {

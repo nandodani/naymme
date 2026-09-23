@@ -26,6 +26,12 @@ export const metadata: Metadata = {
   category: "developer tools",
   alternates: {
     canonical: "/",
+    // Machine-readable alternates of this page — rendered as
+    // <link rel="alternate" type="..."> for agent/crawler discovery.
+    types: {
+      "text/markdown": "/api/markdown?path=/",
+      "application/json": "/openapi.json",
+    },
   },
   manifest: "/manifest.webmanifest",
   openGraph: {

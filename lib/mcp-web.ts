@@ -1,14 +1,17 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { ProviderDeps } from "../src/deps.js";
 import { defaultDeps } from "../src/deps.js";
+import { API_VERSION } from "../src/api-version.js";
 import {
   clientKeyFromHeaders,
   contentLengthExceeded,
   MAX_REQUEST_BODY_BYTES,
   RATE_LIMITS,
   rateLimiterFromEnv,
+  rateLimitHeaders,
   tooManyRequestsResponse,
   type RateLimiter,
+  type RateLimitVerdict,
 } from "../src/security.js";
 import { createNameCheckServer, SERVER_NAME, SERVER_VERSION } from "../src/server.js";
 
@@ -27,10 +30,16 @@ const CORS_HEADERS: Record<string, string> = {
   "access-control-expose-headers": "mcp-session-id",
 };
 
-function withCors(response: Response): Response {
+function withCors(response: Response, extra: Record<string, string> = {}): Response {
   const wrapped = new Response(response.body, response);
   for (const [name, value] of Object.entries(CORS_HEADERS)) wrapped.headers.set(name, value);
+  for (const [name, value] of Object.entries(extra)) wrapped.headers.set(name, value);
   return wrapped;
+}
+
+/** API version + remaining request budget — same contract as the REST routes. */
+function quotaHeaders(verdict: RateLimitVerdict): Record<string, string> {
+  return { "api-version": API_VERSION, ...rateLimitHeaders(verdict) };
 }
 
 /**
@@ -86,7 +95,9 @@ export async function handleMcpRequest(
   limiter: Pick<RateLimiter, "allow"> = defaultLimiter(),
 ): Promise<Response> {
   const verdict = limiter.allow(clientKeyFromHeaders(request.headers));
-  if (!verdict.ok) return tooManyRequestsResponse(verdict.retryAfterSeconds, CORS_HEADERS);
+  if (!verdict.ok) {
+    return tooManyRequestsResponse(verdict, { ...CORS_HEADERS, "api-version": API_VERSION });
+  }
   if (contentLengthExceeded(request, MAX_REQUEST_BODY_BYTES)) {
     return Response.json(
       {
@@ -98,12 +109,12 @@ export async function handleMcpRequest(
         },
         id: null,
       },
-      { status: 413, headers: CORS_HEADERS },
+      { status: 413, headers: { ...CORS_HEADERS, ...quotaHeaders(verdict) } },
     );
   }
 
   try {
-    return await dispatch(request, deps);
+    return await dispatch(request, deps, verdict);
   } catch (err) {
     console.error("mcp request error:", err);
     return Response.json(
@@ -116,12 +127,16 @@ export async function handleMcpRequest(
         },
         id: null,
       },
-      { status: 500, headers: CORS_HEADERS },
+      { status: 500, headers: { ...CORS_HEADERS, ...quotaHeaders(verdict) } },
     );
   }
 }
 
-async function dispatch(request: Request, deps: ProviderDeps): Promise<Response> {
+async function dispatch(
+  request: Request,
+  deps: ProviderDeps,
+  verdict: RateLimitVerdict,
+): Promise<Response> {
   const server = createNameCheckServer(deps);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
@@ -133,6 +148,7 @@ async function dispatch(request: Request, deps: ProviderDeps): Promise<Response>
     trackedBody(response, () => {
       void transport.close().catch(() => undefined);
     }),
+    quotaHeaders(verdict),
   );
 }
 
@@ -146,7 +162,7 @@ export function mcpStatusResponse(): Response {
       transport: "streamable-http",
       usage: "POST /api/mcp",
     },
-    { headers: CORS_HEADERS },
+    { headers: { ...CORS_HEADERS, "api-version": API_VERSION } },
   );
 }
 
