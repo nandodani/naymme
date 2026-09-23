@@ -1,296 +1,299 @@
-# Provider reference
+# Provider search mechanisms
 
-`lmkurname` checks one candidate name across 55 providers, grouped into adapter
-families under `src/providers/`. Every adapter returns a normalized
-`ProviderOutcome`:
+How every adapter in [`src/providers/`](../src/providers/) actually decides
+`available` / `taken` / `unknown` / `invalid`. Source of truth: the adapter
+files themselves — nothing here is aspirational.
 
-```ts
-{
-  status: "available" | "taken" | "unknown" | "invalid",
-  subject: string,           // the concrete identifier checked, e.g. "acme.com"
-  available: boolean | null, // true = free, false = taken/invalid, null = unknown
-  detail?: string,           // registry URL, error reason, etc.
-}
-```
+## Outcome semantics (shared contract)
 
-`unknown` means the provider could not give a definitive answer — network error,
-rate limit, inconclusive WHOIS, timeout. It is **not** the same as `taken`.
+Every adapter returns a `ProviderOutcome` — `{ status, subject, available, detail? }`
+([`src/types.ts`](../src/types.ts)):
 
-All adapters share a common contract (enforced by
-`test/provider-contract.test.ts`):
+| `status`    | `available` | Meaning                                                                                  |
+| ----------- | ----------- | ---------------------------------------------------------------------------------------- |
+| `available` | `true`      | The provider gave a verified "unclaimed" signal (e.g. RDAP 404, `DEPLOYMENT_NOT_FOUND`). |
+| `taken`     | `false`     | The provider gave a verified "claimed" signal (e.g. RDAP 200, exact-name search hit).    |
+| `unknown`   | `null`      | Inconclusive — timeout, rate limit, bot wall, inconclusive WHOIS/DNS. **Not** `taken`.   |
+| `invalid`   | `false`     | The name cannot exist on this provider (failed its naming rules) — no network call made. |
 
-1. Validate the name via `invalidOutcome()` **before** any network call —
-   invalid names return `invalid` without touching the network.
-2. `available`/`taken` are only returned on a **verified marker** (a status code
-   or body marker proven to mean free/held). Everything else — rate limits, bot
-   walls, unexpected statuses, network failures — reports `unknown`.
-3. Honor the `AbortSignal`; aborts propagate and the runner maps them to a
-   timed-out `unknown`.
+Contract rules enforced by [`test/provider-contract.test.ts`](../test/provider-contract.test.ts):
 
-## Availability mechanisms
+- `available` must agree with `status` (`available`→`true`, `taken`/`invalid`→`false`, `unknown`→`null`).
+- Validation runs **before** any network call; the detail reads `not a valid ${rule.label}: ${reason}`.
+- Boundary lengths are accepted (`minLength`/`maxLength`); `min−1`/`max+1` are rejected (`too short`/`too long`).
+- Every charset is ASCII-only — a non-ASCII character inside a length-valid name yields `disallowed character` (`appstore` additionally allows spaces/punctuation).
+- Adapters only claim `available` on a verified unclaimed marker, and never reject for a `taken` answer — rejections are reserved for infrastructure failures the runner maps to `unknown`.
 
-The providers use five families of checks:
+## Validation layer
 
-| Mechanism            | Used by                                                                                                                  |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| HTTP status code     | Most adapters — GET a public URL; a verified status (`200`/`404`/…) maps to `taken`/`available`.                         |
-| Public REST/JSON API | GitHub, GitLab, npm (registry HEAD), PyPI, crates.io, Docker Hub, NuGet, RubyGems, Homebrew, App Store, Bluesky, Reddit. |
-| RDAP                 | `domain:*` TLDs that publish an RDAP service in the IANA bootstrap registry.                                             |
-| WHOIS                | `domain:*` TLDs without RDAP; fuzzy text matching, fallback only.                                                        |
-| DNS NS record        | `domain:*` — last-resort signal when WHOIS is inconclusive.                                                              |
+Per-provider naming rules live in
+[`PROVIDER_NAME_RULES`](../src/providers/validation.ts), a
+`Record<ProviderId, NameRule>` — omitting a rule for a registered provider is a
+**compile error**. A `NameRule` has `label`, `minLength`/`maxLength`, a
+per-character `charset` regex, a `charsetLabel` and whole-name `constraints`
+(edge characters, repeats, casing) evaluated by `validateName()` in order:
+length → charset → constraints. `invalidOutcome()` turns a violation into the
+`invalid` outcome before any fetch.
 
-No provider uses GraphQL, and only the npm check (via `npm-name` on Node, and a
-manual `HEAD` on the Cloudflare Worker) uses HEAD requests; every other HTTP
-check is a `GET`.
+The input `name` is first gated by `nameSchema` in
+[`src/schemas.ts`](../src/schemas.ts): 1–63 chars, must start with a letter or
+digit, `[A-Za-z0-9._-]` only. Provider rules are intentionally stricter
+(uppercase on npm is `invalid`, not a schema rejection).
 
-## Domains (`domain:*` — 25 TLDs)
+## Execution model
 
-Provider ids: `domain:com`, `domain:gg`, `domain:dev`, `domain:io`, `domain:ai`,
-`domain:app`, `domain:pt`, `domain:es`, `domain:de`, `domain:fr`, `domain:uk`,
-`domain:eu`, `domain:co`, `domain:me`, `domain:org`, `domain:sh`, `domain:so`,
-`domain:xyz`, `domain:design`, `domain:store`, `domain:work`, `domain:studio`,
-`domain:tech`, `domain:agency`, `domain:space`.
+[`runAvailabilityChecks`](../src/tools/checkAvailability.ts) fans the selected
+adapters out concurrently under `Promise.allSettled`, each inside
+`checkWithTimeout`: an `AbortController` + `setTimeout` deadline race of
+`deps.timeoutMs` (default **5000 ms**, `DEFAULT_TIMEOUT_MS` in
+[`src/deps.ts`](../src/deps.ts)). An abort or thrown error becomes
+`unknown` with detail `timed out`/`timed out after 5000ms`; one provider's
+failure never fails the batch.
 
-Implemented in `src/providers/domain.ts` (`createDomainAdapter(tld, deps,
-rdap)`). All TLD adapters share one `RdapClient` so the IANA bootstrap document
-is fetched once per `createAdapters()` call.
+## Domains (`domain:*`) — RDAP → WHOIS → DNS
 
-Resolution order:
+[`domain.ts`](../src/providers/domain.ts) checks `{name}.{tld}` (lowercased)
+through a three-stage fallback:
 
-1. **RDAP** (`src/providers/rdap.ts`) — the IANA bootstrap registry
-   (`https://data.iana.org/rdap/dns.json`) maps each TLD to its RDAP base URL;
-   the document is fetched lazily and cached for the client's lifetime (fetch
-   failures are not cached). If the TLD has an RDAP service, the adapter GETs
-   `{base}/domain/{fqdn}` and maps the status: `404` → `available`,
-   `200` → `taken`, `400`/`422` → `invalid`, everything else (including
-   `429` and 5xx) → `unknown`. If the bootstrap fetch itself fails, the adapter
-   falls through to WHOIS.
-2. **WHOIS** (`src/providers/whois.ts`) — for TLDs with no RDAP service, a raw
-   WHOIS query via `whoiser` (`follow: 1` referral hop, timeout = the provider
-   timeout minus 250 ms). WHOIS has no standard schema, so the response text is
-   matched against `NOT_FOUND_PATTERNS` (`no match`, `not found`,
-   `no entries found`, `no data found`, `nothing found`, `domain not found`,
-   `status: free|available`, `is available`, `available for registration`) →
-   `available`, and `TAKEN_PATTERNS` (`domain name`, `registrar`, `name server`,
-   `creation date`, `expiry|expires|expiration`) → `taken`. Neither match →
-   `unknown`.
-3. **DNS NS check** (`src/providers/dns.ts`) — final signal when WHOIS is
-   inconclusive. Delegated name servers prove the domain is registered →
-   `taken`. The absence of NS records does **not** prove availability
-   (undelegated registrations exist), so anything else stays `unknown`.
+1. **RDAP** — [`rdap.ts`](../src/providers/rdap.ts) lazily fetches the IANA
+   bootstrap `https://data.iana.org/rdap/dns.json` once per process and caches
+   the TLD→base-URL map for the client's lifetime (failures are _not_ cached).
+   If the TLD has an RDAP service, it GETs `{base}/domain/{fqdn}` with
+   `Accept: application/rdap+json`:
 
-Additional rule: the composed FQDN `{name}.{tld}` must be ≤ 253 characters;
-longer names are `invalid`. On the Cloudflare Worker, WHOIS (raw TCP port 43)
-is replaced by a stub that resolves "unavailable", so the chain falls through
-to the NS check, which is implemented over Cloudflare's DNS-over-HTTPS JSON API
-(`cloudflare-dns.com/dns-query`).
+   | HTTP status                                   | Verdict     |
+   | --------------------------------------------- | ----------- |
+   | 200                                           | `taken`     |
+   | 404                                           | `available` |
+   | 400 / 422                                     | `invalid`   |
+   | anything else (incl. 429, 5xx, network error) | `unknown`   |
 
-## Dev platforms & registries
+2. **WHOIS** — TLDs without an RDAP service fall back to raw WHOIS via
+   `whoiser` (`whoisDomain` dep, TCP port 43, timeout `deps.timeoutMs − 250`).
+   [`whois.ts`](../src/providers/whois.ts) text-matches the response: a
+   "not found" phrase (`no match`, `not found`, `no entries found`,
+   `status: free`, `is available`, …) → `available`; registration fields
+   (`domain name`, `registrar`, `name server`, `creation date`, `expiry…`)
+   → `taken`; anything else → `unknown`. WHOIS has no standard schema, so
+   this is intentionally fuzzy — RDAP is preferred wherever it exists.
 
-### GitHub (`src/providers/github.ts`)
+3. **DNS NS** — an inconclusive WHOIS falls through to
+   [`dns.ts`](../src/providers/dns.ts): delegated NS records prove
+   registration → `taken`; no records or a resolver error stays `unknown`
+   (absence of delegation does **not** prove availability).
 
-User and org share one namespace, so `github:user` and `github:org` both query
-`GET api.github.com/users/{name}` through a memoized lookup shared by the two
-adapters — one API call covers both checks (unauthenticated limit: 60 req/h per
-IP). `404` → absent (`available` for both adapters), `200` → held; the
-response's `type` field (`"Organization"` vs anything else) is reported in the
-`detail` so the caller can see which of the two holds the name. `403` →
-`unknown` (rate limit or forbidden); other statuses → `unknown`.
+Before lookup: `invalidOutcome` + a 253-char FQDN cap; the detail carries
+`rdap: {url}` or `whois fallback (no RDAP service for .{tld})`.
 
-`github:repo` is a separate collision check via the unauthenticated Search API:
-`GET /search/repositories?q={name} in:name&per_page=10`. Because search is
-fuzzy, only an **exact case-insensitive** `name` match in `items` counts as
-`taken` (reported as `{owner}/{repo}`). `403`/`429` → `unknown`
-(unauthenticated search is limited to 10 req/min per IP).
+TLD coverage: 25 providers, `.com .gg .dev .io .ai .app .pt .es .de .fr .uk
+.eu .co .me .org .sh .so .xyz .design .store .work .studio .tech .agency
+.space` ([`PROVIDER_IDS`](../src/schemas.ts)). Label rules: 1–63 chars,
+`[a-z0-9-]`, must start/end with a letter or digit; `.pt` and `.eu` require
+≥2, `.es` and `.me` require ≥3 chars
+([`validation.ts`](../src/providers/validation.ts)).
 
-### GitLab (`gitlab`, `src/providers/devplatforms.ts`)
+## Git hosting — GitHub & GitLab
 
-Two-step REST check: `GET gitlab.com/api/v4/users?username={name}`. A non-empty
-array → `taken`. An empty array triggers `GET /api/v4/groups/{name}`:
-`404` → `available`, `200` → `taken` (public group), `403` → `taken` (private
-group — the path is held either way). Any other status on either call →
-`unknown`.
+[`github.ts`](../src/providers/github.ts) — three adapters over the
+**unauthenticated** REST API (`{deps.githubApiBase}`, default
+`https://api.github.com`):
 
-### npm (`npm`, `src/providers/npm.ts`)
+- **`github:user` / `github:org`** share one memoized `GET /users/{name}`
+  lookup ([`createGitHubLookup`](../src/providers/github.ts)) so a check costs
+  a single call: `404` → `available`; `200` → `taken` (the `type` field says
+  whether a user or an org holds it); `403` → `unknown` ("rate limit or
+  forbidden — 60 req/h per IP unauthenticated"); other → `unknown`.
+  Login rules: 1–39 chars, `[A-Za-z0-9-]`, no edge or consecutive hyphens.
+- **`github:repo`** uses the Search API
+  `GET /search/repositories?q={name} in:name&per_page=10`. Fuzzy results only
+  count on an exact case-insensitive `name` match → `taken` (detail links the
+  `{owner}/{repo}`); no match → `available`; `403`/`429` → `unknown`
+  (unauthenticated search is ~10 req/min). Rules: 1–100, `[A-Za-z0-9._-]`,
+  must start with a letter or digit.
 
-Delegates to the `npm-name` package via the injected `deps.npmNameAvailable`.
-`npm-name` runs `HEAD registry.npmjs.org/{name}` (and, for unscoped names,
-`HEAD` probes of punctuation variants — npm blocks names that differ from an
-existing package only by `-`/`_`/`.`, e.g. `foo-bar` collides with `foobar`).
-`404` plus no variant conflict → `available`; `200` or a variant hit →
-`taken`; any thrown error (validation failures from `validate-npm-package-name`,
-non-404 statuses, timeouts — `npm-name` uses a 10 s request timeout internally
-and resolves before the adapter's own deadline) → `unknown`. The Worker
-reimplements the same logic: `HEAD` on the package URL plus the variant probes.
+[`devplatforms.ts`](../src/providers/devplatforms.ts) — **`gitlab`**: two
+public REST calls. `GET /api/v4/users?username={name}` — `200` with a
+non-empty array → `taken`. If empty, `GET /api/v4/groups/{name}` — `404` →
+`available`; `200` → `taken`; `403` → `taken` ("private group — the path is
+held either way"). Other statuses → `unknown`. Rules: 2–255, `[A-Za-z0-9._-]`,
+must not start with a separator or end with a period.
 
-### Other registries (`src/providers/devplatforms.ts`, `src/providers/platforms.ts`)
+## Package registries
 
-| Provider      | Endpoint                                                  | `taken` | `available` |
-| ------------- | --------------------------------------------------------- | ------- | ----------- |
-| `pypi`        | `GET pypi.org/pypi/{name}/json` (name PEP 503–normalized) | `200`   | `404`       |
-| `crates`      | `GET crates.io/api/v1/crates/{name}`                      | `200`   | `404`       |
-| `dockerhub`   | `GET hub.docker.com/v2/repositories/{name}/`              | `200`   | `404`       |
-| `nuget`       | `GET api.nuget.org/v3-flatcontainer/{name}/index.json`    | `200`   | `404`       |
-| `rubygems`    | `GET rubygems.org/api/v1/gems/{name}.json`                | `200`   | `404`       |
-| `homebrew`    | `GET formulae.brew.sh/api/formula/{name}.json`            | `200`   | `404`       |
-| `huggingface` | `GET huggingface.co/{name}`                               | `200`   | `404`       |
+- **`npm`** ([`npm.ts`](../src/providers/npm.ts)) — delegates to the
+  `npm-name` package against the public registry (injected as
+  `npmNameAvailable`). Internally `npm-name` issues `HEAD` requests against
+  `registry.npmjs.org/{name}` (10 s internal timeout): `404` → free _unless_
+  a punctuation-variant probe finds a collision — npm blocks names that
+  differ from an existing package only by `-`/`_`/`.`, so `foo-bar` conflicts
+  with `foobar`, `foo.bar` and `foo_bar` alike (each variant gets its own
+  `HEAD`); `200` or a variant hit → taken. Names rejected by
+  `validate-npm-package-name` (stricter than `PROVIDER_NAME_RULES` — e.g.
+  core-module and reserved spellings) throw inside the dep and surface as
+  `unknown` ("npm registry check failed"), not `invalid`, because the
+  rejection happens at lookup time rather than during local validation. Any
+  other failure → `unknown`. Rules: 1–214, **lowercase**
+  `[a-z0-9._-]`, must not start with a period or underscore.
+- **`pypi`** — `GET https://pypi.org/pypi/{normalized}/json`; the name is
+  PEP 503-normalized (lowercase, `[-_.]+` → `-`): `404` → `available`,
+  `200` → `taken`, else `unknown`. Rules: 1–255, `[A-Za-z0-9._-]`, start/end
+  alphanumeric.
+- **`crates`** — `GET https://crates.io/api/v1/crates/{name}`: `404` →
+  `available`, `200` → `taken`. crates.io rejects requests without a
+  User-Agent; `deps.userAgent` is sent. Rules: 1–64, `[A-Za-z0-9_-]`, must
+  start with a letter.
+- **`dockerhub`** — `GET https://hub.docker.com/v2/repositories/{name}/`:
+  `200` → `taken` (namespace exists and has public repos), `404` →
+  `available` — namespaces that are empty or fully private also answer 404,
+  so it's best-effort. Rules: 4–30, lowercase `[a-z0-9._-]`, start/end
+  alphanumeric, no consecutive separators.
+- **`nuget`** — `GET https://api.nuget.org/v3-flatcontainer/{name}/index.json`
+  (flat-container registration index, case-insensitive): `200` → `taken`,
+  `404` → `available`. Rules: 1–128, `[A-Za-z0-9._-]`, starts alphanumeric.
+- **`rubygems`** — `GET https://rubygems.org/api/v1/gems/{name}.json`:
+  `200` → `taken`, `404` → `available`. Rules: 1–128, `[a-z0-9_-]`, starts
+  with a letter.
+- **`homebrew`** — `GET https://formulae.brew.sh/api/formula/{name}.json`:
+  `200` → `taken`, `404` → `available`. Rules: 1–64, `[a-z0-9-]`, starts
+  alphanumeric.
+- **`huggingface`** — `GET https://huggingface.co/{name}` profile page:
+  `200` → `taken`, `404` → `available`. Rules: 2–64, `[A-Za-z0-9_-]`, starts
+  alphanumeric.
 
-PyPI names are lowercased and `-`/`_`/`.` runs normalized to a single `-`
-(PEP 503). Docker Hub is best-effort: a namespace that exists but has no public
-repositories also answers `404`, so `available` there means "no public
-namespace". crates.io rejects requests without a `User-Agent`; all adapters
-send the shared `deps.userAgent`.
+All of the above live in [`devplatforms.ts`](../src/providers/devplatforms.ts)
+and [`platforms.ts`](../src/providers/platforms.ts); non-2xx/4xx statuses and
+network failures → `unknown`.
 
-Any other status on these endpoints → `unknown`.
+## Hosted subdomains — Vercel & Netlify
 
-## Hosted subdomains (`src/providers/hosting.ts`)
+[`hosting.ts`](../src/providers/hosting.ts) checks `https://{name}.{suffix}/`
+with `redirect: "manual"` — the platform edge's own redirect proves a
+deployment exists, and following it could land on an unrelated origin:
 
-`vercel` and `netlify` check `GET https://{name}.{vercel.app|netlify.app}/`
-with `redirect: "manual"` (the platform edge's own redirect proves a
-deployment exists — following it could land on an unrelated origin's status
-code).
+| Response                          | Verdict                                                   |
+| --------------------------------- | --------------------------------------------------------- |
+| 2xx–3xx                           | `taken` (a deployment holds the subdomain)                |
+| 401 / 403                         | `taken` — "protected deployment" (auth-gated but claimed) |
+| 404 **with** the unclaimed marker | `available`                                               |
+| 404 without the marker            | `unknown` — availability is never fabricated              |
+| 429                               | `unknown` ("rate limited the check")                      |
+| other / network error             | `unknown`                                                 |
 
-Verdict mapping for both:
+- **`vercel`** — unclaimed marker: `x-vercel-error: DEPLOYMENT_NOT_FOUND`
+  header **or** `DEPLOYMENT_NOT_FOUND` in the 404 body.
+- **`netlify`** — unclaimed marker: a 404 body that starts with `Not Found`
+  (the edge's bare `Not Found - Request ID: …`).
 
-- `200`–`399` → `taken` (a deployment serves the name)
-- `401`/`403` → `taken` — auth-gated deployments exist but can't be viewed;
-  the name is held
-- `404` → `available` **only** when the platform's unclaimed marker is
-  verified; a 404 without it is `unknown`
-- `429` → `unknown` (rate limited)
-- anything else → `unknown`
+Both use the shared subdomain rule: 1–63, `[a-z0-9-]`, start/end alphanumeric.
 
-Unclaimed markers:
+## App stores
 
-- **Vercel**: `x-vercel-error: DEPLOYMENT_NOT_FOUND` response header or
-  `DEPLOYMENT_NOT_FOUND` in the body.
-- **Netlify**: body starts with `Not Found` (the edge's bare
-  `Not Found - Request ID: …` page; a claimed site serves its own content and
-  never that body).
+[`stores.ts`](../src/providers/stores.ts) — **`appstore`** uses the public
+iTunes Search API
+`GET https://itunes.apple.com/search?term={name}&entity=software&country=US&limit=50`
+(no key). The search is fuzzy, so only an exact case-insensitive `trackName`
+match → `taken` (detail links the listing); no match → `available`; non-200 or
+a malformed body → `unknown`. US storefront is pinned via `country=US`.
+Rules: 2–30 — notably the only ASCII-plus-punctuation charset (`[A-Za-z0-9 .,!?&+'"(),:;@#%&*-]`).
 
-## Stores (`src/providers/stores.ts`)
+The file documents the intent to add Google Play, Chrome Web Store and
+Raycast Store here later — **not implemented**.
 
-`appstore` queries the public iTunes Search API — one unauthenticated GET:
-`itunes.apple.com/search?term={name}&entity=software&country=US&limit=50`.
-The search is fuzzy, so only an exact `trackName` match (case-insensitive)
-counts: a listing with the identical name → `taken` (with the app's
-`trackViewUrl`), otherwise → `available`. Non-`200` responses and unexpected
-bodies → `unknown`. Note the check pins the US storefront; names occupied only
-in other storefronts are not detected.
+## Dev/community profiles
 
-## Socials (`src/providers/social.ts`)
+[`platforms.ts`](../src/providers/platforms.ts) shares a `createPageCheck`
+spec: `free`/`busy` status lists per endpoint, `bodyMeansTaken` for marker
+checks, and a hard rule that only verified statuses produce verdicts.
 
-All social adapters send a desktop-browser `User-Agent` because these platforms
-trivially reject unauthenticated non-browser clients.
+| Provider      | Endpoint                        | 200    | 404         | Notes                                                                                                  |
+| ------------- | ------------------------------- | ------ | ----------- | ------------------------------------------------------------------------------------------------------ |
+| `codepen`     | `codepen.io/{name}`             | taken  | available   | Sits behind a bot wall — 403 → `unknown`                                                               |
+| `replit`      | `replit.com/@{name}`            | taken  | **unknown** | SPA serves a generic 404 shell for missing _and_ existing users — only 200 proves `taken` (`free: []`) |
+| `figma`       | `figma.com/@{name}`             | taken  | available   |                                                                                                        |
+| `dribbble`    | `dribbble.com/{name}`           | taken  | available   |                                                                                                        |
+| `behance`     | `behance.net/{name}`            | taken  | available   |                                                                                                        |
+| `substack`    | `{name}.substack.com`           | taken  | available   | Real 404 for absent publications; subject is `{name}.substack.com`                                     |
+| `producthunt` | `producthunt.com/@{name}`       | taken  | available   | Cloudflare-walled — 403 → `unknown`                                                                    |
+| `telegram`    | `t.me/{name}`                   | marker | —           | Always 200; `tgme_page_title` in body → `taken`, absent → `available`                                  |
+| `medium`      | `medium.com/feed/@{name}` (RSS) | taken  | available   | Profile page is bot-walled; the feed is not                                                            |
 
-| Provider           | Endpoint                                                                                      | `taken`                          | `available`                                  | Notes                                                                                                 |
-| ------------------ | --------------------------------------------------------------------------------------------- | -------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `social:x`         | `GET x.com/{name}`                                                                            | `200`                            | `404`                                        | Suspended accounts also answer `404` — `available` is not a guarantee the handle can be claimed.      |
-| `social:bluesky`   | `GET public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={name}.bsky.social`   | `200` (handle resolves)          | `400` (valid handle, doesn't resolve)        | Deactivated/reserved handles also fail resolution → `available`. Checks the `.bsky.social` namespace. |
-| `social:instagram` | `GET i.instagram.com/api/v1/users/web_profile_info/?username={name}` (+ `x-ig-app-id` header) | `200`                            | `404`                                        | `401`/`403` → `unknown` (Instagram requires auth on most IPs); `429` → `unknown`.                     |
-| `social:reddit`    | `GET www.reddit.com/api/username_available.json?user={name}`                                  | `200` + body `false`             | `200` + body `true`                          | Any other 200 body, or `403`/`429` (Reddit rate-limits datacenter IPs), → `unknown`.                  |
-| `social:youtube`   | `GET www.youtube.com/@{name}`                                                                 | `200`                            | `404`                                        | Consent walls and rate limits → `unknown`.                                                            |
-| `social:tiktok`    | `GET www.tiktok.com/@{name}`                                                                  | `200` + `"statusCode":0` in HTML | `200` + `statusCode` ∈ {10202, 10221, 10245} | Pages without the marker (bot walls, consent redirects, layout changes) → `unknown`.                  |
+## Social handles
 
-## Community & publishing platforms (`src/providers/platforms.ts`)
+[`social.ts`](../src/providers/social.ts) — all unauthenticated with a
+browser User-Agent (descriptive UA keeps endpoints from being trivially
+rejected).
 
-These use the shared `createPageCheck()` helper: `GET` a public URL,
-`free`/`busy` status lists map to `available`/`taken`, everything else →
-`unknown`. Defaults are `free: [404]`, `busy: [200]`.
+| Provider           | Endpoint                                                                                             | Verdict logic                                                                                                                  |
+| ------------------ | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `social:x`         | `x.com/{name}`                                                                                       | `404` → `available`, `200` → `taken`. Suspended accounts also 404 — `available` is not a claim guarantee                       |
+| `social:bluesky`   | `public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={name}.bsky.social`              | `200` → `taken`, `400` → `available` (valid handle that doesn't resolve). Deactivated/reserved handles also report `available` |
+| `social:instagram` | `i.instagram.com/api/v1/users/web_profile_info/?username={name}` with `x-ig-app-id: 936619743392459` | `200` → `taken`, `404` → `available`; `401`/`403` → `unknown` ("requires authentication") — common from most IPs               |
+| `social:reddit`    | `www.reddit.com/api/username_available.json?user={name}`                                             | `200` + body `true` → `available`, `false` → `taken`; anything else (incl. 403/429 on datacenter IPs) → `unknown`              |
+| `social:youtube`   | `youtube.com/@{name}`                                                                                | `404` → `available`, `200` → `taken`; consent walls/rate limits → `unknown`                                                    |
+| `social:tiktok`    | `tiktok.com/@{name}`                                                                                 | 200 page embeds `statusCode`: `0` → `taken`, `10202`/`10221`/`10245` → `available`; missing marker → `unknown`                 |
 
-| Provider      | URL                       | `taken`                           | `available`              | Notes                                                                                                                          |
-| ------------- | ------------------------- | --------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| `codepen`     | `codepen.io/{name}`       | `200`                             | `404`                    | Bot wall (`403` for non-browser clients) → `unknown`.                                                                          |
-| `replit`      | `replit.com/@{name}`      | `200`                             | —                        | `free: []`: the SPA returns a generic 404 shell for missing users, so only `200` is meaningful — everything else is `unknown`. |
-| `figma`       | `figma.com/@{name}`       | `200`                             | `404`                    |                                                                                                                                |
-| `dribbble`    | `dribbble.com/{name}`     | `200`                             | `404`                    |                                                                                                                                |
-| `behance`     | `behance.net/{name}`      | `200`                             | `404`                    |                                                                                                                                |
-| `substack`    | `{name}.substack.com`     | `200`                             | `404`                    | Substack serves a real 404 for absent publications.                                                                            |
-| `producthunt` | `producthunt.com/@{name}` | `200`                             | `404`                    | Cloudflare-walled for non-browser clients (`403` → `unknown`).                                                                 |
-| `telegram`    | `t.me/{name}`             | `200` + `tgme_page_title` in body | `200` without the marker | The page always answers `200`, so the body marker decides.                                                                     |
-| `medium`      | `medium.com/feed/@{name}` | `200`                             | `404`                    | The profile page is bot-walled; the RSS feed is not.                                                                           |
+## Runtime differences
 
-## Input validation rules
+On the **Cloudflare Worker** ([`worker/index.ts`](../worker/index.ts)) the
+Node-only deps are swapped: WHOIS is a no-op resolving "unavailable" (no raw
+TCP port 43) so the domain chain falls straight through to the DNS NS check —
+reimplemented over Cloudflare's DoH JSON API — and `npmNameAvailable` becomes
+direct `HEAD` requests against `registry.npmjs.org` (exact name plus
+punctuation-variant probes, mirroring npm's own collision rules).
 
-Every adapter validates the name against its entry in `PROVIDER_NAME_RULES`
-(`src/providers/validation.ts`) before any network call. A failure returns
-`invalid` with a detail of the form `not a valid {label}: {reason}` — length
-bounds first, then per-character charset, then whole-name constraints. All
-charsets are ASCII-only (the contract test requires a length-valid name with
-non-ASCII characters to be rejected with `disallowed character`); `appstore` is
-the only provider whose charset allows spaces and punctuation.
+## What's **not** implemented
 
-Length bounds are inclusive: `minLength`/`maxLength` are accepted,
-`minLength − 1`/`maxLength + 1` are rejected (`too short`/`too long`).
+- No GraphQL anywhere — all checks are plain HTTP GETs, RDAP, WHOIS TCP, or DNS.
+- No authenticated provider APIs; every check is anonymous, so rate limits are
+  per-IP and shared with other traffic (see
+  [troubleshooting.md](troubleshooting.md)).
+- No result caching between requests — see
+  [architecture.md](architecture.md) for what is cached (RDAP bootstrap,
+  GitHub lookup) and what is not.
 
-| Provider                                                                                                                                                                                                                                                                                                   | Min–Max | Charset                                                                  | Whole-name constraints                                                    |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| `domain:com`, `domain:gg`, `domain:dev`, `domain:io`, `domain:ai`, `domain:app`, `domain:de`, `domain:fr`, `domain:uk`, `domain:co`, `domain:org`, `domain:sh`, `domain:so`, `domain:xyz`, `domain:design`, `domain:store`, `domain:work`, `domain:studio`, `domain:tech`, `domain:agency`, `domain:space` | 1–63    | letters, digits, hyphens (case-insensitive)                              | must start and end alnum                                                  |
-| `domain:pt`, `domain:eu`                                                                                                                                                                                                                                                                                   | 2–63    | letters, digits, hyphens                                                 | must start and end alnum (registries enforce 2-char minimum)              |
-| `domain:es`, `domain:me`                                                                                                                                                                                                                                                                                   | 3–63    | letters, digits, hyphens                                                 | must start and end alnum (registries enforce 3-char minimum at 2nd level) |
-| `github:user`, `github:org`                                                                                                                                                                                                                                                                                | 1–39    | letters, digits, hyphens                                                 | must start/end alnum; no consecutive hyphens                              |
-| `github:repo`                                                                                                                                                                                                                                                                                              | 1–100   | letters, digits, `.`, `_`, `-`                                           | must start alnum                                                          |
-| `gitlab`                                                                                                                                                                                                                                                                                                   | 2–255   | letters, digits, `.`, `_`, `-`                                           | must not start with a separator; must not end with a period               |
-| `npm`                                                                                                                                                                                                                                                                                                      | 1–214   | lowercase letters, digits, `.`, `_`, `-`                                 | must not start with a period or underscore                                |
-| `pypi`                                                                                                                                                                                                                                                                                                     | 1–255   | letters, digits, `.`, `_`, `-`                                           | must start and end alnum                                                  |
-| `crates`                                                                                                                                                                                                                                                                                                   | 1–64    | letters, digits, `_`, `-`                                                | must start with a letter                                                  |
-| `dockerhub`                                                                                                                                                                                                                                                                                                | 4–30    | lowercase letters, digits, `.`, `_`, `-`                                 | must start/end alnum; no consecutive separators                           |
-| `huggingface`                                                                                                                                                                                                                                                                                              | 2–64    | letters, digits, `_`, `-`                                                | must start alnum                                                          |
-| `nuget`                                                                                                                                                                                                                                                                                                    | 1–128   | letters, digits, `.`, `_`, `-`                                           | must start alnum                                                          |
-| `rubygems`                                                                                                                                                                                                                                                                                                 | 1–128   | lowercase letters, digits, `_`, `-`                                      | must start with a letter                                                  |
-| `homebrew`                                                                                                                                                                                                                                                                                                 | 1–64    | lowercase letters, digits, hyphens                                       | must start alnum                                                          |
-| `codepen`                                                                                                                                                                                                                                                                                                  | 1–30    | letters, digits, `_`, `-`                                                | —                                                                         |
-| `replit`                                                                                                                                                                                                                                                                                                   | 2–64    | letters, digits, `_`, `-`                                                | —                                                                         |
-| `vercel`                                                                                                                                                                                                                                                                                                   | 1–63    | lowercase letters, digits, hyphens                                       | must start and end alnum (`vercel.app` subdomain rule)                    |
-| `netlify`                                                                                                                                                                                                                                                                                                  | 1–63    | lowercase letters, digits, hyphens                                       | must start and end alnum (`netlify.app` subdomain rule)                   |
-| `appstore`                                                                                                                                                                                                                                                                                                 | 2–30    | alphanumeric plus standard punctuation (`._!?&+'"(),:;@#%&*-` and space) | —                                                                         |
-| `figma`                                                                                                                                                                                                                                                                                                    | 1–50    | letters, digits, `_`, `-`                                                | must start alnum                                                          |
-| `dribbble`                                                                                                                                                                                                                                                                                                 | 1–30    | letters, digits, `_`, `-`                                                | must start alnum                                                          |
-| `behance`                                                                                                                                                                                                                                                                                                  | 3–30    | letters, digits, `_`, `-`                                                | must start alnum                                                          |
-| `substack`                                                                                                                                                                                                                                                                                                 | 1–63    | letters, digits, hyphens                                                 | must start and end alnum                                                  |
-| `producthunt`                                                                                                                                                                                                                                                                                              | 2–30    | letters, digits, `_`, `-`                                                | —                                                                         |
-| `telegram`                                                                                                                                                                                                                                                                                                 | 5–32    | letters, digits, underscores                                             | must start with a letter                                                  |
-| `medium`                                                                                                                                                                                                                                                                                                   | 3–30    | letters, digits, `.`, `_`, `-`                                           | must start alnum                                                          |
-| `social:x`                                                                                                                                                                                                                                                                                                 | 4–15    | letters, digits, underscores                                             | —                                                                         |
-| `social:bluesky`                                                                                                                                                                                                                                                                                           | 3–20    | letters, digits, hyphens                                                 | must start and end alnum                                                  |
-| `social:instagram`                                                                                                                                                                                                                                                                                         | 1–30    | letters, digits, `.`, `_`                                                | no leading/trailing period; no consecutive periods                        |
-| `social:reddit`                                                                                                                                                                                                                                                                                            | 3–20    | letters, digits, `_`, `-`                                                | —                                                                         |
-| `social:youtube`                                                                                                                                                                                                                                                                                           | 3–30    | letters, digits, `.`, `_`, `-`                                           | —                                                                         |
-| `social:tiktok`                                                                                                                                                                                                                                                                                            | 2–24    | letters, digits, `.`, `_`                                                | —                                                                         |
+## Appendix — complete `PROVIDER_NAME_RULES` reference
 
-Notes on validation coverage:
+Every rule in [`validation.ts`](../src/providers/validation.ts) verbatim:
+inclusive length bounds, the per-character charset, and whole-name
+constraints (evaluated in order after length and charset). Constraints are
+composed from shared constants: `START_ALNUM`/`END_ALNUM` (must start/end
+with a letter or digit), `START_LETTER`, `NO_DOUBLE_HYPHEN`,
+`NO_DOUBLE_DOT`, `NO_DOUBLE_SEPARATOR` (no two `.`/`_`/`-` in a row),
+`NO_LEADING_DOT`/`NO_TRAILING_DOT`. There is no explicit reserved-name list —
+reserved-name policy lives inside `npm-name`/`validate-npm-package-name`
+for npm, and nowhere else.
 
-- The tool's own `nameSchema` (in `src/schemas.ts`) is deliberately looser —
-  1–63 chars, starts alnum, `[A-Za-z0-9._-]` — so provider-specific rejects
-  surface as per-provider `invalid` results rather than a tool-level error.
-- `PROVIDER_NAME_RULES` is a `Record<ProviderId, NameRule>`: adding a provider
-  id without a rule is a **compile error**.
-- There is no explicit reserved-name list in `PROVIDER_NAME_RULES`. npm's
-  stricter policy (core-module names, `validate-npm-package-name` rejects,
-  punctuation-collision rules) is enforced inside `npm-name` — a name that
-  fails those checks surfaces as `unknown` ("npm registry check failed"), not
-  `invalid`, because the rejection happens at lookup time rather than during
-  local validation.
-
-## Response handling
-
-- **Status → verdict mapping**: every adapter maps a small set of verified
-  statuses to `available`/`taken`/`invalid` and lets **everything else —
-  including `429`, `401`/`403` bot walls, 5xx and network errors — degrade to
-  `unknown`**. Adapters never fabricate `available` from an ambiguous response.
-- **Timeouts**: each check runs under its own `AbortController` with a
-  `deps.timeoutMs` deadline (default `DEFAULT_TIMEOUT_MS = 5000` in
-  `src/deps.ts`). The runner races `adapter.check()` against the deadline, so
-  even a provider that cannot observe cancellation (e.g. the WHOIS socket)
-  resolves as `unknown` after 5 s. The WHOIS dep itself gets
-  `timeoutMs − 250` (floor 1 s) so it fails before the outer deadline.
-- **Rate limits**: `429` always maps to `unknown`, with provider-specific
-  detail text where the adapter knows the limit (e.g. GitHub's 60 req/h REST /
-  10 req/min search; Instagram's auth wall). There are no retries or backoff —
-  a rate-limited provider reports `unknown` for that check rather than delaying
-  the batch.
-- **`available` field agreement**: `available`→`true`, `taken`/`invalid`→
-  `false`, `unknown`→`null` — enforced by the provider contract test.
-- **`subject` conventions**: domains carry the full FQDN (`acme.com`), hosted
-  subdomains the full hostname (`acme.vercel.app`), Bluesky/Telegram/Medium the
-  `@{handle}` form, and registries the normalized name (PyPI's PEP 503 form).
+| Provider                                                                                                                                                                                                                                                                                                   | Min–Max | Charset                              | Constraints                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ------------------------------------ | ----------------------------------------------------------------------------- |
+| `domain:com`, `domain:gg`, `domain:dev`, `domain:io`, `domain:ai`, `domain:app`, `domain:de`, `domain:fr`, `domain:uk`, `domain:co`, `domain:org`, `domain:sh`, `domain:so`, `domain:xyz`, `domain:design`, `domain:store`, `domain:work`, `domain:studio`, `domain:tech`, `domain:agency`, `domain:space` | 1–63    | `a-z0-9-` (case-insensitive)         | `START_ALNUM`, `END_ALNUM`                                                    |
+| `domain:pt`, `domain:eu`                                                                                                                                                                                                                                                                                   | 2–63    | `a-z0-9-`                            | `START_ALNUM`, `END_ALNUM` (registries enforce a 2-char minimum)              |
+| `domain:es`, `domain:me`                                                                                                                                                                                                                                                                                   | 3–63    | `a-z0-9-`                            | `START_ALNUM`, `END_ALNUM` (registries enforce a 3-char minimum at 2nd level) |
+| `github:user`, `github:org`                                                                                                                                                                                                                                                                                | 1–39    | `A-Za-z0-9-`                         | `START_ALNUM`, `END_ALNUM`, `NO_DOUBLE_HYPHEN`                                |
+| `github:repo`                                                                                                                                                                                                                                                                                              | 1–100   | `A-Za-z0-9._-`                       | `START_ALNUM`                                                                 |
+| `gitlab`                                                                                                                                                                                                                                                                                                   | 2–255   | `A-Za-z0-9._-`                       | must not start with a separator; must not end with a period                   |
+| `npm`                                                                                                                                                                                                                                                                                                      | 1–214   | `a-z0-9._-` (lowercase)              | must not start with a period or underscore                                    |
+| `pypi`                                                                                                                                                                                                                                                                                                     | 1–255   | `A-Za-z0-9._-`                       | `START_ALNUM`, `END_ALNUM`                                                    |
+| `crates`                                                                                                                                                                                                                                                                                                   | 1–64    | `A-Za-z0-9_-`                        | `START_LETTER`                                                                |
+| `dockerhub`                                                                                                                                                                                                                                                                                                | 4–30    | `a-z0-9._-` (lowercase)              | `START_ALNUM`, `END_ALNUM`, `NO_DOUBLE_SEPARATOR`                             |
+| `huggingface`                                                                                                                                                                                                                                                                                              | 2–64    | `A-Za-z0-9_-`                        | `START_ALNUM`                                                                 |
+| `nuget`                                                                                                                                                                                                                                                                                                    | 1–128   | `A-Za-z0-9._-`                       | `START_ALNUM`                                                                 |
+| `rubygems`                                                                                                                                                                                                                                                                                                 | 1–128   | `a-z0-9_-` (lowercase)               | `START_LETTER`                                                                |
+| `homebrew`                                                                                                                                                                                                                                                                                                 | 1–64    | `a-z0-9-` (lowercase)                | `START_ALNUM`                                                                 |
+| `codepen`                                                                                                                                                                                                                                                                                                  | 1–30    | `A-Za-z0-9_-`                        | —                                                                             |
+| `replit`                                                                                                                                                                                                                                                                                                   | 2–64    | `A-Za-z0-9_-`                        | —                                                                             |
+| `vercel`                                                                                                                                                                                                                                                                                                   | 1–63    | `a-z0-9-` (lowercase)                | `START_ALNUM`, `END_ALNUM` (`vercel.app` subdomain)                           |
+| `netlify`                                                                                                                                                                                                                                                                                                  | 1–63    | `a-z0-9-` (lowercase)                | `START_ALNUM`, `END_ALNUM` (`netlify.app` subdomain)                          |
+| `appstore`                                                                                                                                                                                                                                                                                                 | 2–30    | `A-Za-z0-9` + ` .,!?&+'"(),:;@#%&*-` | — (the only punctuation-allowed charset)                                      |
+| `figma`                                                                                                                                                                                                                                                                                                    | 1–50    | `A-Za-z0-9_-`                        | `START_ALNUM`                                                                 |
+| `dribbble`                                                                                                                                                                                                                                                                                                 | 1–30    | `A-Za-z0-9_-`                        | `START_ALNUM`                                                                 |
+| `behance`                                                                                                                                                                                                                                                                                                  | 3–30    | `A-Za-z0-9_-`                        | `START_ALNUM`                                                                 |
+| `substack`                                                                                                                                                                                                                                                                                                 | 1–63    | `A-Za-z0-9-`                         | `START_ALNUM`, `END_ALNUM`                                                    |
+| `producthunt`                                                                                                                                                                                                                                                                                              | 2–30    | `A-Za-z0-9_-`                        | —                                                                             |
+| `telegram`                                                                                                                                                                                                                                                                                                 | 5–32    | `A-Za-z0-9_`                         | `START_LETTER`                                                                |
+| `medium`                                                                                                                                                                                                                                                                                                   | 3–30    | `A-Za-z0-9._-`                       | `START_ALNUM`                                                                 |
+| `social:x`                                                                                                                                                                                                                                                                                                 | 4–15    | `A-Za-z0-9_`                         | —                                                                             |
+| `social:bluesky`                                                                                                                                                                                                                                                                                           | 3–20    | `A-Za-z0-9-`                         | `START_ALNUM`, `END_ALNUM`                                                    |
+| `social:instagram`                                                                                                                                                                                                                                                                                         | 1–30    | `a-z0-9._` (case-insensitive)        | `NO_LEADING_DOT`, `NO_TRAILING_DOT`, `NO_DOUBLE_DOT`                          |
+| `social:reddit`                                                                                                                                                                                                                                                                                            | 3–20    | `A-Za-z0-9_-`                        | —                                                                             |
+| `social:youtube`                                                                                                                                                                                                                                                                                           | 3–30    | `A-Za-z0-9._-`                       | —                                                                             |
+| `social:tiktok`                                                                                                                                                                                                                                                                                            | 2–24    | `a-z0-9._` (case-insensitive)        | —                                                                             |

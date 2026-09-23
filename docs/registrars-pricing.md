@@ -1,61 +1,39 @@
-# Registrar pricing & domain resolution
+# Domain availability & registrar pricing
 
-How `lmkurname` resolves domain availability and how registrar links and
-price estimates are modeled in `lib/links.ts`.
+How `domain:*` availability is determined, how registrar links and price
+estimates work today — and what is explicitly **not** implemented yet.
 
-## Domain availability resolution flow
+## Availability determination (implemented)
 
-For every `domain:*` provider (`src/providers/domain.ts`), the check runs a
-three-stage chain. The order is **RDAP → WHOIS → DNS NS** — WHOIS is the
-fallback when the TLD has no RDAP service, and DNS is only a tiebreaker after
-an inconclusive WHOIS:
+[`src/providers/domain.ts`](../src/providers/domain.ts) resolves
+`{name}.{tld}` through a strict fallback chain — not a registrar API:
 
-```
-                    ┌──────────────────────────────────────────────┐
-                    │ 1. IANA bootstrap (data.iana.org/rdap/dns.json) │
-                    └──────────────────────────────────────────────┘
-                                   │
-              ┌────────────────────┴─────────────────────┐
-              │ TLD has an RDAP service                  │ TLD has none (or bootstrap unreachable)
-              ▼                                          ▼
-   GET {rdapBase}/domain/{fqdn}                 2. WHOIS via whoiser
-   404 → available                              (raw text, 1 referral hop,
-   200 → taken                                   timeoutMs − 250ms)
-   400/422 → invalid                            "no match"/"not found"/… → available
-   else  → unknown                              registration fields → taken
-                                                inconclusive → unknown
-                                                          │
-                                                          ▼
-                                              3. DNS NS lookup (resolveNs)
-                                              NS records present → taken
-                                              none / error → unknown
-```
+1. **RDAP** ([`rdap.ts`](../src/providers/rdap.ts)) — the IANA bootstrap
+   document (`https://data.iana.org/rdap/dns.json`) is fetched lazily once and
+   cached for the client's lifetime. For a TLD with an RDAP service it GETs
+   `{base}/domain/{fqdn}`: `404` → `available`, `200` → `taken`,
+   `400`/`422` → `invalid`, everything else → `unknown`.
+2. **WHOIS** ([`whois.ts`](../src/providers/whois.ts)) — TLDs without RDAP
+   fall back to raw WHOIS over TCP port 43 (`whoiser`). The response is
+   text-matched for "not found" phrases vs registration fields; inconclusive
+   output → `unknown`.
+3. **DNS NS** ([`dns.ts`](../src/providers/dns.ts)) — last resort after an
+   inconclusive WHOIS: delegated name servers → `taken`; absence → `unknown`
+   (undelegated registrations and unregistered names both have no NS).
 
-Key properties:
+On the Cloudflare Worker, WHOIS is skipped entirely (no raw TCP) and DNS NS
+goes over DNS-over-HTTPS — see [providers.md](providers.md#runtime-differences).
 
-- The IANA bootstrap document is fetched lazily once per `RdapClient` and
-  shared by all 25 TLD adapters; a failed bootstrap fetch is not cached, so the
-  next lookup retries — and the current lookup falls through to WHOIS rather
-  than failing.
-- TLDs with RDAP (e.g. `.com`, `.dev`, `.app`, `.fr`, `.uk` per the IANA
-  registry) never hit WHOIS; TLDs without RDAP (e.g. `.gg`, `.io`, `.pt`,
-  `.es`, `.de`, `.eu`) go straight to stage 2.
-- WHOIS is inherently fuzzy — registries phrase "not found" differently — so a
-  clear registration/absence marker is required for a verdict; anything
-  ambiguous escalates to the NS check.
-- The NS check only ever upgrades `unknown` to `taken` (delegated name
-  servers prove registration). It never produces `available`: undelegated
-  registrations exist, and NXDOMAIN covers unregistered names too.
-- On the Cloudflare Worker, WHOIS is unavailable (no raw TCP port 43), so the
-  chain collapses to RDAP → DNS-over-HTTPS NS check (`cloudflare-dns.com`).
+There is **no registrar-API availability path** (no EPP, no
+Namecheap/GoDaddy/Porkbun APIs) — checks are anonymous registry-level
+lookups, which is why `available`/`taken` are snapshots, not guarantees.
 
-## Registrar links
+## Registrar deep links (implemented)
 
-`lib/links.ts` exports `REGISTRARS` — the registrars the UI offers to route an
-available domain to. Each entry is `{ id, label, searchUrl(domain) }` where
-`searchUrl` produces the registrar's public domain-search URL for the FQDN:
+[`lib/links.ts`](../lib/links.ts) defines nine registrars the UI links out to
+— plain domain-search URLs, **no affiliate parameters**:
 
-| Registrar  | `searchUrl` target                                            |
+| Registrar  | Search URL pattern                                            |
 | ---------- | ------------------------------------------------------------- |
 | Porkbun    | `porkbun.com/checkout/search?q={domain}`                      |
 | Cloudflare | `domains.cloudflare.com/?domain={domain}`                     |
@@ -67,73 +45,76 @@ available domain to. Each entry is `{ id, label, searchUrl(domain) }` where
 | Gandi      | `shop.gandi.net/en/domain/suggest?search={domain}`            |
 | Hover      | `hover.com/domains/results?q={domain}`                        |
 
-These are **plain deep links** — no affiliate parameters, referral tags, or
-partner codes are added anywhere in the codebase. The app declares itself an
-independent project with no brand affiliation in the UI footer
-(`components/name-checker.tsx`). If affiliate tracking is added later it would
-belong in these `searchUrl` builders, but today none exists.
+`REGISTRARS` in [`lib/links.ts`](../lib/links.ts) is the source; each entry is
+`{ id, label, searchUrl(domain) }`.
 
-## Pricing model — `TLD_PRICE_ESTIMATES`
+## Price estimates (implemented — static, not live)
 
-`lib/links.ts` holds a static `TLD_PRICE_ESTIMATES` table:
+`TLD_PRICE_ESTIMATES` ([`lib/links.ts`](../lib/links.ts)) is a hardcoded table
+of **rough first-year USD estimates per TLD per registrar**, surfaced through
+`tldPrices(provider)`:
 
-```ts
-Partial<Record<ProviderId, Partial<Record<RegistrarId, number | null>>>>;
-```
+- Prices are **static published-rate estimates in USD** — there is no live
+  registrar pricing API wired in. The UI renders them with `~` and labels
+  them as estimates.
+- `null` means the registrar does not carry the TLD (e.g. Cloudflare
+  Registrar supports only a subset of gTLDs and no ccTLDs) — rendered as `—`,
+  never invented.
+- Estimates cover **first-year** pricing only. Renewal pricing, multi-year,
+  premium-tier pricing, ICANN fees and currency conversion are **not
+  modeled**.
+- Non-`domain:*` providers return `[]` from `tldPrices()`.
 
-- Values are **rough first-year USD estimates** based on published rates.
-  There is **no live registrar pricing API** wired in — no provider is queried
-  at runtime for prices, and numbers can drift from current rates.
-- The UI renders every figure with `~` and labels it an estimate.
-- `null` means the registrar does not carry that TLD (or no published rate is
-  tracked) — rendered as `—`, never invented. Cloudflare Registrar is the
-  clearest example: it supports a subset of gTLDs and no ccTLDs, so it is
-  `null` for `.io`, `.ai`, `.gg`, `.pt`, `.es`, `.de`, `.fr`, `.uk`, `.eu`,
-  `.sh`, `.so` — and Vercel is `null` for most TLDs outside `.com`/`.dev`/
-  `.app`/`.org`/`.xyz`.
-- `tldPrices(providerId)` returns the estimates in `REGISTRARS` order, or `[]`
-  for non-domain providers and TLDs with no tracked pricing.
+Coverage snapshot for the four headline registrars (all 25 TLDs are tracked in
+the table; Vercel/Spaceship/Dynadot/Gandi/Hover follow the same
+`number | null` scheme):
 
-### Per-registrar notes (as implemented)
+| Registrar  | Coverage in `TLD_PRICE_ESTIMATES`                                   | Sample first-year estimates            |
+| ---------- | ------------------------------------------------------------------- | -------------------------------------- |
+| Porkbun    | Value for every TLD                                                 | `com` 11, `io` 34, `ai`/`gg` 68        |
+| Cloudflare | gTLD subset only — `null` for every ccTLD (at-cost wholesale model) | `com` 10, `dev` 13, `app` 15, `org` 11 |
+| Namecheap  | Value for every TLD                                                 | `com` 11, `io` 33, `ai` 68             |
+| GoDaddy    | Value for every TLD                                                 | `com` 13, `io` 45, `ai` 100            |
 
-| Registrar  | Coverage in the table                                                | Estimate character                               |
-| ---------- | -------------------------------------------------------------------- | ------------------------------------------------ |
-| Porkbun    | All 25 TLDs have values                                              | Low-to-mid; e.g. `com` 11, `io` 34, `ai`/`gg` 68 |
-| Cloudflare | gTLD subset only — `null` for every ccTLD (wholesale, at-cost model) | `com` 10, `dev` 13, `app` 15, `org` 11           |
-| Namecheap  | All 25 TLDs have values                                              | Low-to-mid; e.g. `com` 11, `io` 33, `ai` 68      |
-| GoDaddy    | All 25 TLDs have values                                              | Mid-to-high; e.g. `com` 13, `io` 45, `ai` 100    |
+TLD handling: the 25 `domain:*` provider ids map one-to-one to TLDs and every
+one has a `TLD_PRICE_ESTIMATES` row; the core/regional/niche grouping in
+[`lib/provider-meta.ts`](../lib/provider-meta.ts) is display-only and does not
+affect pricing.
 
-(The remaining five registrars — Vercel, Spaceship, Dynadot, Gandi, Hover —
-follow the same `number | null` scheme.)
+## Proposals — live registrar pricing (not implemented)
 
-## TLD handling
+None of the below exists in the codebase; this is a suggested design only.
 
-- The 25 `domain:*` provider ids map one-to-one to TLDs; the table covers all 25. A provider id absent from the table yields `tldPrices() === []`.
-- TLDs are grouped in the UI as core (`.com`, `.io`, `.ai`, `.dev`, `.app`,
-  `.co`, `.me`, `.org`, `.xyz`), regional ccTLDs (`.pt`, `.es`, `.de`, `.fr`,
-  `.uk`, `.eu`, `.gg`, `.sh`, `.so`) and industry niches (`.design`, `.store`,
-  `.work`, `.studio`, `.tech`, `.agency`, `.space`) in
-  `lib/provider-meta.ts` — grouping is display-only; it does not affect
-  pricing or the availability chain.
-- The `domains` alias covers `.com`/`.gg`/`.dev`/`.io`; `domains:cctld` the
-  ccTLD set; `domains:all` every TLD (`src/schemas.ts`).
+### Registrar availability + price lookups
 
-## Renewal vs first-year pricing — not modeled
+| Registrar  | Feasible path (proposal)                                                                                                                   |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Porkbun    | Public JSON API (`api.porkbun.com/api/json/v3/pricing/get` — key required). Free tier exists; returns first-year/renewal/transfer per TLD. |
+| Cloudflare | No public pricing API — Registrar is at-cost; likely keep static estimates or scrape-free table.                                           |
+| Namecheap  | XML API (`api.namecheap.com`) — requires whitelisted IP + API key; has `domains.check`/`getTldList` + pricing. Server-side only.           |
+| GoDaddy    | OTE/production REST API (`api.godaddy.com/v1/domains/available`) — key+secret required.                                                    |
 
-The table tracks **first-year** estimates only. There is no renewal-price
-field, no promo-vs-standard distinction, and no multi-year math. Registrar
-promos frequently price year one below the renewal rate (GoDaddy notably
-advertises very low first-year `.com` prices with higher renewals), so treat
-the estimates as "what a first checkout might look like", not the cost of
-holding the domain. Adding a renewal column would mean extending
-`TLD_PRICE_ESTIMATES` to `{ firstYear, renewal }` records — currently
-unimplemented.
+Suggested shape: a `pricing.ts` service exposing `lookupPrice(domain) → { registrar, currency, firstYear, renewal?, status } | null` behind
+`ProviderDeps`-style injection (same pattern as `whoisDomain`/`resolveNs`),
+with env-var credentials, per-registrar adapters, and the static
+`TLD_PRICE_ESTIMATES` table kept as the offline fallback — estimates would
+stay labelled `~` whenever no live price is returned.
 
-## ICANN fees — not modeled
+### Pricing model gaps to close when live pricing lands
 
-Nothing in the codebase adds, tracks, or displays ICANN fees. For context
-(external knowledge, not implementation): ICANN charges registrars a
-per-domain-year transaction fee (USD 0.18 for large gTLDs at the time of
-writing); some registrars list it separately at checkout, others fold it into
-the headline price. The estimates in `TLD_PRICE_ESTIMATES` do not say which
-style each registrar uses — another reason they are labelled `~` estimates.
+- **Renewal vs first-year**: the table tracks first-year only; renewal
+  columns should be a separate field, not mixed into the estimate.
+- **Currency**: estimates are USD; a `currency` field on the result type
+  should be added before any non-USD source is wired in. No conversion
+  exists today.
+- **ICANN fee**: ~$0.18/year on gTLD registrations, typically bundled into
+  registrar pricing — the estimates currently assume bundling; call this out
+  per-registrar when real prices land.
+- **Premium/aftermarket names**: registry premium tiers are not detectable
+  via RDAP/WHOIS — flag as "pricing unknown" rather than showing the standard
+  estimate.
+
+## Related docs
+
+- Provider mechanics: [providers.md](providers.md#domains-domain---rdap--whois--dns)
+- Registrar deep links used by the UI grid: [`components/`](../components/) + `platformLinks`/`tldPrices` in [`lib/links.ts`](../lib/links.ts)
