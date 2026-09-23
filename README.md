@@ -379,6 +379,23 @@ IP); the GitHub provider degrades to `unknown` when rate-limited.
 - `unknown` ≠ `taken` — it means the provider could not give a definitive
   answer (timeout, rate limit, blocked endpoint, inconclusive WHOIS/DNS).
 
+## Documentation
+
+Deep dives into how the engine and providers work internally live in
+[`docs/`](docs/README.md):
+
+- [`docs/providers.md`](docs/providers.md) — per-adapter query mechanisms,
+  validation rules, and status-code interpretation
+- [`docs/registrars-pricing.md`](docs/registrars-pricing.md) — domain
+  availability chain, registrar deep links, price estimates
+- [`docs/architecture.md`](docs/architecture.md) — adapter contract,
+  `ProviderDeps`, runner, caching/rate-limit stance, adding a provider
+- [`docs/api-reference.md`](docs/api-reference.md) — MCP tools and HTTP
+  endpoints
+- [`docs/troubleshooting.md`](docs/troubleshooting.md) — `unknown` results,
+  rate limits, runtime caveats
+- [`docs/deployment.md`](docs/deployment.md) — the four surfaces and env vars
+
 ## License
 
 MIT
