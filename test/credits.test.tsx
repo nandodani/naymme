@@ -34,7 +34,9 @@ describe("CreditsPage", () => {
         group.title.replaceAll("&", "&amp;"),
       );
       for (const entry of group.entries) {
-        expect(markup, `missing credit ${entry.name}`).toContain(entry.name);
+        expect(markup, `missing credit ${entry.name}`).toContain(
+          entry.name.replaceAll("&", "&amp;"),
+        );
         expect(markup, `missing link for ${entry.name}`).toContain(`href="${entry.href}"`);
         expect(markup, `missing license for ${entry.name}`).toContain(entry.license);
       }
@@ -42,7 +44,7 @@ describe("CreditsPage", () => {
   });
 
   it("covers the named third-party assets", () => {
-    for (const name of ["loading-dev", "Silk", "React Bits", "Base UI", "Lucide", "Geist"]) {
+    for (const name of ["loading.dev", "Silk", "React Bits", "Base UI", "Lucide", "Geist"]) {
       expect(markup, `missing ${name}`).toContain(name);
     }
   });
