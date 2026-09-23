@@ -66,8 +66,7 @@ describe("robots.txt", () => {
 
 describe("sitemap.xml", () => {
   it("lists the canonical root and /credits with change frequency and priority", () => {
-    const [entry, credits, ...rest] = sitemap();
-    expect(rest).toHaveLength(0);
+    const [entry, credits] = sitemap();
     expect(entry).toMatchObject({
       url: SITE_URL,
       changeFrequency: "weekly",
@@ -80,6 +79,20 @@ describe("sitemap.xml", () => {
       priority: 0.3,
     });
     expect(credits?.lastModified).toBeTruthy();
+  });
+
+  it("lists the static content pages", () => {
+    const urls = sitemap().map((entry) => entry.url);
+    expect(urls).toEqual(
+      expect.arrayContaining([
+        SITE_URL,
+        `${SITE_URL}/credits`,
+        `${SITE_URL}/about`,
+        `${SITE_URL}/contact`,
+        `${SITE_URL}/privacy`,
+      ]),
+    );
+    expect(urls).toHaveLength(5);
   });
 });
 

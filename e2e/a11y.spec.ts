@@ -114,6 +114,20 @@ test.describe("accessibility", () => {
     );
   });
 
+  for (const [path, label] of [
+    ["/about", "about"],
+    ["/contact", "contact"],
+    ["/privacy", "privacy"],
+    ["/no-such-page-xyz", "404"],
+  ] as const) {
+    test(`${label} page has no axe violations`, async ({ page }) => {
+      const response = await page.goto(path);
+      if (label === "404") expect(response?.status()).toBe(404);
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await audit(page, label);
+    });
+  }
+
   test("axe stays clean under prefers-reduced-motion", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/?q=acme");

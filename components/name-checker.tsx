@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Atom } from "loading-dev";
@@ -34,7 +35,7 @@ async function copyText(text: string): Promise<void> {
   }
 }
 
-export function NameChecker() {
+export function NameChecker({ heroContent }: { heroContent?: ReactNode }) {
   const [query, setQuery] = useState("");
   /** The name a search was explicitly run for (Enter / Search button / ?q=). */
   const [searchedName, setSearchedName] = useState("");
@@ -210,6 +211,7 @@ export function NameChecker() {
                 onSubmit={submitSearch}
                 valid={nameValid}
                 inputRef={inputRef}
+                content={heroContent}
               />
             </motion.div>
           ) : phase === "loading" ? (
@@ -258,7 +260,38 @@ export function NameChecker() {
           )}
         </AnimatePresence>
 
-        <footer className="flex shrink-0 flex-col items-center justify-center gap-0.5 border-t border-white/5 px-4 py-2.5 text-center text-[11px] text-zinc-400 sm:px-6">
+        <footer className="flex shrink-0 flex-col items-center justify-center gap-1 border-t border-white/5 px-4 py-2.5 text-center text-[11px] text-zinc-400 sm:px-6">
+          <nav
+            aria-label="Resources"
+            className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1"
+          >
+            {[
+              { label: "About", href: "/about" },
+              { label: "Contact", href: "/contact" },
+              { label: "Privacy", href: "/privacy" },
+              { label: "llms.txt", href: "/llms.txt" },
+              { label: "MCP discovery", href: "/.well-known/mcp" },
+              {
+                label: "Docs",
+                href: "https://github.com/nandodani/name-check-mcp/tree/main/docs",
+                external: true,
+              },
+              {
+                label: "GitHub",
+                href: "https://github.com/nandodani/name-check-mcp",
+                external: true,
+              },
+            ].map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                className="rounded-sm text-zinc-400 underline-offset-2 outline-none transition-colors hover:text-zinc-200 hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {link.label}
+              </a>
+            ))}
+          </nav>
           <span>
             Independent project. Not affiliated with, endorsed by, or associated with any brands,
             platforms, or registries displayed.
