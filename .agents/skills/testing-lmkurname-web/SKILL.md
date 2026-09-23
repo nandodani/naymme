@@ -41,14 +41,6 @@ Related: `playwright.config.ts` uses `baseURL: http://127.0.0.1:3210` with `reus
 - `GET /.well-known/mcp` → JSON discovery doc (tools with JSON Schemas); `POST` with the MCP Accept header runs a real JSON-RPC handshake; `OPTIONS` → 204 CORS preflight.
 - Static pages `/about` `/contact` `/privacy` + styled 404 share `components/static-page.tsx` (sticky header nav, `aria-current="page"` on the active link).
 
-## API hardening surface (api-hardening PR)
-
-- `/v1` version index + `/v1/check`, `/v1/score`, `/v1/mcp` root aliases delegate to the `/api/v1/*` handlers; `/v1/mcp` POST needs the MCP Accept header for JSON-RPC. Unknown `/v1/*` and `/api/*` paths hit `apiNotFound` (structured JSON 404 with the header quartet) — never HTML.
-- Header contract on every `/api/*` + `/v1/*` response incl. errors/404s: `api-version: 1`, `x-api-version: 1.0.0`, `ratelimit-limit/-remaining/-reset`, `ratelimit-policy: <limit>;w=60`. OPTIONS preflights carry only the version headers (by design).
-- To see a 429: blast >60 GETs/min at `/api/score` (score budget 60 rpm; availability 30, mcp 60, aux 120). All curl requests share the `"unknown"` client bucket — a `for i in $(seq 1 62); do curl ...` loop reliably triggers it. Expect `retry-after` + `{error:{code:"rate_limited"}}`.
-- Kill a stale `next start` with `fuser -k <port>/tcp` — `pkill -f "next start"` also matches the invoking shell's own command line and kills it.
-- Homepage keeps the minimal hero; the agent-readiness prose is an `sr-only` `<section aria-label="Developer and agent access">` — verify in raw HTML (h1 before first h2, `is-agentic-site-type` meta, text density), not on screen.
-
 ## Devin Secrets Needed
 
 None.
