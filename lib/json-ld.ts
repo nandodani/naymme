@@ -49,7 +49,7 @@ export function jsonLdGraph(): Record<string, unknown> {
           url: AUTHOR_URL,
         },
         featureList: [
-          "check_availability — name availability across 57 providers: domains (25 TLDs), GitHub user/org/repo, npm, PyPI, crates, Docker Hub, JSR, deno.land, NuGet, RubyGems, Homebrew, Hugging Face, Vercel, Netlify, app stores and social handles",
+          "check_availability — name availability across 61 providers: domains (25 TLDs), GitHub user/org/repo, npm, PyPI, crates, Docker Hub, JSR, deno.land, NuGet, RubyGems, Homebrew, Hugging Face, Vercel, Netlify, Cloudflare Pages, Fly.io, Railway, Supabase, app stores and social handles",
           "score_name — deterministic brand-quality score (punchiness, pronounceability, uniqueness, cleanliness)",
           "Model Context Protocol (MCP) server for AI assistants — stdio, Streamable HTTP and SSE transports",
         ],
