@@ -2,3 +2,9 @@ dist/
 coverage/
 node_modules/
 package-lock.json
+.next/
+test-results/
+playwright-report/
+blob-report/
+.agents/
+.agents/

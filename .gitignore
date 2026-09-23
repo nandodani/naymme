@@ -13,6 +13,7 @@ out/
 next-env.d.ts
 *.tsbuildinfo
 
-# next dev auto-generates these agent hint files
-AGENTS.md
-CLAUDE.md
+# Playwright artifacts
+test-results/
+playwright-report/
+blob-report/
