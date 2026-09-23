@@ -24,6 +24,10 @@ export const metadata: Metadata = {
   authors: [{ name: AUTHOR_NAME, url: AUTHOR_URL }],
   creator: AUTHOR_NAME,
   category: "developer tools",
+  other: {
+    // Is Agentic site-type lens selector (https://is-agentic.com/docs#declare-site-type)
+    "is-agentic-site-type": "app",
+  },
   alternates: {
     canonical: "/",
     // Machine-readable alternates of this page — rendered as

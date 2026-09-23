@@ -1,7 +1,7 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { ProviderDeps } from "../src/deps.js";
 import { defaultDeps } from "../src/deps.js";
-import { API_VERSION } from "../src/api-version.js";
+import { apiVersionHeaders } from "../src/api-version.js";
 import {
   clientKeyFromHeaders,
   contentLengthExceeded,
@@ -39,7 +39,7 @@ function withCors(response: Response, extra: Record<string, string> = {}): Respo
 
 /** API version + remaining request budget — same contract as the REST routes. */
 function quotaHeaders(verdict: RateLimitVerdict): Record<string, string> {
-  return { "api-version": API_VERSION, ...rateLimitHeaders(verdict) };
+  return { ...apiVersionHeaders(), ...rateLimitHeaders(verdict) };
 }
 
 /**
@@ -96,7 +96,7 @@ export async function handleMcpRequest(
 ): Promise<Response> {
   const verdict = limiter.allow(clientKeyFromHeaders(request.headers));
   if (!verdict.ok) {
-    return tooManyRequestsResponse(verdict, { ...CORS_HEADERS, "api-version": API_VERSION });
+    return tooManyRequestsResponse(verdict, { ...CORS_HEADERS, ...apiVersionHeaders() });
   }
   if (contentLengthExceeded(request, MAX_REQUEST_BODY_BYTES)) {
     return Response.json(
@@ -152,8 +152,19 @@ async function dispatch(
   );
 }
 
-/** GET /api/mcp (and the /health and /mcp aliases) — liveness + pointer. */
-export function mcpStatusResponse(): Response {
+/**
+ * GET /api/mcp (and the /health, /mcp and /v1/mcp aliases) — liveness +
+ * pointer. Consumes the same MCP budget as POST so the response can carry
+ * real RateLimit-* values like every other API endpoint.
+ */
+export function handleMcpStatusRequest(
+  request: Request,
+  limiter: Pick<RateLimiter, "allow"> = defaultLimiter(),
+): Response {
+  const verdict = limiter.allow(clientKeyFromHeaders(request.headers));
+  if (!verdict.ok) {
+    return tooManyRequestsResponse(verdict, { ...CORS_HEADERS, ...apiVersionHeaders() });
+  }
   return Response.json(
     {
       ok: true,
@@ -162,10 +173,11 @@ export function mcpStatusResponse(): Response {
       transport: "streamable-http",
       usage: "POST /api/mcp",
     },
-    { headers: { ...CORS_HEADERS, "api-version": API_VERSION } },
+    { headers: { ...CORS_HEADERS, ...quotaHeaders(verdict) } },
   );
 }
 
+/** CORS preflight — never rate-limited, but still versioned. */
 export function mcpOptionsResponse(): Response {
-  return new Response(null, { status: 204, headers: CORS_HEADERS });
+  return new Response(null, { status: 204, headers: { ...CORS_HEADERS, ...apiVersionHeaders() } });
 }

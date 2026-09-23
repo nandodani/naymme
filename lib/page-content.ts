@@ -104,7 +104,8 @@ export const DOCS_CONTENT: PageContent = {
     {
       heading: "HTTP API",
       paragraphs: [
-        "Everything the UI does is also a plain JSON endpoint — no auth, CORS-open for browser use.",
+        'Everything the UI does is also a plain JSON endpoint — no auth, CORS-open for browser use. The API is version 1: /api/v1/* is canonical, while the unversioned /api/* paths and root-level /v1/* aliases (/v1/check, /v1/score, /v1/mcp, plus GET /v1 for the version index) hit the same handlers. Before any future breaking release, the older version would emit Deprecation, Sunset and a Link rel="deprecation" pointer for at least 6 months.',
+        "Every response on every /api/* and /v1/* endpoint — successes, errors and 404s alike — carries the same convention headers: API-Version: 1, X-API-Version: 1.0.0 and the RFC RateLimit quartet RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, RateLimit-Policy (e.g. 60;w=60). Exhausting a limit returns 429 with Retry-After and the structured {error:{code,message,hint}} envelope.",
       ],
       list: [
         "GET /api/availability?name=<name>&providers=<csv> — normalized availability results; providers accepts ids or the aliases all, domains, domains:cctld, domains:all and socials.",

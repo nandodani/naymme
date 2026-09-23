@@ -96,6 +96,8 @@ export interface RateLimitQuota {
   remaining: number;
   /** Seconds until the current window resets. */
   resetSeconds: number;
+  /** Fixed window length in seconds — the `w=` parameter of RateLimit-Policy. */
+  windowSeconds: number;
 }
 
 export type RateLimitVerdict =
@@ -135,6 +137,7 @@ export class RateLimiter {
         limit: this.max,
         remaining: this.max - 1,
         resetSeconds: Math.ceil(this.windowMs / 1000),
+        windowSeconds: Math.ceil(this.windowMs / 1000),
       };
     }
     if (bucket.count >= this.max) {
@@ -145,6 +148,7 @@ export class RateLimiter {
         limit: this.max,
         remaining: 0,
         resetSeconds,
+        windowSeconds: Math.ceil(this.windowMs / 1000),
       };
     }
     bucket.count += 1;
@@ -153,6 +157,7 @@ export class RateLimiter {
       limit: this.max,
       remaining: this.max - bucket.count,
       resetSeconds: Math.max(1, Math.ceil((bucket.resetAt - now) / 1000)),
+      windowSeconds: Math.ceil(this.windowMs / 1000),
     };
   }
 
@@ -178,6 +183,8 @@ export const RATE_LIMITS = {
   score: 60,
   /** JSON-RPC posts to the MCP transports. */
   mcp: 60,
+  /** Cheap metadata/document endpoints (markdown, openapi, 404s, version index). */
+  aux: 120,
 } as const;
 
 /**
@@ -221,6 +228,7 @@ export function rateLimitHeaders(quota: RateLimitQuota): Record<string, string> 
     "ratelimit-limit": String(quota.limit),
     "ratelimit-remaining": String(quota.remaining),
     "ratelimit-reset": String(quota.resetSeconds),
+    "ratelimit-policy": `${quota.limit};w=${quota.windowSeconds}`,
   };
 }
 

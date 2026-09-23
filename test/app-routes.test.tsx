@@ -49,7 +49,7 @@ describe("app/api/score route", () => {
 
 describe("app/api/mcp route", () => {
   it("GET returns the status document", async () => {
-    const res = mcpGET();
+    const res = mcpGET(new Request("https://app.test/api/mcp"));
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ ok: true, name: "lmkurname" });
   });

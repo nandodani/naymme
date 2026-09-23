@@ -2,7 +2,7 @@ import { apiErrorResponse, API_ERROR_CODES } from "../src/api-errors.js";
 import { defaultDeps, type ProviderDeps } from "../src/deps.js";
 import type { CheckAvailabilityInput, CheckAvailabilityOutput } from "../src/schemas.js";
 import { nameSchema, providerSelectionSchema } from "../src/schemas.js";
-import { API_VERSION } from "../src/api-version.js";
+import { apiVersionHeaders } from "../src/api-version.js";
 import {
   clientKeyFromHeaders,
   RATE_LIMITS,
@@ -84,7 +84,7 @@ const NO_STORE = { "cache-control": "no-store" } as const;
  * caller's remaining RFC RateLimit budget, so agents can self-throttle.
  */
 function responseHeaders(verdict: RateLimitVerdict): Record<string, string> {
-  return { ...NO_STORE, "api-version": API_VERSION, ...rateLimitHeaders(verdict) };
+  return { ...NO_STORE, ...apiVersionHeaders(), ...rateLimitHeaders(verdict) };
 }
 
 function jsonError(
@@ -119,7 +119,7 @@ export async function handleAvailabilityRequest(
 ): Promise<Response> {
   const verdict = limiter.allow(clientKeyFromHeaders(req.headers));
   if (!verdict.ok) {
-    return tooManyRequestsResponse(verdict, { ...NO_STORE, "api-version": API_VERSION });
+    return tooManyRequestsResponse(verdict, { ...NO_STORE, ...apiVersionHeaders() });
   }
 
   const url = new URL(req.url);

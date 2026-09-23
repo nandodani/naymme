@@ -52,5 +52,5 @@ export function proxy(request: NextRequest): NextResponse {
 }
 
 export const config = {
-  matcher: ["/((?!_next|fonts|api|mcp|health|opengraph-image|twitter-image|.*\\..*).*)"],
+  matcher: ["/((?!_next|fonts|api|v1|mcp|health|opengraph-image|twitter-image|.*\\..*).*)"],
 };

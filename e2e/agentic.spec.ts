@@ -69,6 +69,19 @@ test.describe("raw SSR content", () => {
     expect(text.length).toBeGreaterThanOrEqual(500);
   });
 
+  test("homepage headings run sequentially (h1 before h2, no skipped levels)", async ({
+    request,
+  }) => {
+    const html = await (await request.get("/", HTML)).text();
+    const h1 = html.search(/<h1[\s>]/);
+    const h2 = html.search(/<h2[\s>]/);
+    expect(h1).toBeGreaterThanOrEqual(0);
+    expect(h2).toBeGreaterThan(h1);
+    // No h3+ may appear before the first h2.
+    const early = html.slice(0, h2);
+    expect(early).not.toMatch(/<h[3-6][\s>]/);
+  });
+
   test("/docs HTML carries the explainer prose at >5% text ratio", async ({ request }) => {
     const res = await request.get("/docs", HTML);
     const html = await res.text();
@@ -275,9 +288,11 @@ test.describe("versioned API + agent headers", () => {
     expect(score.status()).toBe(200);
     const headers = score.headers();
     expect(headers["api-version"]).toBe("1");
+    expect(headers["x-api-version"]).toBe("1.0.0");
     expect(headers["ratelimit-limit"]).toBeTruthy();
     expect(headers["ratelimit-remaining"]).toBeTruthy();
     expect(headers["ratelimit-reset"]).toBeTruthy();
+    expect(headers["ratelimit-policy"]).toMatch(/^\d+;w=\d+$/);
     const body = await score.json();
     expect(body.name).toBe("acme");
 
@@ -294,14 +309,61 @@ test.describe("versioned API + agent headers", () => {
   test("unversioned /api/* responses carry the same headers", async ({ request }) => {
     const res = await request.get("/api/score?name=acme");
     expect(res.headers()["api-version"]).toBe("1");
+    expect(res.headers()["x-api-version"]).toBe("1.0.0");
     expect(res.headers()["ratelimit-limit"]).toBeTruthy();
+    expect(res.headers()["ratelimit-policy"]).toMatch(/^\d+;w=\d+$/);
   });
 
-  test("unmapped /api/* paths return a JSON 404 envelope (not HTML)", async ({ request }) => {
-    for (const path of ["/api/nope", "/api/v1/nope"]) {
+  test("doc/aux endpoints (/api/markdown, /openapi.json) carry the header contract too", async ({
+    request,
+  }) => {
+    for (const res of [
+      await request.get("/api/markdown?path=/docs"),
+      await request.get("/openapi.json"),
+      await request.get("/api/openapi.json"),
+    ]) {
+      expect(res.status()).toBe(200);
+      expect(res.headers()["api-version"]).toBe("1");
+      expect(res.headers()["x-api-version"]).toBe("1.0.0");
+      expect(res.headers()["ratelimit-limit"]).toBeTruthy();
+      expect(res.headers()["ratelimit-policy"]).toMatch(/^\d+;w=\d+$/);
+    }
+  });
+
+  test("root /v1 aliases serve the version index and delegate to the v1 handlers", async ({
+    request,
+  }) => {
+    const index = await request.get("/v1");
+    expect(index.status()).toBe(200);
+    const indexBody = await index.json();
+    expect(indexBody.apiVersion).toBe("1");
+    expect(indexBody.xApiVersion).toBe("1.0.0");
+    expect(indexBody.deprecated).toBe(false);
+    expect(index.headers()["ratelimit-policy"]).toMatch(/^\d+;w=\d+$/);
+
+    const check = await request.get("/v1/check?name=");
+    expect(check.status()).toBe(400);
+    expect((await check.json()).error.code).toBe("invalid_request");
+    expect(check.headers()["x-api-version"]).toBe("1.0.0");
+
+    const score = await request.get("/v1/score?name=acme");
+    expect(score.status()).toBe(200);
+    expect((await score.json()).name).toBe("acme");
+
+    const mcp = await request.get("/v1/mcp");
+    expect(mcp.status()).toBe(200);
+    expect((await mcp.json()).name).toBe("lmkurname");
+  });
+
+  test("unmapped /api/* and /v1/* paths return a JSON 404 envelope (not HTML)", async ({
+    request,
+  }) => {
+    for (const path of ["/api/nope", "/api/v1/nope", "/v1/nope"]) {
       const res = await request.get(path);
       expect(res.status(), path).toBe(404);
       expect(res.headers()["content-type"]).toContain("application/json");
+      expect(res.headers()["ratelimit-limit"]).toBeTruthy();
+      expect(res.headers()["ratelimit-policy"]).toMatch(/^\d+;w=\d+$/);
       const body = await res.json();
       expect(body.error.code).toBe("not_found");
       expect(body.error.hint).toBeTruthy();
@@ -309,13 +371,46 @@ test.describe("versioned API + agent headers", () => {
   });
 
   test("openapi.json documents the v1 paths and RateLimit headers", async ({ request }) => {
-    const doc = await (await request.get("/openapi.json")).json();
-    for (const path of ["/api/v1/availability", "/api/v1/score", "/api/v1/mcp"]) {
+    const doc = (await (await request.get("/openapi.json")).json()) as {
+      info: Record<string, unknown>;
+      paths: Record<
+        string,
+        Record<
+          string,
+          {
+            operationId?: string;
+            responses?: Record<string, { headers?: Record<string, unknown> }>;
+          }
+        >
+      >;
+    };
+    for (const path of [
+      "/api/v1/availability",
+      "/api/v1/score",
+      "/api/v1/mcp",
+      "/v1",
+      "/v1/check",
+      "/v1/score",
+      "/v1/mcp",
+    ]) {
       expect(doc.paths[path], path).toBeDefined();
     }
-    const ok = doc.paths["/api/v1/score"].get.responses["200"];
-    expect(ok.headers["RateLimit-Limit"]).toBeDefined();
-    expect(ok.headers["API-Version"]).toBeDefined();
+    const ok = doc.paths["/api/v1/score"]?.get?.responses?.["200"];
+    expect(ok?.headers?.["RateLimit-Limit"]).toBeDefined();
+    expect(ok?.headers?.["RateLimit-Policy"]).toBeDefined();
+    expect(ok?.headers?.["API-Version"]).toBeDefined();
+    expect(ok?.headers?.["X-API-Version"]).toBeDefined();
+
+    expect(doc.info["x-api-version"]).toBe("1.0.0");
+    expect(doc.info["x-deprecation-policy"]).toContain("Sunset");
+
+    const ids = Object.values(doc.paths).flatMap((item) =>
+      Object.values(item)
+        .filter((op) => op && typeof op === "object")
+        .map((op) => op.operationId)
+        .filter(Boolean),
+    );
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   test("/.well-known/oauth-authorization-server is an RFC 8414 no-auth stub", async ({

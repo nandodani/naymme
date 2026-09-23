@@ -28,6 +28,7 @@ describe("RateLimiter", () => {
       limit: 2,
       remaining: 0,
       resetSeconds: 58,
+      windowSeconds: 60,
     });
   });
 
