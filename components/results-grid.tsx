@@ -75,9 +75,9 @@ export function ResultsGrid({ name, data, checking, error, onRetry, onCopy }: Re
 
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="flex min-w-0 items-center gap-3 font-mono text-[11px] text-zinc-500">
-          <span className="truncate">
+          <h1 className="truncate">
             results for <span className="text-zinc-300">{name}</span>
-          </span>
+          </h1>
           {data !== null ? (
             <span
               className="shrink-0 border-l border-zinc-800 pl-3 tabular-nums"
