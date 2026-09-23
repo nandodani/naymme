@@ -267,6 +267,12 @@ export function NameChecker() {
             Scores are deterministic heuristics · availability is a best-effort snapshot, not a
             guarantee.
           </span>
+          <a
+            href="/credits"
+            className="mt-0.5 rounded-sm text-zinc-400 underline decoration-zinc-700 underline-offset-2 outline-none transition-colors hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Credits
+          </a>
         </footer>
 
         <CopyToast message={toast} />

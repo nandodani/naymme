@@ -46,6 +46,19 @@ test.describe("accessibility", () => {
     await audit(page, "dialog + disclosure");
   });
 
+  test("credits page has no axe violations", async ({ page }) => {
+    await page.goto("/credits");
+    await expect(page.getByRole("heading", { name: "Credits" })).toBeVisible();
+    await audit(page, "credits");
+  });
+
+  test("credits footer link reaches /credits", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("link", { name: "Credits" }).click();
+    await expect(page).toHaveURL(/\/credits$/);
+    await expect(page.getByRole("heading", { name: "Credits" })).toBeVisible();
+  });
+
   test("skip link precedes all nav and jumps focus into main", async ({ page }) => {
     await page.goto("/");
     const skip = page.getByRole("link", { name: "Skip to main content" });
