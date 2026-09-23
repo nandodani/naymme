@@ -431,6 +431,14 @@ const PLATFORM_LINKS: Partial<Record<ProviderId, PlatformLinks>> = {
     claim: () => "https://huggingface.co/join",
     profile: (name) => `https://huggingface.co/${name}`,
   },
+  jsr: {
+    claim: () => "https://jsr.io/new",
+    profile: (name) => `https://jsr.io/@${name}`,
+  },
+  denoland: {
+    claim: () => "https://deno.com/add_module",
+    profile: (name) => `https://deno.land/x/${name}`,
+  },
   nuget: {
     claim: () => "https://www.nuget.org/packages/manage/upload",
     profile: (name) => `https://www.nuget.org/packages/${name}`,

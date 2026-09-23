@@ -25,7 +25,7 @@ function fnv1a(input: string): number {
 /** Subject conventions mirror the real adapters: domains carry the TLD. */
 function demoSubject(provider: string, name: string): string {
   if (provider.startsWith("domain:")) return `${name}.${provider.slice("domain:".length)}`;
-  if (provider.startsWith("social:")) return `@${name}`;
+  if (provider.startsWith("social:") || provider === "jsr") return `@${name}`;
   if (provider === "vercel") return `${name}.vercel.app`;
   if (provider === "netlify") return `${name}.netlify.app`;
   if (provider === "cloudflare") return `${name}.pages.dev`;

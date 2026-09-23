@@ -1,6 +1,6 @@
 # AGENTS.md — guide for AI agents working in this repo
 
-`lmkurname` checks one candidate name's availability across 59+ providers
+`lmkurname` checks one candidate name's availability across 61+ providers
 (domains, developer platforms, package registries, socials, publishing)
 and scores it for brand quality. It ships as three runtimes from a single
 TypeScript codebase:
@@ -14,7 +14,7 @@ TypeScript codebase:
 
 ## Architecture
 
-- `src/schemas.ts` — the provider registry (`PROVIDER_IDS`, 59 ids),
+- `src/schemas.ts` — the provider registry (`PROVIDER_IDS`, 61 ids),
   aliases (`all`, `domains`, `domains:cctld`, `domains:all`, `socials`),
   `resolveProviderIds()` expansion, and all zod IO schemas
   (`nameSchema`, `checkAvailabilityInputSchema`, `...OutputSchema`).

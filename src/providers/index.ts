@@ -3,8 +3,10 @@ import type { ProviderId } from "../schemas.js";
 import type { ProviderAdapter } from "../types.js";
 import {
   createCratesAdapter,
+  createDenoLandAdapter,
   createDockerHubAdapter,
   createGitLabAdapter,
+  createJsrAdapter,
   createPyPiAdapter,
 } from "./devplatforms.js";
 import { createDomainAdapter } from "./domain.js";
@@ -92,6 +94,8 @@ export function createAdapters(deps: ProviderDeps): Record<ProviderId, ProviderA
     crates: createCratesAdapter(deps),
     dockerhub: createDockerHubAdapter(deps),
     huggingface: createHuggingFaceAdapter(deps),
+    jsr: createJsrAdapter(deps),
+    denoland: createDenoLandAdapter(deps),
     nuget: createNuGetAdapter(deps),
     rubygems: createRubyGemsAdapter(deps),
     homebrew: createHomebrewAdapter(deps),
