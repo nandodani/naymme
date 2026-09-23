@@ -25,6 +25,7 @@ export function jsonLdGraph(): Record<string, unknown> {
         url: SITE_URL,
         description: SITE_DESCRIPTION,
         inLanguage: "en",
+        sameAs: ["https://github.com/nandodani/name-check-mcp"],
       },
       {
         "@type": "WebApplication",

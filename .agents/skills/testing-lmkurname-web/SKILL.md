@@ -34,6 +34,13 @@ Related: `playwright.config.ts` uses `baseURL: http://127.0.0.1:3210` with `reus
 - `GET /api/score?name=x` → JSON score breakdown.
 - `POST /api/mcp` requires `Accept: application/json, text/event-stream` — without it returns a -32000 JSON-RPC error; with it returns SSE initialize result `serverInfo.name="lmkurname"`.
 
+## Agentic surface (agentic-readiness PR)
+
+- Content negotiation: `curl -H "Accept: text/markdown" localhost:<port>/<page>` → `text/markdown` body + `Vary: Accept` for `/`, `/about`, `/contact`, `/privacy`; unknown paths → 404 markdown doc. Implemented in `proxy.ts` (rewrite to `/api/markdown`, path via `x-markdown-path` request header) — curl is the practical way to test; browsers always send HTML Accept.
+- `GET /llms.txt` + `/llms-full.txt` → text/markdown agent docs (rendered as `<pre>` text in the browser).
+- `GET /.well-known/mcp` → JSON discovery doc (tools with JSON Schemas); `POST` with the MCP Accept header runs a real JSON-RPC handshake; `OPTIONS` → 204 CORS preflight.
+- Static pages `/about` `/contact` `/privacy` + styled 404 share `components/static-page.tsx` (sticky header nav, `aria-current="page"` on the active link).
+
 ## Devin Secrets Needed
 
 None.
