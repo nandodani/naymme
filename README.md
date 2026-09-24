@@ -59,27 +59,30 @@ curl "https://naymme.vercel.app/api/availability?name=acme&providers=github,npm,
 curl "https://naymme.vercel.app/api/score?name=acme"
 ```
 
-**Run it locally** — stdio server for Claude Desktop, Cursor, and any MCP
-client:
+**Install the MCP server** — the `naymme` npm package runs as a single
+stdio command with no API keys (publication pending — see
+[`docs/mcp-registry.md`](docs/mcp-registry.md) for status):
 
 ```bash
-git clone https://github.com/nandodani/naymme.git
-cd naymme
-npm install && npm run build
+npx -y naymme
 ```
 
-`~/.cursor/mcp.json` or `claude_desktop_config.json`:
+Client setup — the same invocation works everywhere:
 
-```json
-{
-  "mcpServers": {
-    "naymme": {
-      "command": "node",
-      "args": ["/absolute/path/to/naymme/dist/index.js"]
-    }
-  }
-}
-```
+| Client         | Where it goes                                                                                                   |
+| -------------- | --------------------------------------------------------------------------------------------------------------- |
+| Claude Desktop | `claude_desktop_config.json` → `mcpServers`: `{ "naymme": { "command": "npx", "args": ["-y", "naymme"] } }`     |
+| Cursor         | `~/.cursor/mcp.json` → `mcpServers` (same JSON as above)                                                        |
+| Windsurf       | `mcp_config.json` → `mcpServers` (same JSON as above)                                                           |
+| VS Code        | `.vscode/mcp.json` → `servers`: `{ "naymme": { "type": "stdio", "command": "npx", "args": ["-y", "naymme"] } }` |
+| Claude Code    | `claude mcp add naymme -- npx -y naymme`                                                                        |
+| Smithery       | `npx -y @smithery/cli install naymme --client claude` (after the Smithery listing lands)                        |
+
+Or hack on a clone — `npm install && npm run build` — then point the
+client at `node /absolute/path/to/naymme/dist/index.js` instead of `npx`.
+
+Registry submissions (official MCP registry, Smithery, catalogues) are
+tracked in [`docs/mcp-registry.md`](docs/mcp-registry.md).
 
 **Point a remote client at the hosted MCP** (stateless Streamable HTTP):
 
