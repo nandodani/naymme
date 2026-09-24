@@ -15,4 +15,5 @@ on `main`; where a feature is planned rather than implemented, it is marked
 | [deployment.md](deployment.md)                 | The four surfaces (Next.js app, stdio, Node HTTP, Cloudflare Worker), env vars, CI gates.                                           |
 
 Top-level orientation stays in the root [README](../README.md); contributor
-rules and the command matrix are in [AGENTS.md](../AGENTS.md).
+rules and the command matrix are in [AGENTS.md](../AGENTS.md). To get set up
+and send a change, start with [CONTRIBUTING.md](../CONTRIBUTING.md).

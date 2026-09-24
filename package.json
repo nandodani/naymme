@@ -12,7 +12,8 @@
   "main": "dist/index.js",
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "dev": "tsx src/index.ts",
@@ -47,8 +48,16 @@
     "social",
     "handle"
   ],
-  "author": "",
-  "license": "UNLICENSED",
+  "author": "Fernando Apóstolo (https://nandodani.dev)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nandodani/naymme.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nandodani/naymme/issues"
+  },
+  "homepage": "https://naymme.vercel.app",
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@modelcontextprotocol/sdk": "^1.30.0",

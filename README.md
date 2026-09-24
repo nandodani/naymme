@@ -1,89 +1,131 @@
-# naymme
+<div align="center">
+  <img src="app/icon.svg" width="80" alt="naymme logo" />
 
-A web app and MCP (Model Context Protocol) server that answers two
-questions about a candidate name:
+  <h1>naymme</h1>
 
-1. **`check_availability`** — is it free as a `.com` / `.gg` / `.dev` / `.io` /
-   `.app` / `.ai` / `.org` / `.xyz` / `.design` / `.store` / `.work` /
-   `.studio` / `.tech` / `.agency` / `.space` domain or a ccTLD
-   (`.pt` / `.es` / `.de` / `.fr` / `.uk` / `.eu` / `.co` / `.me` / `.sh` /
-   `.so`), as a GitHub user/org,
-   as a package on npm/PyPI/NuGet/RubyGems/crates.io/Docker Hub/Homebrew, on
-   Hugging Face, as a JSR scope, a deno.land/x module, on
-   CodePen, Replit, Figma, Dribbble, Behance, Substack,
-   Product Hunt, Telegram or Medium, and as a social handle on
-   X, Bluesky, Instagram, Reddit, YouTube and TikTok?
-2. **`score_name`** — how good is it as a brand, deterministically scored
-   out of 100?
+  <p><strong>Check a name everywhere before you commit to it.</strong></p>
 
-The **Next.js app** at the repo root is both the web UI and the hosted MCP
-server: it serves a dark, high-density checker UI at `/` and the stateless
-Streamable-HTTP MCP endpoint at `/api/mcp` (aliases `/mcp`, `/health`).
+  <p>
+    One search fans out to 61 sources — domains, code registries, hosted
+    platforms, app stores and socials — and scores the name as a brand.
+    Ships as a web app, a public API, and an MCP server for AI agents.
+  </p>
 
-The MCP server also runs standalone: **stdio** (Claude Desktop, Cursor, any
-local MCP client), a **persistent Node HTTP** server (`/mcp` plus legacy SSE
-at `/sse` + `/messages`), and a **Cloudflare Worker**.
+  <p>
+    <a href="https://github.com/nandodani/naymme/actions/workflows/ci.yml"><img src="https://github.com/nandodani/naymme/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-34d399.svg" alt="MIT license" /></a>
+    <img src="https://img.shields.io/badge/node-%E2%89%A520-fafafa.svg" alt="Node ≥ 20" />
+    <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-server-blueviolet.svg" alt="MCP server" /></a>
+  </p>
 
-## Requirements
+  <p>
+    <a href="https://naymme.vercel.app"><strong>Live app</strong></a> ·
+    <a href="https://naymme.vercel.app/api/mcp">Hosted MCP endpoint</a> ·
+    <a href="docs/README.md">Docs</a> ·
+    <a href="CONTRIBUTING.md">Contributing</a>
+  </p>
 
-- Node.js ≥ 20 (uses the global `fetch`)
+  <img src="docs/assets/screenshot.jpg" alt="naymme checking the name 'naymme' across 61 providers" width="100%" />
+</div>
 
-## Install & commands
+<br />
+
+## What it does
+
+naymme answers two questions about a candidate name:
+
+1. **`check_availability`** — is it free? Queried in parallel against 61
+   providers: `.com`/`.dev`/`.io`/`.ai` and 21 more TLDs plus ccTLDs
+   (`.pt`/`.de`/`.fr`/`.uk`/…), GitHub user/org/repo and GitLab, npm, PyPI,
+   crates.io, Docker Hub, JSR, deno.land, NuGet, RubyGems, Homebrew,
+   Hugging Face, hosted subdomains (vercel.app, netlify.app, pages.dev,
+   fly.dev, up.railway.app, supabase.co), the App Store, CodePen, Replit,
+   Figma, Dribbble, Behance, Substack, Product Hunt, Telegram, Medium, and
+   socials (X, Bluesky, Instagram, Reddit, YouTube, TikTok).
+2. **`score_name`** — how good is it as a brand? A deterministic heuristic
+   scored out of 100 — same input, same answer, no network.
+
+Each result is a normalized verdict — `available`, `taken`, `unknown` or
+`invalid` — and `available` is only claimed on a verified unclaimed marker
+(an RDAP 404, a registry miss). A provider that times out or can't decide
+reports `unknown`, never a fabricated `available`.
+
+## Try it now
+
+**Use the hosted endpoint** — no install, no API key:
 
 ```bash
-npm install
-npm run dev:web      # Next.js dev — UI at / and MCP at /api/mcp
-npm run build        # next build → .next/  +  tsc → dist/
-npm test             # vitest
-npm run check        # typecheck + lint + format:check + test + build
+curl "https://naymme.vercel.app/api/availability?name=acme&providers=github,npm,domain:com"
+curl "https://naymme.vercel.app/api/score?name=acme"
 ```
 
-| Script               | What it does                                  |
-| -------------------- | --------------------------------------------- |
-| `npm run dev:web`    | Next.js dev server — UI + `/api/mcp`          |
-| `npm run dev`        | stdio server via tsx (dev)                    |
-| `npm run dev:http`   | HTTP server via tsx on `$PORT` (default 3000) |
-| `npm run dev:worker` | Cloudflare Worker via wrangler dev            |
-| `npm run build`      | `next build` + `tsc` → `.next/` and `dist/`   |
-| `npm run build:core` | `tsc` → `dist/` only                          |
-| `npm start`          | stdio server from `dist/`                     |
-| `npm run start:http` | HTTP server from `dist/`                      |
-| `npm run start:web`  | `next start` (production build)               |
-| `npm run typecheck`  | `tsc --noEmit` (strict)                       |
-| `npm run lint`       | ESLint (typescript-eslint, type-checked)      |
-| `npm run format`     | Prettier                                      |
-| `npm test`           | Vitest suite (`npm run test:coverage` for v8) |
+**Run it locally** — stdio server for Claude Desktop, Cursor, and any MCP
+client:
 
-## Tools
+```bash
+git clone https://github.com/nandodani/naymme.git
+cd naymme
+npm install && npm run build
+```
+
+`~/.cursor/mcp.json` or `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "naymme": {
+      "command": "node",
+      "args": ["/absolute/path/to/naymme/dist/index.js"]
+    }
+  }
+}
+```
+
+**Point a remote client at the hosted MCP** (stateless Streamable HTTP):
+
+```json
+{
+  "mcpServers": {
+    "naymme": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://naymme.vercel.app/api/mcp"]
+    }
+  }
+}
+```
+
+## Runtimes
+
+The same TypeScript codebase ships four interchangeable surfaces — same
+tools, same schemas, same response contract:
+
+| Surface            | Entry             | Use it for                                                    |
+| ------------------ | ----------------- | ------------------------------------------------------------- |
+| Web app + JSON API | `app/` + `lib/`   | The checker UI, `/api/availability`, `/api/score`, `/api/mcp` |
+| stdio MCP server   | `src/index.ts`    | Local assistants (Claude Desktop, Cursor)                     |
+| Node HTTP server   | `src/http.ts`     | Self-hosted Streamable HTTP + legacy SSE                      |
+| Cloudflare Worker  | `worker/index.ts` | Edge deployment, web-standard APIs only                       |
+
+```bash
+npm run dev:web      # Next.js dev — UI at / and MCP at /api/mcp
+npm run dev          # stdio server via tsx
+npm run dev:http     # Node HTTP server via tsx
+npm run dev:worker   # Cloudflare Worker via wrangler dev
+```
+
+## The tools
 
 ### `check_availability`
 
 ```jsonc
-// input
-{ "name": "acme", "providers": ["github", "domains"] } // providers optional
+{ "name": "acme", "providers": ["github", "npm", "domain:com"] }
 ```
 
-- `name` — the bare name, no TLD/scope. Letters, digits, `.`, `-`, `_`,
-  ≤63 chars, must start with a letter or digit.
-- `providers` — subset of:
-  `domain:com`, `domain:gg`, `domain:dev`, `domain:io`, `domain:app`,
-  `domain:ai`, `domain:pt`, `domain:es`, `domain:de`, `domain:fr`,
-  `domain:uk`, `domain:eu`, `domain:co`, `domain:me`, `domain:org`,
-  `domain:sh`, `domain:so`, `domain:xyz`, `domain:design`, `domain:store`,
-  `domain:work`, `domain:studio`, `domain:tech`, `domain:agency`,
-  `domain:space`, `github:user`, `github:org`, `github:repo`,
-  `gitlab`, `npm`, `pypi`, `crates`, `dockerhub`, `huggingface`, `jsr`,
-  `denoland`, `nuget`,
-  `rubygems`, `homebrew`, `codepen`, `replit`, `vercel`, `netlify`,
-  `cloudflare`, `flyio`, `railway`, `supabase`, `appstore`, `figma`, `dribbble`,
-  `behance`, `substack`, `producthunt`, `telegram`, `medium`,
-  `social:x`, `social:bluesky`,
-  `social:instagram`, `social:reddit`, `social:youtube`, `social:tiktok`,
-  plus the aliases `domains` (the original four TLDs), `domains:all` (every
-  TLD), `domains:cctld` (the ccTLDs), `socials` (all social providers) and
-  `all`. Default: `all`.
-
-Each provider returns a normalized result:
+`providers` accepts any subset of the 61 provider ids plus the aliases
+`all` (default), `domains`, `domains:all`, `domains:cctld` and `socials`.
+Every adapter validates the name **before** touching the network, then runs
+concurrently (`Promise.allSettled`) under its own 5-second timeout — one
+slow provider never blocks the batch:
 
 ```jsonc
 {
@@ -96,9 +138,9 @@ Each provider returns a normalized result:
 }
 ```
 
-Providers run **concurrently** (`Promise.allSettled`), each with an
-**independent 5-second AbortController timeout**. A provider that errors,
-times out or can't decide reports `unknown` — it never fails the request.
+Domain checks resolve through a layered chain — **RDAP** where the registry
+publishes it, **WHOIS** for the rest, **DNS NS** as a last-resort existence
+signal. Registry and platform checks ask the canonical source directly.
 
 ### `score_name`
 
@@ -106,318 +148,83 @@ times out or can't decide reports `unknown` — it never fails the request.
 { "name": "acme" }
 ```
 
-Deterministic heuristic — pure function of the input, no lookups, always the
-same answer:
+| Component          | Max | What it rewards                                           |
+| ------------------ | --- | --------------------------------------------------------- |
+| `punchiness`       | 25  | Length; peaks at 5–8 chars                                |
+| `syllables`        | 15  | Estimated vowel-group count; peaks at 2–3                 |
+| `pronounceability` | 25  | Familiar English bigrams; cluster/vowel-balance penalties |
+| `uniqueness`       | 20  | Coinages over common/over-used words; distinctive letters |
+| `cleanliness`      | 15  | Letters only; penalties for digits, separators, repeats   |
 
-| Component          | Max | What it rewards                                                    |
-| ------------------ | --- | ------------------------------------------------------------------ |
-| `punchiness`       | 25  | Length; peaks at 5–8 chars                                         |
-| `syllables`        | 15  | Estimated vowel-group count; peaks at 2–3                          |
-| `pronounceability` | 25  | Share of familiar English bigrams; cluster/vowel-balance penalties |
-| `uniqueness`       | 20  | Coinages over common/over-used words; distinctive letters          |
-| `cleanliness`      | 15  | Letters only; penalties for digits, separators, repeats            |
+`total` (0–100) maps to a grade: ≥85 `Excellent`, ≥70 `Strong`, ≥55 `Fair`,
+≥40 `Weak`, else `Poor`. Formula in [`src/scoring/score.ts`](src/scoring/score.ts),
+pinned by tests.
 
-`total` (0–100) maps to a `grade`: ≥85 `Excellent`, ≥70 `Strong`, ≥55
-`Fair`, ≥40 `Weak`, else `Poor`. The formula is documented in
-`src/scoring/score.ts` and pinned by tests.
+## Agent-readiness
 
-## Architecture
+The hosted surface is built to be consumed by agents, not just browsers:
 
-```
-app/                    Next.js 16 App Router (React 19, Tailwind 4)
-  layout.tsx            dark shell, self-hosted Geist fonts
-  page.tsx              the checker UI
-  api/mcp/route.ts      POST /api/mcp — stateless Streamable HTTP (SDK
-                        WebStandard transport), GET status doc, OPTIONS CORS
-  api/availability/route.ts   GET ?name= → normalized results + `mode`
-  api/score/route.ts    GET ?name= → deterministic score JSON
-components/             client UI (debounced search ⌘K, score ring,
-                        availability grid, copy-config buttons)
-lib/
-  availability.ts       typed service boundary + request handler
-                        (live vs demo mode)
-  demo.ts               deterministic demo availability provider
-  mcp-web.ts            Web-standard Request/Response MCP handler
-                        (same transport shape as worker/index.ts)
-  mcp-config.ts         Cursor/Claude Desktop config generation
-  provider-meta.ts      grid ordering/grouping/labels
-src/
-  index.ts              stdio entry (Claude Desktop / Cursor)
-  http.ts               Node HTTP server: /mcp + /sse + /messages + /health
-  mcp-http.ts           stateless Streamable-HTTP handler (Node req/res)
-  server.ts             McpServer factory, tool registration
-  schemas.ts            Zod input/output schemas, provider selection
-  deps.ts               injectable ProviderDeps (fetch, whois, npm, timeout)
-  providers/
-    index.ts            adapter registry (shared RDAP client)
-    domain.ts           TLD adapter: RDAP first, WHOIS fallback
-    rdap.ts             IANA bootstrap → per-TLD RDAP client (cached)
-    whois.ts            whoiser wrapper + text normalization
-    dns.ts              NS-record signal after inconclusive WHOIS
-    github.ts           /users/{name} login check + repository search collision
-    hosting.ts          {name}.vercel.app/.netlify.app/.up.railway.app edge checks
-                        plus DNS-existence checks for pages.dev/fly.dev/supabase.co
-    stores.ts           Apple App Store listing check (iTunes Search API)
-    npm.ts              npm-name wrapper
-    social.ts           X, Bluesky, Instagram, Reddit, YouTube, TikTok handles
-  tools/checkAvailability.ts   Promise.allSettled runner + per-provider timeout
-  scoring/score.ts      deterministic scoring formula
-worker/
-  index.ts              Cloudflare Worker (stateless /mcp, portable deps)
-```
+- **Versioned API**: `/api/v1/*` canonical, `API-Version: 1` on every
+  response, `Deprecation`/`Sunset`/`Link` policy documented in `/auth.md`.
+- **RFC RateLimit headers** on everything (including errors): `RateLimit-*`
+  - `Retry-After` on 429. No API key — the OAuth discovery documents
+    (`.well-known/oauth-protected-resource`, RFC 9728 and
+    `oauth-authorization-server`, RFC 8414) declare the public no-token tier.
+- **Discovery**: `/openapi.json` (OpenAPI 3.1), `/.well-known/api-catalog`
+  (RFC 9264 linkset), `/.well-known/mcp` + `server-card.json` (SEP-1649),
+  `/.well-known/agent-skills/index.json` (agent-skills RFC + sha256),
+  `/.well-known/ai-catalog.json`, `/llms.txt` + `/llms-full.txt`, `/auth.md`.
+- **Content negotiation**: `Accept: text/markdown` returns every page as
+  markdown; `Accept: application/json` gets a structured error envelope —
+  even on unknown paths. DNS discovery records are documented in
+  [DNS-AID.md](DNS-AID.md).
 
-Every provider implements
+> Results are **snapshots, not guarantees**. Registries lag, names get
+> taken between the check and checkout, and reserved names can look free.
+> Re-confirm at the registrar or platform before committing — and note that
+> `unknown` ≠ `taken`.
 
-```ts
-interface ProviderAdapter {
-  readonly id: string;
-  check(name: string, signal: AbortSignal): Promise<ProviderOutcome>;
-}
-```
-
-External calls (fetch/whois/DNS/npm-name) are injected via `ProviderDeps`,
-so tests substitute fakes instead of hitting the network — the suite never
-hardcodes live lookup results.
-
-## Web app & hosted MCP endpoint
-
-`npm run dev:web` starts the Next.js app (production: `npm run build` +
-`npm run start:web`). It serves:
-
-| Route                                          | What it does                                                                                               |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `GET /`                                        | Checker UI — debounced search (⌘K / Ctrl+K), score, availability grid, configs                             |
-| `POST /api/mcp`                                | Hosted MCP endpoint — stateless Streamable HTTP; SSE-framed unless client accepts JSON only. Alias: `/mcp` |
-| `GET /api/mcp`                                 | Status document (`/health` aliases here too)                                                               |
-| `GET /api/availability?name=<n>[&providers=…]` | Normalized availability JSON + `mode` (`live` \| `demo`). Versioned alias: `/api/v1/availability`          |
-| `GET /api/score?name=<n>`                      | Deterministic score JSON. Versioned alias: `/api/v1/score`                                                 |
-
-The UI talks to `/api/availability` and `/api/score`; the same checks are
-exposed to MCP clients via `check_availability` / `score_name` on `/api/mcp`
-(versioned alias `/api/v1/mcp`).
-
-### Agent-readiness surface
-
-The API is **version 1**: `/api/v1/*` is canonical, the unversioned `/api/*`
-paths are aliases, and every API response carries `API-Version: 1`. Before a
-future breaking v2, v1 would gain `Deprecation` + `Sunset` headers and a
-`Link: …; rel="deprecation"` pointer — see `/auth.md` for the policy.
-
-Every response also carries RFC RateLimit headers (`RateLimit-Limit`,
-`RateLimit-Remaining`, `RateLimit-Reset`); `429` adds `Retry-After`. Errors
-are structured `{error:{code,message,hint}}` — including unknown `/api/*`
-paths, which return a JSON 404 envelope.
-
-Discovery endpoints for agents: `/openapi.json` (OpenAPI 3.1),
-`/.well-known/api-catalog` (RFC 9264 linkset), `/.well-known/mcp` +
-`/.well-known/mcp/server-card.json` (SEP-1649),
-`/.well-known/agent-skills/index.json` (agent-skills RFC v0.2.0 + sha256),
-`/.well-known/ai-catalog.json`, `/.well-known/oauth-protected-resource` (RFC 9728, plus the `.json` alias) and `/.well-known/oauth-authorization-server` (RFC 8414) — the OAuth
-pair declaring the public no-token tier — plus `/llms.txt`,
-`/llms-full.txt`, `/auth.md`, and `Accept: text/markdown` on any page.
-DNS-based discovery records (`_index._agents` SVCB/HTTPS) are documented in
-[DNS-AID.md](DNS-AID.md).
-
-Runtime caveat (same as serverless anywhere): only the **stateless
-Streamable HTTP** transport works per-request — there is no standalone GET
-SSE stream, matching the standalone server's contract. WHOIS opens raw TCP
-to port 43 and may be blocked on some serverless networks; affected TLDs
-report `unknown`.
-
-### Demo mode
-
-Set `NAYMME_AVAILABILITY_MODE=demo` to answer availability checks with
-**deterministic fixture data** (a pure function of provider + name — no
-network, no credentials). Every response then carries `"mode": "demo"` and
-the UI badges the grid as demo data. Default (unset or any other value) is
-`live`. Useful for offline development, previews without egress, and CI.
-
-## Use it locally
-
-### Cursor
-
-`~/.cursor/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "naymme": {
-      "command": "node",
-      "args": ["/absolute/path/to/naymme/dist/index.js"]
-    }
-  }
-}
-```
-
-(Run `npm run build` first. Or use `"command": "npx", "args": ["tsx",
-"/absolute/path/to/naymme/src/index.ts"]` to skip the build.)
-
-### Claude Desktop
-
-`claude_desktop_config.json`
-(macOS `~/Library/Application Support/Claude/`, Windows `%APPDATA%\Claude\`):
-
-```json
-{
-  "mcpServers": {
-    "naymme": {
-      "command": "node",
-      "args": ["/absolute/path/to/naymme/dist/index.js"]
-    }
-  }
-}
-```
-
-## Connect to the hosted endpoint
-
-Point remote clients at `https://<your-deployment>/api/mcp` (the `/mcp`
-alias works too). The UI's **Connect a client** card copies these
-snippets for you.
-
-### Cursor — `cursor_mcp.json`
-
-```json
-{
-  "mcpServers": {
-    "naymme": {
-      "url": "https://<your-deployment>/api/mcp"
-    }
-  }
-}
-```
-
-### Claude Desktop — `claude_desktop_config.json`
-
-Claude Desktop's config speaks stdio only, so bridge through `mcp-remote`:
-
-```json
-{
-  "mcpServers": {
-    "naymme": {
-      "command": "npx",
-      "args": ["mcp-remote", "https://<your-deployment>/api/mcp"]
-    }
-  }
-}
-```
-
-## Deploy
-
-### Vercel — web UI + MCP endpoint
-
-Deploying the repo root to Vercel builds the Next.js app — one deployment
-serves the UI at `/` and the MCP endpoint at `/api/mcp` (`/mcp`, `/health`
-rewrite to it).
+## Deploy your own
 
 ```bash
-npm i -g vercel
+# Vercel — web UI + /api/mcp in one deployment
 vercel deploy --prod
+
+# Cloudflare Workers — stateless Streamable HTTP at /mcp
+npm run deploy:worker
+
+# Any persistent Node host — Streamable HTTP + legacy SSE
+npm ci && npm run build && PORT=3000 npm run start:http
 ```
 
-### Cloudflare Workers — Streamable HTTP
+Serverless caveats: only the stateless Streamable HTTP transport works
+per-request (no standalone SSE stream), and WHOIS needs raw TCP port 43 —
+blocked on some platforms, where affected TLDs degrade to `unknown` (or to
+the DNS-NS check on Workers). Details in
+[`docs/deployment.md`](docs/deployment.md).
 
-The repo ships `worker/index.ts` + `wrangler.toml`. Deploy:
-
-```bash
-npx wrangler deploy        # or: npm run deploy:worker
-```
-
-Your MCP endpoint is `https://<worker>.<account>.workers.dev/mcp` (`POST`,
-Streamable HTTP, stateless). `/health` is a liveness probe. Try it locally
-with `npm run dev:worker`.
-
-Worker caveats:
-
-- **Port 43 / WHOIS**: Workers can't open raw TCP connections the way
-  `whoiser` needs, so WHOIS is not run at all. For TLDs without an RDAP
-  service (`.gg`, `.io`, `.pt`, `.es`, `.de`, `.eu`) the check falls through
-  to the **DNS NS lookup** — reimplemented over DNS-over-HTTPS — and
-  otherwise reports `unknown`.
-- **npm**: `npm-name` reads local npm config (`~/.npmrc`), which doesn't
-  exist on Workers, so the check uses direct `HEAD` requests against
-  `registry.npmjs.org` — exact name plus the same punctuation-variant
-  probes. Best-effort, same semantics.
-- Stateless `/mcp` only, same as Vercel — no `/sse`.
-
-### Any persistent Node host — both transports
-
-```bash
-npm ci && npm run build
-PORT=3000 npm run start:http
-```
-
-- `POST /mcp` — Streamable HTTP (stateless)
-- `GET /sse` + `POST /messages?sessionId=…` — legacy SSE for older clients
-- `GET /health` — liveness
-
-Works on Render/Fly.io/Railway/a VPS — anywhere a Node process stays alive.
-
-## Environment variables
-
-| Var                        | Default   | Used by                                 |
-| -------------------------- | --------- | --------------------------------------- |
-| `PORT`                     | `3000`    | HTTP server (`start:http`)              |
-| `HOST`                     | `0.0.0.0` | HTTP server (`start:http`)              |
-| `NAYMME_AVAILABILITY_MODE` | `live`    | `/api/availability` (`demo` → fixtures) |
-
-No API keys required. GitHub checks run unauthenticated (60 req/hour per
-IP); the GitHub provider degrades to `unknown` when rate-limited.
-
-## Availability semantics & limitations
-
-- **Domains**: looked up via [RDAP](https://www.rfc-editor.org/rfc/rfc7484)
-  when the IANA bootstrap registry lists a service for the TLD (e.g.
-  `.com`, `.dev`, `.app`, `.org`, `.xyz`, `.co`, `.me`, `.sh`, `.fr`, `.uk`,
-  `.design`, `.store`, `.work`, `.studio`, `.tech`, `.agency`, `.space`),
-  otherwise via raw **WHOIS** (`whoiser`) — `.gg`, `.io`, `.pt`, `.es`,
-  `.de`, `.eu`, `.so`.
-  RDAP `404` → `available`, `200` → `taken`; WHOIS is normalized by text
-  matching ("no match", registrar fields) and is inherently fuzzy. When
-  WHOIS is inconclusive a **DNS NS-record** check runs as a last resort —
-  delegated name servers prove `taken`, while their absence stays `unknown`.
-- **GitHub**: `GET api.github.com/users/{name}`; usernames and orgs share
-  one namespace.
-- **npm**: `npm-name` against the public registry.
-- **Social handles** — all unauthenticated, best-effort:
-  - **X** (`social:x`): `x.com/{handle}` — `404`/`200`. Suspended accounts
-    also answer `404`, so `available` is not a guarantee.
-  - **Bluesky** (`social:bluesky`): `com.atproto.identity.resolveHandle` on
-    `public.api.bsky.app` for `{name}.bsky.social` — `200` → `taken`,
-    `400` → `available`. Deactivated/reserved handles report `available`.
-  - **Instagram** (`social:instagram`): the app's `web_profile_info`
-    endpoint — `200`/`404`. Instagram requires authentication on most IPs,
-    so anonymous checks commonly degrade to `unknown`.
-  - **Reddit** (`social:reddit`): `api/username_available.json` — a bare
-    JSON boolean. Rate-limited/blocked responses report `unknown`.
-  - **YouTube** (`social:youtube`): `youtube.com/@{handle}` — `404`/`200`.
-  - **TikTok** (`social:tiktok`): `tiktok.com/@{user}` — the embedded
-    `statusCode` marker (`0` → `taken`, `10202`/`10221`/`10245` →
-    `available`); pages without it report `unknown`.
-- Results are **snapshots, not guarantees**. Registries can lag, names can
-  be taken between the check and your registration, and reserved names may
-  report `available` but still be unregisterable. Re-confirm at the
-  registrar/registry before committing.
-- `unknown` ≠ `taken` — it means the provider could not give a definitive
-  answer (timeout, rate limit, blocked endpoint, inconclusive WHOIS/DNS).
+Set `NAYMME_AVAILABILITY_MODE=demo` to serve deterministic fixture data —
+no network, no credentials — for offline development, previews and CI.
 
 ## Documentation
 
-Deep dives into how the engine and providers work internally live in
-[`docs/`](docs/README.md):
+Deep dives live in [`docs/`](docs/README.md): the
+[provider catalog](docs/providers.md), the
+[availability chain & registrar pricing](docs/registrars-pricing.md), the
+[adapter architecture](docs/architecture.md), the full
+[API reference](docs/api-reference.md),
+[deployment](docs/deployment.md) and
+[troubleshooting](docs/troubleshooting.md). Contributor-facing rules are in
+[AGENTS.md](AGENTS.md).
 
-- [`docs/providers.md`](docs/providers.md) — per-adapter query mechanisms,
-  validation rules, and status-code interpretation
-- [`docs/registrars-pricing.md`](docs/registrars-pricing.md) — domain
-  availability chain, registrar deep links, price estimates
-- [`docs/architecture.md`](docs/architecture.md) — adapter contract,
-  `ProviderDeps`, runner, caching/rate-limit stance, adding a provider
-- [`docs/api-reference.md`](docs/api-reference.md) — MCP tools and HTTP
-  endpoints
-- [`docs/troubleshooting.md`](docs/troubleshooting.md) — `unknown` results,
-  rate limits, runtime caveats
-- [`docs/deployment.md`](docs/deployment.md) — the four surfaces and env vars
+## Contributing
 
-## Maintainer
+Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for setup,
+the `npm run check` gate, and the provider contract. Bugs and feature
+requests go in [Issues](https://github.com/nandodani/naymme/issues);
+security reports go through
+[private vulnerability reporting](SECURITY.md), not public issues.
 
-Built and maintained by [nandodani](https://nandodani.dev).
-All rights reserved — this is not an open-source project.
+## License
+
+[MIT](LICENSE) — © 2026 [Fernando Apóstolo](https://nandodani.dev).
