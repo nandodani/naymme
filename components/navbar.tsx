@@ -1,10 +1,11 @@
 "use client";
 
 import { ConnectMcpDialog } from "./connect-mcp-dialog.js";
+import { NaymmeMark } from "./naymme-mark.js";
 
 /**
- * Ultra-minimal top bar: wordmark on the left; attribution and the Connect
- * MCP dialog trigger on the right.
+ * Ultra-minimal top bar: logo mark + wordmark on the left; attribution and
+ * the Connect MCP dialog trigger on the right.
  */
 export function Navbar({ onCopy }: { onCopy: (text: string, label: string) => void }) {
   return (
@@ -13,8 +14,9 @@ export function Navbar({ onCopy }: { onCopy: (text: string, label: string) => vo
         <a
           href="/"
           aria-label="naymme home"
-          className="rounded-md font-mono text-[13px] font-semibold tracking-tight text-zinc-100 outline-none transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex items-center gap-2 rounded-md font-mono text-[13px] font-semibold tracking-tight text-zinc-100 outline-none transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-ring"
         >
+          <NaymmeMark className="h-[18px] w-[18px]" />
           naymme
         </a>
         <div className="ml-auto flex items-center gap-1.5">
