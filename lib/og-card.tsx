@@ -1,3 +1,4 @@
+import { naymmeMarkSvg } from "./logo-mark.js";
 import { SITE_DESCRIPTION, SITE_NAME } from "./site.js";
 
 /** Standard OG/Twitter card dimensions shared by both image routes. */
@@ -5,6 +6,9 @@ export const OG_IMAGE_SIZE = { width: 1200, height: 630 } as const;
 
 export const OG_CARD_ALT =
   "naymme — check name availability across domains, code registries, and social handles";
+
+/** The naymme mark as an embeddable image for satori (no JSX SVG support). */
+const MARK_DATA_URI = `data:image/svg+xml;base64,${Buffer.from(naymmeMarkSvg(88)).toString("base64")}`;
 
 /**
  * Social-card markup rendered by app/opengraph-image and
@@ -45,24 +49,12 @@ export function OgCard() {
               height: 44,
               borderRadius: 10,
               border: "1px solid #27272a",
-              backgroundColor: "#0a0a0b",
-              color: "#fafafa",
-              fontSize: 24,
+              backgroundColor: "#000000",
             }}
           >
-            n
+            <img src={MARK_DATA_URI} width={36} height={36} alt="" />
           </div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-            <span style={{ color: "#fafafa", fontSize: 28, letterSpacing: -0.5 }}>{SITE_NAME}</span>
-            <span
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: 5,
-                backgroundColor: "#34d399",
-              }}
-            />
-          </div>
+          <span style={{ color: "#fafafa", fontSize: 28, letterSpacing: -0.5 }}>{SITE_NAME}</span>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
