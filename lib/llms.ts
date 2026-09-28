@@ -57,7 +57,7 @@ export function buildLlmsTxt(): string {
     "",
     "## Discovery documents",
     "",
-    `- OAuth discovery documents (public/no-token tier): ${SITE_URL}/.well-known/oauth-protected-resource (RFC 9728; .json alias also served) and ${SITE_URL}/.well-known/oauth-authorization-server (RFC 8414)`,
+    `- OAuth discovery documents: ${SITE_URL}/.well-known/oauth-protected-resource (RFC 9728; .json alias and resource-path variants also served) and ${SITE_URL}/.well-known/oauth-authorization-server (RFC 8414). The API is public/no-token by default; connectors that mandate OAuth get the full auto-approving RFC 7591 + PKCE flow under /oauth/*.`,
     "",
     `Rate limits and access details: ${SITE_URL}/auth.md`,
     "",

@@ -125,17 +125,21 @@ describe("api catch-all 404", () => {
 });
 
 describe("RFC 8414 authorization-server metadata", () => {
-  it("serves the issuer + empty capability stub with CORS", async () => {
+  it("serves the issuer + real OAuth endpoints with CORS", async () => {
     const res = authServerGET();
     expect(res.status).toBe(200);
     expect(res.headers.get("access-control-allow-origin")).toBe("*");
     const doc = (await res.json()) as Record<string, unknown>;
     expect(doc.issuer).toBe(SITE_URL);
-    expect(doc.grant_types_supported).toEqual([]);
-    expect(doc.response_types_supported).toEqual([]);
+    expect(doc.authorization_endpoint).toBe(`${SITE_URL}/oauth/authorize`);
+    expect(doc.token_endpoint).toBe(`${SITE_URL}/oauth/token`);
+    expect(doc.registration_endpoint).toBe(`${SITE_URL}/oauth/register`);
+    expect(doc.response_types_supported).toEqual(["code"]);
+    expect(doc.grant_types_supported).toEqual(
+      expect.arrayContaining(["authorization_code", "refresh_token"]),
+    );
+    expect(doc.code_challenge_methods_supported).toEqual(["S256"]);
     expect(doc.service_documentation).toBe(`${SITE_URL}/auth.md`);
-    expect("token_endpoint" in doc).toBe(false);
-    expect("authorization_endpoint" in doc).toBe(false);
   });
 
   it("builder output matches the route", async () => {

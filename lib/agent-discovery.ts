@@ -166,13 +166,14 @@ export function buildAiCatalog(): Record<string, unknown> {
  * RFC 9728 OAuth Protected Resource Metadata. The API is public and
  * unauthenticated — the document declares the resource origin, the
  * `public:read` scope and the `header` bearer method, and points
- * `authorization_servers` at this origin. Following that issuer to the
- * RFC 8414 document shows it grants no tokens, which is the definitive
- * "anonymous tier" answer for agents probing the standard discovery path.
+ * `authorization_servers` at this origin. Clients resolving metadata for a
+ * path-scoped resource (e.g. `/.well-known/oauth-protected-resource/api/mcp`
+ * for `${SITE_URL}/api/mcp`) get the same document with `resource`
+ * reflecting that path — pass it as `resourcePath`.
  */
-export function buildOauthProtectedResource(): Record<string, unknown> {
+export function buildOauthProtectedResource(resourcePath = ""): Record<string, unknown> {
   return {
-    resource: SITE_URL,
+    resource: `${SITE_URL}${resourcePath}`,
     authorization_servers: [SITE_URL],
     scopes_supported: ["public:read"],
     bearer_methods_supported: ["header"],
@@ -181,24 +182,28 @@ export function buildOauthProtectedResource(): Record<string, unknown> {
 }
 
 /**
- * RFC 8414 OAuth 2.0 Authorization Server Metadata stub at
- * /.well-known/oauth-authorization-server. There is no authorization
- * server behind this host — the document exists so agents probing the
- * standard discovery path get a definitive answer instead of a 404:
- * `issuer` identifies the host, the flow/grant lists are empty (the
- * issuer advertises the public:read scope but grants no tokens), and
- * `service_documentation` points at /auth.md for the full public tier.
+ * RFC 8414 OAuth 2.0 Authorization Server Metadata at
+ * /.well-known/oauth-authorization-server. Some remote-MCP connectors
+ * (Poke and similar) refuse servers without a discovered authorization
+ * server, so this host runs a minimal stateless one (see lib/oauth.ts):
+ * RFC 7591 dynamic registration, authorization_code + refresh_token
+ * grants, mandatory PKCE S256, public clients (`none` token auth). The
+ * authorize endpoint auto-approves — no consent interstitial — because
+ * the resource it vouches for is already public.
  */
 export function buildOauthAuthorizationServer(): Record<string, unknown> {
   return {
     issuer: SITE_URL,
+    authorization_endpoint: `${SITE_URL}/oauth/authorize`,
+    token_endpoint: `${SITE_URL}/oauth/token`,
+    registration_endpoint: `${SITE_URL}/oauth/register`,
     service_documentation: `${SITE_URL}/auth.md`,
-    response_types_supported: [],
-    response_modes_supported: [],
-    grant_types_supported: [],
-    token_endpoint_auth_methods_supported: [],
+    response_types_supported: ["code"],
+    response_modes_supported: ["query"],
+    grant_types_supported: ["authorization_code", "refresh_token"],
+    token_endpoint_auth_methods_supported: ["none"],
     scopes_supported: ["public:read"],
-    code_challenge_methods_supported: [],
+    code_challenge_methods_supported: ["S256"],
   };
 }
 
@@ -231,29 +236,44 @@ export function buildAuthMarkdown(): string {
   return [
     "# auth.md",
     "",
-    `You are an agent. ${SITE_NAME} (${SITE_URL}) is a **public, unauthenticated service**: there is no registration, claim ceremony, credential, or OAuth flow — every step below resolves to calling the endpoints directly. The resource server is ${SITE_URL}; no authorization server exists (the RFC 8414 document below says so explicitly).`,
+    `You are an agent. ${SITE_NAME} (${SITE_URL}) is a **public, unauthenticated service**: every endpoint works with no credential, and you can skip straight to Step 5. An OAuth 2.0 authorization server also exists — but only because some remote-MCP connectors (e.g. Poke) refuse servers that don't complete the handshake. If your client needs it, the full RFC 8414 discovery + RFC 7591 registration + authorization-code/PKCE flow is available and auto-approves; otherwise ignore it entirely.`,
     "",
     "## Step 1 — Discover",
     "",
     `The structured discovery documents confirm the no-token tier:`,
     "",
-    `- \`GET ${SITE_URL}/.well-known/oauth-protected-resource\` — RFC 9728 Protected Resource Metadata; declares the resource origin, the \`public:read\` scope and \`authorization_servers: [${SITE_URL}]\` — the same issuer that grants no tokens`,
-    `- \`GET ${SITE_URL}/.well-known/oauth-authorization-server\` — RFC 8414 Authorization Server Metadata stub; \`grant_types_supported\` and \`response_types_supported\` are empty lists`,
+    `- \`GET ${SITE_URL}/.well-known/oauth-protected-resource\` — RFC 9728 Protected Resource Metadata; declares the resource origin, the \`public:read\` scope and \`authorization_servers: [${SITE_URL}]\` (resource-path variants like \`/.well-known/oauth-protected-resource/api/mcp\` also resolve)`,
+    `- \`GET ${SITE_URL}/.well-known/oauth-authorization-server\` — RFC 8414 Authorization Server Metadata; advertises \`authorization_endpoint\`, \`token_endpoint\` and \`registration_endpoint\` for OAuth-requiring connectors`,
     `- \`GET ${SITE_URL}/openapi.json\` — OpenAPI 3.1 description of every endpoint`,
     `- \`GET ${SITE_URL}/.well-known/mcp\` — MCP discovery document (transport, tools, input schemas)`,
     `- \`GET ${SITE_URL}/.well-known/mcp/server-card.json\` — SEP-1649 MCP server card`,
     "",
     "## Step 2 — Pick a method",
     "",
-    `There is exactly one method: **anonymous public access**. No API key, bearer token, OAuth client, or account exists for this service. Do not attempt \`/agent/identity\`, \`/oauth2/token\`, or any registration call — those endpoints do not exist and return a structured 404.`,
+    `Two methods, both legitimate:`,
+    ``,
+    `1. **Anonymous public access** (default) — call the endpoints directly; no API key, bearer token or account is ever required.`,
+    `2. **OAuth 2.0 Authorization Code + PKCE** — only for connectors whose protocol mandates OAuth. The flow is fully machine-driven: dynamic registration, then an auto-approved authorize redirect — there is no login or consent page because the resource is already public.`,
     "",
     "## Step 3 — Register",
     "",
-    `Nothing to register. If you operate an agent, a descriptive \`User-Agent\` (e.g. \`my-agent/1.0 (+https://you.example)\`) is appreciated but not required or enforced.`,
+    `Anonymous callers register nothing. OAuth clients register dynamically per RFC 7591:`,
+    ``,
+    "```",
+    `curl -s -X POST ${SITE_URL}/oauth/register \\`,
+    `  -H 'content-type: application/json' \\`,
+    `  -d '{"client_name":"my-connector","redirect_uris":["https://you.example/callback"]}'`,
+    "```",
+    ``,
+    `Returns \`201\` with \`{ "client_id": "nmc.<signed registration>", ... }\` — the client_id is a signed token carrying your registered redirect_uris, so nothing is stored server-side. redirect_uris must be https, http on loopback, or a private-use scheme. If you operate an agent, a descriptive \`User-Agent\` (e.g. \`my-agent/1.0 (+https://you.example)\`) is appreciated but not required or enforced.`,
     "",
     "## Step 4 — Claim ceremony",
     "",
-    `Not applicable — no credentials are issued, so nothing is ever claimed.`,
+    `Anonymous access has no ceremony. OAuth clients run the standard exchange — the authorize endpoint auto-approves (no interstitial) since the resource is public:`,
+    ``,
+    `1. \`GET ${SITE_URL}/oauth/authorize?response_type=code&client_id=<id>&redirect_uri=<registered>&code_challenge=<S256>&code_challenge_method=S256&state=<state>\` → 302 to your redirect_uri with \`code\` + \`state\`. PKCE S256 is mandatory; redirect_uri must match registration exactly.`,
+    `2. \`POST ${SITE_URL}/oauth/token\` (form-encoded \`grant_type=authorization_code&code=…&redirect_uri=…&client_id=…&code_verifier=…\`) → \`{ "access_token": "nmc.…", "token_type": "Bearer", "expires_in": 3600, "refresh_token": "nmc.…" }\`. Codes expire in 5 minutes and are single-use.`,
+    `3. Refresh with \`grant_type=refresh_token\`. Send the access token as \`Authorization: Bearer …\` — the API accepts it but does not require it.`,
     "",
     "## Step 5 — Use the public tier",
     "",
@@ -265,7 +285,7 @@ export function buildAuthMarkdown(): string {
     `- \`GET ${SITE_URL}/api/mcp\` (also \`/mcp\`, \`/health\`) — endpoint status`,
     `- \`GET ${SITE_URL}/api/markdown?path=</page>\` — markdown representations of pages`,
     "",
-    `A 401 never happens here — there is no credential to expire or revoke.`,
+    `A 401 never happens here — Bearer tokens are accepted but never required, and there is no credential that can lock you out.`,
     "",
     "## Rate limits",
     "",
@@ -295,7 +315,7 @@ export function buildAuthMarkdown(): string {
     "",
     "## Revocation",
     "",
-    `No credentials exist, so nothing is revoked. If a \`429\` arrives, honor \`Retry-After\`; if a \`404\` arrives on a previously working path, re-read \`/openapi.json\`.`,
+    `Nothing needs revoking — OAuth tokens are self-contained and expire on their own (codes 5 minutes, access tokens 1 hour, refresh tokens 30 days). If a \`429\` arrives, honor \`Retry-After\`; if a \`404\` arrives on a previously working path, re-read \`/openapi.json\`.`,
     "",
     "## DNS-AID",
     "",
