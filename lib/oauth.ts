@@ -8,6 +8,7 @@ import {
   tooManyRequestsResponse,
   type RateLimiter,
 } from "../src/security.js";
+import { replayStoreFromEnv, type ReplayStore } from "./oauth-store.js";
 import { SITE_URL } from "./site.js";
 
 /**
@@ -16,31 +17,39 @@ import { SITE_URL } from "./site.js";
  * The API is public — nothing here gates data — but remote-MCP connectors
  * (Poke and similar) refuse servers that don't complete the OAuth handshake:
  * they need RFC 8414 discovery, RFC 7591 dynamic client registration and a
- * code+PKCE exchange. This module provides that flow with zero server-side
- * storage, which is what makes it safe to run on Vercel functions where
- * consecutive requests may hit different instances:
+ * code+PKCE exchange. Tokens are self-contained signed values
+ * (`nmc.<base64url payload>.<base64url HMAC-SHA256>` via Web Crypto), so no
+ * database is needed for registration or token verification:
  *
  * - client_id is a signed token carrying the registered redirect_uris —
  *   /oauth/authorize recovers the registration by verifying the signature.
- * - Authorization codes, access tokens and refresh tokens are signed
- *   `nmc.<base64url payload>.<base64url HMAC-SHA256>` tokens carrying their
- *   own expiry and PKCE binding.
+ * - Authorization codes (5 min), access tokens (1 h) and refresh tokens
+ *   (30 d) carry their own expiry, PKCE binding and jti.
  *
- * Keys come from `NAYMME_OAUTH_SECRET`; when unset a random per-process key
- * is used, which works on a warm instance but means codes may fail to verify
- * after a cold start — set the secret in production.
+ * What DOES need state is one-time use: codes and refresh tokens are
+ * consumed through a ReplayStore (lib/oauth-store.ts). On serverless
+ * (VERCEL env set) a shared store is mandatory — Vercel KV
+ * (KV_REST_API_URL/KV_REST_API_TOKEN) or Upstash REST — and the endpoints
+ * fail closed with a 500 server_error until it is configured; locally the
+ * store falls back to process memory, which is correct for a single
+ * instance. The same fail-closed rule applies to NAYMME_OAUTH_SECRET: on
+ * serverless it must be set to a strong (>=32 char) value shared by all
+ * instances; locally an ephemeral random key is used.
  *
- * Security posture: PKCE S256 is mandatory, redirect_uri must exactly match
- * one registered at /oauth/register (no open redirect), codes are single-use
- * within a warm instance and expire in 5 minutes, tokens are Bearer and
- * `no-store`. There is intentionally no consent page — the resource is
- * already public, so an interstitial would gate nothing.
+ * Security posture: PKCE S256 mandatory; redirect_uri must exactly match a
+ * registered one (no open redirect); the only issuable scope is
+ * `public:read` — anything else is rejected (invalid_scope / invalid_client_metadata),
+ * never clamped or echoed into tokens; codes and refresh tokens are
+ * single-use via the replay store and refresh tokens rotate; Bearer +
+ * `no-store`. No consent page by design — the resource is already public.
  */
 
 const CODE_TTL_MS = 5 * 60 * 1000;
 const ACCESS_TOKEN_TTL_SECONDS = 3600;
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 3600 * 1000;
 const SUPPORTED_SCOPE = "public:read";
+/** Minimum length for a configured signing secret (256-bit guidance). */
+const MIN_SECRET_LENGTH = 32;
 
 const CORS_HEADERS: Record<string, string> = {
   "access-control-allow-origin": "*",
@@ -58,6 +67,8 @@ export interface OauthServerOptions {
   now?: () => number;
   /** Rate limiter for register/token; defaults to the shared aux budget. */
   limiter?: Pick<RateLimiter, "allow">;
+  /** One-time-use store; defaults to env-resolved (KV/Upstash or memory). */
+  store?: ReplayStore;
 }
 
 interface ClientPayload {
@@ -118,13 +129,81 @@ function b64urlDecode(text: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
-/** Per-process fallback when NAYMME_OAUTH_SECRET is unset — see module doc. */
+/** Per-process fallback when NAYMME_OAUTH_SECRET is unset — local use only. */
 let ephemeralSecret: string | undefined;
-function resolveSecret(options: OauthServerOptions): string {
+
+/**
+ * Resolve signing secret + replay store for a request, enforcing deploy-time
+ * requirements. Returns a `Response` (500 server_error) when the deployment
+ * is misconfigured — fail closed rather than silently using a per-process
+ * key or a non-shared replay store on serverless.
+ */
+function resolveConfig(
+  options: OauthServerOptions,
+): { secret: string; store: ReplayStore } | Response {
+  const serverless = process.env.VERCEL !== undefined && process.env.VERCEL !== "";
   const configured = options.secret ?? process.env.NAYMME_OAUTH_SECRET;
-  if (configured !== undefined && configured !== "") return configured;
-  ephemeralSecret ??= b64urlEncode(globalThis.crypto.getRandomValues(new Uint8Array(32)));
-  return ephemeralSecret;
+
+  let secret: string;
+  if (configured !== undefined && configured !== "") {
+    if (configured.length < MIN_SECRET_LENGTH) {
+      return oauthError(
+        500,
+        "server_error",
+        `NAYMME_OAUTH_SECRET must be at least ${MIN_SECRET_LENGTH} characters — generate one with \`openssl rand -base64 48\``,
+      );
+    }
+    secret = configured;
+  } else if (serverless) {
+    return oauthError(
+      500,
+      "server_error",
+      "NAYMME_OAUTH_SECRET is required on serverless — set a strong (>=32 char) secret identical across instances",
+    );
+  } else {
+    ephemeralSecret ??= b64urlEncode(globalThis.crypto.getRandomValues(new Uint8Array(32)));
+    secret = ephemeralSecret;
+  }
+
+  const store = options.store ?? defaultStore();
+  if (serverless && options.store === undefined && !defaultStoreShared()) {
+    return oauthError(
+      500,
+      "server_error",
+      "OAuth replay protection needs a shared store on serverless — connect Vercel KV (KV_REST_API_URL/KV_REST_API_TOKEN) or set UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN",
+    );
+  }
+
+  return { secret, store };
+}
+
+/* ------------------------------------------------------- store plumbing */
+
+interface StoreResolutionCache {
+  key: string;
+  shared: boolean;
+  store: ReplayStore;
+}
+let storeCache: StoreResolutionCache | undefined;
+function defaultStoreResolution(): StoreResolutionCache {
+  const env = process.env;
+  const key = [
+    env.KV_REST_API_URL,
+    env.KV_REST_API_TOKEN,
+    env.UPSTASH_REDIS_REST_URL,
+    env.UPSTASH_REDIS_REST_TOKEN,
+  ].join("|");
+  if (storeCache === undefined || storeCache.key !== key) {
+    const resolved = replayStoreFromEnv(env);
+    storeCache = { key, shared: resolved.shared, store: resolved.store };
+  }
+  return storeCache;
+}
+function defaultStore(): ReplayStore {
+  return defaultStoreResolution().store;
+}
+function defaultStoreShared(): boolean {
+  return defaultStoreResolution().shared;
 }
 
 const keyCache = new Map<string, Promise<CryptoKey>>();
@@ -185,27 +264,6 @@ async function readToken<T extends SignedPayload>(
 async function sha256B64url(text: string): Promise<string> {
   const digest = await globalThis.crypto.subtle.digest("SHA-256", encoder.encode(text));
   return b64urlEncode(new Uint8Array(digest));
-}
-
-/* ------------------------------------------------------- replay tracking */
-
-/**
- * Consumed authorization-code jtis — best-effort single use within a warm
- * instance. Serverless cold starts can lose entries; the 5-minute code TTL
- * and PKCE binding bound the residual risk.
- */
-const consumedCodes = new Map<string, number>();
-function consumeCode(jti: string, expiresAt: number, now: number): boolean {
-  for (const [key, exp] of consumedCodes) {
-    if (now >= exp) consumedCodes.delete(key);
-  }
-  if (consumedCodes.has(jti)) return false;
-  if (consumedCodes.size >= 10_000) {
-    const oldest = consumedCodes.keys().next().value;
-    if (oldest !== undefined) consumedCodes.delete(oldest);
-  }
-  consumedCodes.set(jti, expiresAt);
-  return true;
 }
 
 /* ---------------------------------------------------------------- errors */
@@ -285,6 +343,21 @@ function isAllowedRedirectUri(uri: string): boolean {
   return CUSTOM_SCHEME.test(url.protocol) && !FORBIDDEN_SCHEMES.has(url.protocol);
 }
 
+/* ----------------------------------------------------------------- scope */
+
+/**
+ * The authorization server issues exactly one scope: `public:read`.
+ * A requested scope string is valid only when every space-separated entry
+ * is that scope — anything else is rejected outright (never clamped, never
+ * echoed into a token). Returns the normalized scope or null.
+ */
+function validateScope(raw: string | null | undefined): string | null {
+  if (raw === null || raw === undefined) return SUPPORTED_SCOPE;
+  const parts = raw.split(/\s+/).filter((part) => part !== "");
+  if (parts.length === 0) return SUPPORTED_SCOPE;
+  return parts.every((part) => part === SUPPORTED_SCOPE) ? SUPPORTED_SCOPE : null;
+}
+
 /* ------------------------------------------------------------ /register */
 
 /** `POST /oauth/register` — RFC 7591 dynamic client registration. */
@@ -294,6 +367,8 @@ export async function handleClientRegistration(
 ): Promise<Response> {
   const limited = rateLimited(request, options.limiter ?? defaultLimiter());
   if (limited !== null) return limited;
+  const config = resolveConfig(options);
+  if (config instanceof Response) return config;
 
   const text = await bodyText(request);
   if (text === null) {
@@ -329,6 +404,16 @@ export async function handleClientRegistration(
   }
   const uris = redirectUris as string[];
 
+  if (fields.scope !== undefined) {
+    if (typeof fields.scope !== "string" || validateScope(fields.scope) === null) {
+      return oauthError(
+        400,
+        "invalid_client_metadata",
+        `unsupported scope — this server issues only "${SUPPORTED_SCOPE}"`,
+      );
+    }
+  }
+
   let clientName: string | undefined;
   if (typeof fields.client_name === "string") {
     // Strip control characters; cap length so it stays safe to echo/log.
@@ -350,7 +435,7 @@ export async function handleClientRegistration(
     uris,
   };
   if (clientName !== undefined) client.name = clientName;
-  const clientIdValue = await mintToken(client, resolveSecret(options));
+  const clientIdValue = await mintToken(client, config.secret);
 
   return Response.json(
     {
@@ -383,10 +468,12 @@ export async function handleAuthorizationRequest(
   request: Request,
   options: OauthServerOptions = {},
 ): Promise<Response> {
+  const config = resolveConfig(options);
+  if (config instanceof Response) return config;
+  const secret = config.secret;
   const params = new URL(request.url).searchParams;
   const state = params.get("state");
   const now = (options.now ?? (() => Date.now()))();
-  const secret = resolveSecret(options);
 
   const clientIdValue = params.get("client_id");
   if (clientIdValue === null || clientIdValue === "") {
@@ -426,8 +513,11 @@ export async function handleAuthorizationRequest(
   if (resource !== null && !resource.startsWith(SITE_URL)) {
     return redirectError(redirectUri, state, "invalid_target");
   }
+  const scope = validateScope(params.get("scope"));
+  if (scope === null) {
+    return redirectError(redirectUri, state, "invalid_scope");
+  }
 
-  const scope = params.get("scope") ?? undefined;
   const code: CodePayload = {
     t: "code",
     iat: now,
@@ -436,7 +526,7 @@ export async function handleAuthorizationRequest(
     cid: await sha256B64url(clientIdValue),
     uri: redirectUri,
     cc: codeChallenge,
-    ...(scope !== undefined ? { scp: scope } : {}),
+    scp: scope,
   };
   const target = new URL(redirectUri);
   target.searchParams.set("code", await mintToken(code, secret));
@@ -474,7 +564,6 @@ function formFields(text: string, contentType: string): Record<string, string> |
 
 async function tokenPair(
   cid: string,
-  scope: string | undefined,
   secret: string,
   now: number,
 ): Promise<Record<string, unknown>> {
@@ -483,7 +572,7 @@ async function tokenPair(
     iat: now,
     exp: now + ACCESS_TOKEN_TTL_SECONDS * 1000,
     cid,
-    ...(scope !== undefined ? { scp: scope } : {}),
+    scp: SUPPORTED_SCOPE,
   };
   const refresh: RefreshPayload = {
     t: "refresh",
@@ -491,13 +580,13 @@ async function tokenPair(
     exp: now + REFRESH_TOKEN_TTL_MS,
     jti: globalThis.crypto.randomUUID(),
     cid,
-    ...(scope !== undefined ? { scp: scope } : {}),
+    scp: SUPPORTED_SCOPE,
   };
   return {
     access_token: await mintToken(access, secret),
     token_type: "Bearer",
     expires_in: ACCESS_TOKEN_TTL_SECONDS,
-    scope: scope ?? SUPPORTED_SCOPE,
+    scope: SUPPORTED_SCOPE,
     refresh_token: await mintToken(refresh, secret),
   };
 }
@@ -513,6 +602,9 @@ export async function handleTokenRequest(
 ): Promise<Response> {
   const limited = rateLimited(request, options.limiter ?? defaultLimiter());
   if (limited !== null) return limited;
+  const config = resolveConfig(options);
+  if (config instanceof Response) return config;
+  const { secret, store } = config;
 
   const text = await bodyText(request);
   if (text === null) {
@@ -528,7 +620,6 @@ export async function handleTokenRequest(
   }
 
   const now = (options.now ?? (() => Date.now()))();
-  const secret = resolveSecret(options);
   const grantType = fields.grant_type;
 
   if (grantType === "authorization_code") {
@@ -557,10 +648,14 @@ export async function handleTokenRequest(
     if ((await sha256B64url(verifier)) !== code.cc) {
       return oauthError(400, "invalid_grant", "code_verifier does not match the code challenge");
     }
-    if (!consumeCode(code.jti, code.exp, now)) {
-      return oauthError(400, "invalid_grant", "code has already been exchanged");
+    try {
+      if (!(await store.consume(`code:${code.jti}`, code.exp - now))) {
+        return oauthError(400, "invalid_grant", "code has already been exchanged");
+      }
+    } catch {
+      return oauthError(500, "server_error", "replay store unavailable");
     }
-    return Response.json(await tokenPair(code.cid, code.scp, secret, now), {
+    return Response.json(await tokenPair(code.cid, secret, now), {
       headers: { ...CORS_HEADERS, ...NO_STORE },
     });
   }
@@ -578,7 +673,22 @@ export async function handleTokenRequest(
     if (presentedClient !== undefined && (await sha256B64url(presentedClient)) !== refresh.cid) {
       return oauthError(400, "invalid_client", "client_id does not match the refresh_token");
     }
-    return Response.json(await tokenPair(refresh.cid, refresh.scp, secret, now), {
+    // RFC 6749 §6: a requested scope may only narrow the original grant.
+    // The only issuable scope is public:read, so anything else is rejected.
+    if (validateScope(fields.scope) === null) {
+      return oauthError(400, "invalid_scope", `supported scope: ${SUPPORTED_SCOPE}`);
+    }
+    // Rotation: consume this token's jti before issuing the next pair, so a
+    // stolen or replayed refresh_token is rejected (shared store required
+    // on serverless — see resolveConfig).
+    try {
+      if (!(await store.consume(`refresh:${refresh.jti}`, refresh.exp - now))) {
+        return oauthError(400, "invalid_grant", "refresh_token has already been used");
+      }
+    } catch {
+      return oauthError(500, "server_error", "replay store unavailable");
+    }
+    return Response.json(await tokenPair(refresh.cid, secret, now), {
       headers: { ...CORS_HEADERS, ...NO_STORE },
     });
   }

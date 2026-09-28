@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GET as authorizeGET } from "../app/oauth/authorize/route.js";
 import { OPTIONS as registerOPTIONS, POST as registerPOST } from "../app/oauth/register/route.js";
 import { OPTIONS as tokenOPTIONS, POST as tokenPOST } from "../app/oauth/token/route.js";
 import { GET as prmPathGET } from "../app/.well-known/oauth-protected-resource/[...path]/route.js";
 import { buildOauthAuthorizationServer } from "../lib/agent-discovery.js";
+import { handleTokenRequest } from "../lib/oauth.js";
+import { memoryReplayStore } from "../lib/oauth-store.js";
 import { SITE_URL } from "../lib/site.js";
 
 const REGISTER_URI = `${SITE_URL}/oauth/register`;
@@ -90,6 +92,14 @@ function exchangeCode(clientIdValue: string, code: string, verifier: string): Pr
       code_verifier: verifier,
     }),
   );
+}
+
+/** Decode the unsigned middle segment of a `nmc.` token for assertions. */
+function decodePayload(token: string): Record<string, unknown> {
+  const body = token.split(".")[1] ?? "";
+  const binary = atob(body.replaceAll("-", "+").replaceAll("_", "/"));
+  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
 }
 
 describe("RFC 8414 authorization-server metadata", () => {
@@ -289,8 +299,145 @@ describe("POST /oauth/token", () => {
       }),
     );
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { access_token: string; token_type: string };
+    const body = (await res.json()) as {
+      access_token: string;
+      token_type: string;
+      refresh_token: string;
+    };
     expect(body.access_token).toMatch(/^nmc\./);
     expect(body.token_type).toBe("Bearer");
+    expect(body.refresh_token).toMatch(/^nmc\./);
+    expect(body.refresh_token).not.toBe(first.refresh_token);
+  });
+
+  it("rejects replay of a consumed refresh_token", async () => {
+    const { clientIdValue, code } = await issueCode();
+    const exchanged = await exchangeCode(clientIdValue, code, VERIFIER);
+    const { refresh_token } = (await exchanged.json()) as { refresh_token: string };
+    const use = () =>
+      tokenPOST(
+        tokenRequest({
+          grant_type: "refresh_token",
+          refresh_token,
+          client_id: clientIdValue,
+        }),
+      );
+    expect((await use()).status).toBe(200);
+    const replay = await use();
+    expect(replay.status).toBe(400);
+    expect(((await replay.json()) as { error: string }).error).toBe("invalid_grant");
+  });
+
+  it("rejects a scope narrower filter that includes unsupported scopes on refresh", async () => {
+    const { clientIdValue, code } = await issueCode();
+    const exchanged = await exchangeCode(clientIdValue, code, VERIFIER);
+    const { refresh_token } = (await exchanged.json()) as { refresh_token: string };
+    const res = await tokenPOST(
+      tokenRequest({
+        grant_type: "refresh_token",
+        refresh_token,
+        client_id: clientIdValue,
+        scope: "admin:write",
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toBe("invalid_scope");
+  });
+});
+
+describe("scope enforcement (public:read only)", () => {
+  it("redirects invalid_scope when authorize is asked for an unsupported scope", async () => {
+    const id = await clientId();
+    const res = await authorizeGET(new Request(authorizeUrl(id, { scope: "admin:write" })));
+    expect(res.status).toBe(302);
+    const location = new URL(res.headers.get("location") ?? "");
+    expect(location.searchParams.get("error")).toBe("invalid_scope");
+    expect(location.searchParams.get("state")).toBe("s-123");
+    expect(location.searchParams.get("code")).toBeNull();
+  });
+
+  it("rejects mixed valid+invalid scope lists", async () => {
+    const id = await clientId();
+    const res = await authorizeGET(
+      new Request(authorizeUrl(id, { scope: "public:read admin:write" })),
+    );
+    const location = new URL(res.headers.get("location") ?? "");
+    expect(location.searchParams.get("error")).toBe("invalid_scope");
+  });
+
+  it("issues tokens scoped to public:read only, never arbitrary scopes", async () => {
+    const id = await clientId();
+    const res = await authorizeGET(
+      new Request(authorizeUrl(id, { scope: "public:read", code_challenge: await s256(VERIFIER) })),
+    );
+    const code = new URL(res.headers.get("location") ?? "").searchParams.get("code") ?? "";
+    const exchanged = await exchangeCode(id, code, VERIFIER);
+    expect(exchanged.status).toBe(200);
+    const body = (await exchanged.json()) as {
+      access_token: string;
+      refresh_token: string;
+      scope: string;
+    };
+    expect(body.scope).toBe("public:read");
+    expect(decodePayload(body.access_token).scp).toBe("public:read");
+    expect(decodePayload(body.refresh_token).scp).toBe("public:read");
+  });
+
+  it("rejects unsupported scope in registration metadata", async () => {
+    const res = await registerPOST(
+      new Request(REGISTER_URI, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          redirect_uris: [CONNECTOR_CALLBACK],
+          scope: "public:read admin:write",
+        }),
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toBe("invalid_client_metadata");
+  });
+});
+
+describe("deployment config hygiene", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("rejects a weak configured signing secret", async () => {
+    const res = await handleTokenRequest(tokenRequest({ grant_type: "x" }), {
+      secret: "too-short",
+    });
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { error: string; error_description: string };
+    expect(body.error).toBe("server_error");
+    expect(body.error_description).toMatch(/NAYMME_OAUTH_SECRET/);
+  });
+
+  it("fails closed on serverless when NAYMME_OAUTH_SECRET is unset", async () => {
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("NAYMME_OAUTH_SECRET", "");
+    const res = await handleTokenRequest(tokenRequest({ grant_type: "x" }));
+    expect(res.status).toBe(500);
+    expect(((await res.json()) as { error: string }).error).toBe("server_error");
+  });
+
+  it("fails closed on serverless when no shared replay store is configured", async () => {
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("NAYMME_OAUTH_SECRET", "s".repeat(48));
+    const res = await handleTokenRequest(tokenRequest({ grant_type: "x" }));
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { error_description: string };
+    expect(body.error_description).toMatch(/KV_REST_API_URL|UPSTASH_REDIS_REST_URL/);
+  });
+
+  it("serves requests on serverless once secret + shared store are configured", async () => {
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("NAYMME_OAUTH_SECRET", "s".repeat(48));
+    const res = await handleTokenRequest(tokenRequest({ grant_type: "x" }), {
+      store: memoryReplayStore(),
+    });
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toBe("unsupported_grant_type");
   });
 });

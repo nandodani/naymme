@@ -175,7 +175,12 @@ The hosted surface is built to be consumed by agents, not just browsers:
     `oauth-authorization-server`, RFC 8414) declare the public tier. Remote
     MCP connectors that mandate OAuth (e.g. Poke) can complete a frictionless
     RFC 7591 dynamic registration + auto-approved PKCE code exchange against
-    `/oauth/register`, `/oauth/authorize` and `/oauth/token`.
+    `/oauth/register`, `/oauth/authorize` and `/oauth/token`. Deploying on
+    serverless requires `NAYMME_OAUTH_SECRET` (≥32 chars, e.g.
+    `openssl rand -base64 48`) plus a shared replay store — Vercel KV
+    (`KV_REST_API_URL`/`KV_REST_API_TOKEN`) or Upstash REST vars — so codes
+    and refresh tokens stay single-use across instances; the OAuth endpoints
+    fail closed until both are configured.
 - **Discovery**: `/openapi.json` (OpenAPI 3.1), `/.well-known/api-catalog`
   (RFC 9264 linkset), `/.well-known/mcp` + `server-card.json` (SEP-1649),
   `/.well-known/agent-skills/index.json` (agent-skills RFC + sha256),
