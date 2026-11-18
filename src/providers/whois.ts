@@ -8,6 +8,7 @@ export type WhoisVerdict = "available" | "taken" | "unknown";
  * which is why WHOIS is only a fallback when a TLD has no RDAP service.
  */
 const NOT_FOUND_PATTERNS = [
+  /the queried object does not exist:\s*no object found/i,
   /no match/i,
   /not found/i,
   /no entries found/i,
@@ -21,11 +22,8 @@ const NOT_FOUND_PATTERNS = [
 
 /** Fields that indicate a real registration record came back. */
 const TAKEN_PATTERNS = [
-  /domain name/i,
-  /registrar/i,
-  /name server/i,
-  /creation date/i,
-  /expiry|expires|expiration/i,
+  /"(?:domain name|registrar|name server|creation date|expiry date|expiration date)"\s*:\s*(?:"[^"\s][^"]*"|\[\s*"[^"\s][^"]*")/i,
+  /(?:^|\\[rn]|[\r\n]|")(?:domain name|registrar|name server|creation date|expiry date|expiration date):[ \t]*[^\s"\\]/i,
 ];
 
 function stringify(response: unknown): string {

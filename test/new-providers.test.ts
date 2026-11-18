@@ -271,13 +271,13 @@ describe("social:bluesky adapter", () => {
     expect(r).toMatchObject({ status: "taken", available: false, subject: "acme.bsky.social" });
   });
 
-  it("maps an unresolved handle to available", async () => {
+  it("does not treat resolution failure as permission to register", async () => {
     const r = await check(
       "social:bluesky",
       "acme",
       statusDeps(400, JSON.stringify({ error: "InvalidRequest" })),
     );
-    expect(r).toMatchObject({ status: "available", available: true });
+    expect(r).toMatchObject({ status: "unknown", available: null });
   });
 
   it("maps unexpected statuses to unknown", async () => {

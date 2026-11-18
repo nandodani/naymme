@@ -125,13 +125,13 @@ describe("telegram — t.me is always 200, discriminate on the body", () => {
     expect(r.subject).toBe("@acmechannel");
   });
 
-  it("200 without the title marker → available", async () => {
+  it("200 without the title marker cannot prove availability", async () => {
     const r = await check(
       "telegram",
       "acmechannel",
       statusDeps(200, "<html>tgme_username_link</html>"),
     );
-    expect(r.status).toBe("available");
+    expect(r.status).toBe("unknown");
   });
 
   it("rejects handles under 5 chars or starting with a digit", async () => {

@@ -57,7 +57,7 @@ interface PageCheckSpec {
   free?: readonly number[];
   busy?: readonly number[];
   accept?: string;
-  /** Extra rule on a 200 body — `false` downgrades 200 to `available`. */
+  /** Extra rule on a 200 body — `false` leaves the verdict unknown. */
   bodyMeansTaken?: (body: string) => boolean;
 }
 
@@ -79,7 +79,7 @@ function createPageCheck(deps: ProviderDeps, spec: PageCheckSpec): ProviderAdapt
           const body = await readTextCapped(res).catch(() => "");
           return spec.bodyMeansTaken(body)
             ? taken(subject, spec.profile(name))
-            : available(subject, spec.profile(name));
+            : unknown(subject, `${spec.id} page does not prove the handle is claimable`);
         }
         return taken(subject, spec.profile(name));
       }
@@ -226,15 +226,15 @@ export function createProductHuntAdapter(deps: ProviderDeps): ProviderAdapter {
   });
 }
 
-/** Telegram public handle check via `t.me/{name}`: the page always answers
- * 200, so the marker `tgme_page_title` decides — present → taken, absent
- * → available. Non-200 responses report `unknown`. */
+/** Telegram's generic contact page does not distinguish private, reserved
+ * and nonexistent handles. Only a public profile proves the name is taken. */
 export function createTelegramAdapter(deps: ProviderDeps): ProviderAdapter {
   return createPageCheck(deps, {
     id: "telegram",
     url: (n) => `https://t.me/${encodeURIComponent(n)}`,
     subject: (n) => `@${n}`,
     profile: (n) => `https://t.me/${n}`,
+    free: [],
     bodyMeansTaken: (body) => body.includes("tgme_page_title"),
   });
 }

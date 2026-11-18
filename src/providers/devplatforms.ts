@@ -127,11 +127,8 @@ export function createCratesAdapter(deps: ProviderDeps): ProviderAdapter {
 }
 
 /**
- * Docker Hub check via the public repository API `hub.docker.com/v2/
- * repositories/{namespace}/`: 200 means the namespace exists and owns
- * public repositories (taken); 404 means no namespace or no public repos
- * (reported `available` — namespaces that exist but are empty or fully
- * private also answer 404, so availability is best-effort).
+ * Docker Hub identity lookup. Repository listings return 200 with an empty
+ * result even for nonexistent namespaces; users resolves both users and orgs.
  */
 export function createDockerHubAdapter(deps: ProviderDeps): ProviderAdapter {
   return {
@@ -139,7 +136,7 @@ export function createDockerHubAdapter(deps: ProviderDeps): ProviderAdapter {
     async check(name, signal): Promise<ProviderOutcome> {
       const invalidName = invalidOutcome("dockerhub", name);
       if (invalidName !== null) return invalidName;
-      const url = `https://hub.docker.com/v2/repositories/${encodeURIComponent(name)}/`;
+      const url = `https://hub.docker.com/v2/users/${encodeURIComponent(name)}/`;
       const res = await safeFetch(deps, url, signal, { accept: "application/json" });
       if (!res) return unknown(name, "request failed");
       if (res.status === 404) {
