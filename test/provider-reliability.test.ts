@@ -28,6 +28,28 @@ it.each([
   ).toBe("unknown");
 });
 
+it.each(["reserved.com", "blocked.com"])(
+  "RDAP 404 echoing a reserved-word name stays available: %s",
+  async (domain) => {
+    const client = createRdapClient(
+      defaultDeps({
+        fetch: async () =>
+          Response.json(
+            {
+              errorCode: 404,
+              title: "Not Found",
+              description: [`No match for ${domain}`, "All rights reserved."],
+            },
+            { status: 404 },
+          ),
+      }),
+    );
+    expect(await client.lookup(domain, "https://rdap.test/", new AbortController().signal)).toBe(
+      "available",
+    );
+  },
+);
+
 it("RDAP explicitly unregistered response remains available", async () => {
   const client = createRdapClient(
     defaultDeps({

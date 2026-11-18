@@ -67,7 +67,11 @@ export function createRdapClient(deps: ProviderDeps): RdapClient {
       }
       if (res.status === 404) {
         const body = await readTextCapped(res);
-        if (/not available for registration|\bblocked\b|\breserved\b/i.test(body)) {
+        if (
+          /not available for registration|registry (?:reserved|blocked)|blocked domain|globalblock/i.test(
+            body,
+          )
+        ) {
           return "unknown";
         }
         return "available";
