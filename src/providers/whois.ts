@@ -40,11 +40,22 @@ function stringify(response: unknown): string {
  * contains neither a clear "not found" marker nor registration fields —
  * different registries phrase things differently.
  */
-export async function whoisLookup(fqdn: string, deps: ProviderDeps): Promise<WhoisVerdict> {
-  const response = await deps.whoisDomain(fqdn, {
-    timeout: Math.max(1_000, deps.timeoutMs - 250),
-    raw: true,
-  });
+export async function whoisLookup(
+  fqdn: string,
+  deps: ProviderDeps,
+  timeoutMs = Math.max(1_000, deps.timeoutMs - 250),
+): Promise<WhoisVerdict> {
+  let response: unknown;
+  try {
+    response = await deps.whoisDomain(fqdn, {
+      timeout: timeoutMs,
+      raw: true,
+      ...(fqdn.endsWith(".co") ? { host: "whois.registry.co" } : {}),
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") throw err;
+    return "unknown";
+  }
   // Cap the scanned text — WHOIS payloads are unbounded and registry
   // responses are matched by regex, so bound both memory and CPU.
   const text = stringify(response).slice(0, 512 * 1024);

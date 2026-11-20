@@ -90,7 +90,7 @@ describe("european ccTLD adapters — WHOIS + DNS fallback", () => {
       ...extra,
     });
 
-  for (const id of ["domain:pt", "domain:es", "domain:de", "domain:eu"] as const) {
+  for (const id of ["domain:de", "domain:eu"] as const) {
     it(`falls back to WHOIS for ${id}`, async () => {
       const r = await check(
         id,

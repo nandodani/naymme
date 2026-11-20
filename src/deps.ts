@@ -40,7 +40,10 @@ async function dnsProbe(
 export interface ProviderDeps {
   fetch: typeof globalThis.fetch;
   /** WHOIS lookup. Signature matches `whoiser.domain(domain, { timeout, raw })`. */
-  whoisDomain: (domain: string, options: { timeout: number; raw: boolean }) => Promise<unknown>;
+  whoisDomain: (
+    domain: string,
+    options: { timeout: number; raw: boolean; host?: string },
+  ) => Promise<unknown>;
   /** DNS NS-record lookup; rejects with ENOTFOUND/ENODATA when nothing resolves. */
   resolveNs: (fqdn: string) => Promise<string[]>;
   /** DNS existence probe (A/AAAA/CNAME); NXDOMAIN only on unanimous ENOTFOUND. */
@@ -50,6 +53,8 @@ export interface ProviderDeps {
   /** IANA RDAP bootstrap document URL. */
   rdapBootstrapUrl: string;
   githubApiBase: string;
+  /** Optional server-side GitHub credential; never included in outcomes. */
+  githubToken?: string;
   /** Per-provider timeout. Each check gets its own AbortController. */
   timeoutMs: number;
   /** User-Agent sent to HTTP APIs that require one (GitHub). */
@@ -76,6 +81,7 @@ export function defaultDeps(overrides: Partial<ProviderDeps> = {}): ProviderDeps
     npmNameAvailable: (name) => npmName(name),
     rdapBootstrapUrl: "https://data.iana.org/rdap/dns.json",
     githubApiBase: "https://api.github.com",
+    githubToken: process.env.GITHUB_TOKEN,
     timeoutMs: DEFAULT_TIMEOUT_MS,
     userAgent: "naymme/0.1 (+https://naymme.vercel.app)",
     ...overrides,

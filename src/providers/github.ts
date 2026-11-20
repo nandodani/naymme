@@ -13,6 +13,14 @@ import { invalidOutcome } from "./validation.js";
 export type GitHubLookup =
   { kind: "absent" } | { kind: "user" | "org"; url: string } | { kind: "unknown"; detail: string };
 
+function githubHeaders(deps: ProviderDeps): Record<string, string> {
+  return {
+    accept: "application/vnd.github+json",
+    "user-agent": deps.userAgent,
+    ...(deps.githubToken ? { authorization: `Bearer ${deps.githubToken}` } : {}),
+  };
+}
+
 /**
  * Memoized `/users/{name}` lookup shared by the user and org adapters so one
  * search costs a single GitHub API call (unauthenticated limit: 60 req/h).
@@ -29,10 +37,7 @@ export function createGitHubLookup(deps: ProviderDeps) {
       try {
         res = await deps.fetch(url, {
           signal,
-          headers: {
-            accept: "application/vnd.github+json",
-            "user-agent": deps.userAgent,
-          },
+          headers: githubHeaders(deps),
         });
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") throw err;
@@ -48,7 +53,7 @@ export function createGitHubLookup(deps: ProviderDeps) {
         kind: "unknown",
         detail:
           res.status === 403
-            ? "GitHub API rate limit or forbidden (unauthenticated limit is 60 req/h per IP)"
+            ? "GitHub API rate limit or forbidden (set GITHUB_TOKEN for authenticated requests)"
             : `GitHub API returned HTTP ${res.status}`,
       };
     })();
@@ -116,10 +121,7 @@ export function createGitHubRepoAdapter(deps: ProviderDeps): ProviderAdapter {
       try {
         res = await deps.fetch(url, {
           signal,
-          headers: {
-            accept: "application/vnd.github+json",
-            "user-agent": deps.userAgent,
-          },
+          headers: githubHeaders(deps),
         });
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") throw err;

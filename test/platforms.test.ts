@@ -143,9 +143,9 @@ describe("telegram — t.me is always 200, discriminate on the body", () => {
 });
 
 describe("replit — undecidable server-side", () => {
-  it("200 → taken", async () => {
+  it("a generic 200 shell does not prove a profile exists", async () => {
     const r = await check("replit", "acme", statusDeps(200));
-    expect(r.status).toBe("taken");
+    expect(r.status).toBe("unknown");
   });
 
   it("404 → unknown, never faked as available", async () => {
