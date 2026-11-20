@@ -125,13 +125,13 @@ describe("telegram — t.me is always 200, discriminate on the body", () => {
     expect(r.subject).toBe("@acmechannel");
   });
 
-  it("200 without the title marker → available", async () => {
+  it("200 without the title marker cannot prove availability", async () => {
     const r = await check(
       "telegram",
       "acmechannel",
       statusDeps(200, "<html>tgme_username_link</html>"),
     );
-    expect(r.status).toBe("available");
+    expect(r.status).toBe("unknown");
   });
 
   it("rejects handles under 5 chars or starting with a digit", async () => {
@@ -143,9 +143,9 @@ describe("telegram — t.me is always 200, discriminate on the body", () => {
 });
 
 describe("replit — undecidable server-side", () => {
-  it("200 → taken", async () => {
+  it("a generic 200 shell does not prove a profile exists", async () => {
     const r = await check("replit", "acme", statusDeps(200));
-    expect(r.status).toBe("taken");
+    expect(r.status).toBe("unknown");
   });
 
   it("404 → unknown, never faked as available", async () => {

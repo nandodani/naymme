@@ -425,18 +425,74 @@ test.describe("versioned API + agent headers", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  test("/.well-known/oauth-authorization-server is an RFC 8414 no-auth stub", async ({
-    request,
-  }) => {
+  test("/.well-known/oauth-authorization-server serves RFC 8414 metadata", async ({ request }) => {
     const res = await request.get("/.well-known/oauth-authorization-server");
     expect(res.status()).toBe(200);
     expect(res.headers()["access-control-allow-origin"]).toBe("*");
     const doc = await res.json();
     expect(doc.issuer).toBeTruthy();
-    expect(doc.grant_types_supported).toEqual([]);
-    expect(doc.response_types_supported).toEqual([]);
+    expect(doc.authorization_endpoint).toContain("/oauth/authorize");
+    expect(doc.token_endpoint).toContain("/oauth/token");
+    expect(doc.registration_endpoint).toContain("/oauth/register");
+    expect(doc.response_types_supported).toEqual(["code"]);
+    expect(doc.grant_types_supported).toEqual(
+      expect.arrayContaining(["authorization_code", "refresh_token"]),
+    );
+    expect(doc.code_challenge_methods_supported).toEqual(["S256"]);
     expect(doc.service_documentation).toContain("/auth.md");
-    expect(doc.token_endpoint).toBeUndefined();
+  });
+
+  test("OAuth flow: register → auto-approve authorize → PKCE token exchange", async ({
+    request,
+  }) => {
+    const callback = "https://connector.example.com/oauth/callback";
+    const reg = await request.post("/oauth/register", {
+      headers: { "content-type": "application/json" },
+      data: { client_name: "e2e connector", redirect_uris: [callback] },
+    });
+    expect(reg.status()).toBe(201);
+    const { client_id: clientId } = (await reg.json()) as { client_id: string };
+    expect(clientId).toMatch(/^nmc\./);
+
+    const challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
+    const auth = await request.get(
+      `/oauth/authorize?${new URLSearchParams({
+        response_type: "code",
+        client_id: clientId,
+        redirect_uri: callback,
+        code_challenge: challenge,
+        code_challenge_method: "S256",
+        state: "st",
+      }).toString()}`,
+      { maxRedirects: 0 },
+    );
+    expect(auth.status()).toBe(302);
+    const location = new URL(auth.headers()["location"] ?? "");
+    const code = location.searchParams.get("code");
+    expect(code).toMatch(/^nmc\./);
+    expect(location.searchParams.get("state")).toBe("st");
+
+    const tok = await request.post("/oauth/token", {
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      data: new URLSearchParams({
+        grant_type: "authorization_code",
+        code: code ?? "",
+        redirect_uri: callback,
+        client_id: clientId,
+        code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+      }).toString(),
+    });
+    expect(tok.status()).toBe(200);
+    const tokens = (await tok.json()) as {
+      access_token: string;
+      token_type: string;
+      expires_in: number;
+      refresh_token: string;
+    };
+    expect(tokens.access_token).toMatch(/^nmc\./);
+    expect(tokens.token_type).toBe("Bearer");
+    expect(tokens.expires_in).toBe(3600);
+    expect(tokens.refresh_token).toMatch(/^nmc\./);
   });
 
   test("/auth.md follows the WorkOS convention (# auth.md + numbered steps)", async ({

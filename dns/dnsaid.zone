@@ -12,7 +12,7 @@
 ; SVCB/HTTPS _index._agents, TXT _index._agents, and SVCB/HTTPS
 ; _a2a._agents + _mcp._agents under the SCANNED hostname over DoH —
 ; records under another domain do not move the score for
-; name-check-mcp.vercel.app. To pass, attach a custom domain to the
+; naymme.vercel.app. To pass, attach a custom domain to the
 ; deployment, publish these names beneath that hostname, sign the zone,
 ; and scan the custom-domain URL.
 ;

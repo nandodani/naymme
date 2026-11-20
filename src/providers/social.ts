@@ -76,8 +76,8 @@ export function createXAdapter(deps: ProviderDeps): ProviderAdapter {
 /**
  * Bluesky handle check in the `.bsky.social` namespace via the public
  * `com.atproto.identity.resolveHandle` API: 200 means the handle resolves
- * (taken), 400 means a syntactically valid handle doesn't resolve (available).
- * Deactivated/reserved handles also fail resolution and report `available`.
+ * (taken). Failure to resolve cannot distinguish reserved or deactivated
+ * handles from claimable ones, so it reports unknown.
  */
 export function createBlueskyAdapter(deps: ProviderDeps): ProviderAdapter {
   return {
@@ -89,8 +89,10 @@ export function createBlueskyAdapter(deps: ProviderDeps): ProviderAdapter {
       const url = `https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`;
       const res = await safeFetch(deps, url, signal, { accept: "application/json" });
       if (!res) return unknown(handle, "request failed");
-      const verdict = statusVerdict(res, { free: [400], busy: [200] });
-      if (verdict === "available") return available(handle, url);
+      const verdict = statusVerdict(res, { free: [], busy: [200] });
+      if (res.status === 400) {
+        return unknown(handle, "handle does not resolve; it may be reserved or deactivated");
+      }
       if (verdict === "taken") return taken(handle, url);
       return unknown(handle, `bsky.app returned HTTP ${res.status}`);
     },

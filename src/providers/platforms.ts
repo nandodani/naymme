@@ -57,8 +57,6 @@ interface PageCheckSpec {
   free?: readonly number[];
   busy?: readonly number[];
   accept?: string;
-  /** Extra rule on a 200 body — `false` downgrades 200 to `available`. */
-  bodyMeansTaken?: (body: string) => boolean;
 }
 
 function createPageCheck(deps: ProviderDeps, spec: PageCheckSpec): ProviderAdapter {
@@ -75,12 +73,6 @@ function createPageCheck(deps: ProviderDeps, spec: PageCheckSpec): ProviderAdapt
       });
       if (!res) return unknown(subject, "request failed");
       if (busy.includes(res.status)) {
-        if (spec.bodyMeansTaken !== undefined) {
-          const body = await readTextCapped(res).catch(() => "");
-          return spec.bodyMeansTaken(body)
-            ? taken(subject, spec.profile(name))
-            : available(subject, spec.profile(name));
-        }
         return taken(subject, spec.profile(name));
       }
       if (free.includes(res.status)) {
@@ -151,18 +143,43 @@ export function createCodePenAdapter(deps: ProviderDeps): ProviderAdapter {
   });
 }
 
-/** Replit profile check via `replit.com/@{name}`. The SPA answers a
- * generic 404 shell for both existing and missing usernames, so only a
- * 200 proves the profile is taken — everything else stays `unknown`
- * (availability is never fabricated). */
+/** Existing Replit profiles redirect to login with a root-profile source.
+ * A generic missing-resource page does not prove the username is claimable. */
 export function createReplitAdapter(deps: ProviderDeps): ProviderAdapter {
-  return createPageCheck(deps, {
+  return {
     id: "replit",
-    url: (n) => `https://replit.com/@${encodeURIComponent(n)}`,
-    profile: (n) => `https://replit.com/@${n}`,
-    free: [],
-    busy: [200],
-  });
+    async check(name, signal): Promise<ProviderOutcome> {
+      const invalid = invalidOutcome("replit", name);
+      if (invalid !== null) return invalid;
+      const url = `https://replit.com/@${encodeURIComponent(name)}`;
+      try {
+        const res = await deps.fetch(url, {
+          signal,
+          redirect: "manual",
+          headers: { accept: "text/html", "user-agent": deps.userAgent },
+        });
+        const location = res.headers.get("location");
+        if (res.status === 302 && location !== null) {
+          const target = new URL(location, url);
+          if (
+            target.origin === "https://replit.com" &&
+            target.pathname === "/login" &&
+            target.searchParams.get("source") === "root-profile" &&
+            target.searchParams.get("goto") === `/@${name}`
+          ) {
+            return taken(name, url);
+          }
+        }
+        return unknown(
+          name,
+          `Replit returned HTTP ${res.status}; no verified unauthenticated availability marker`,
+        );
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") throw err;
+        return unknown(name, "Replit request failed");
+      }
+    },
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -226,17 +243,42 @@ export function createProductHuntAdapter(deps: ProviderDeps): ProviderAdapter {
   });
 }
 
-/** Telegram public handle check via `t.me/{name}`: the page always answers
- * 200, so the marker `tgme_page_title` decides — present → taken, absent
- * → available. Non-200 responses report `unknown`. */
+/** Telegram's generic contact page does not distinguish private, reserved
+ * and nonexistent handles. Only a public profile proves the name is taken. */
 export function createTelegramAdapter(deps: ProviderDeps): ProviderAdapter {
-  return createPageCheck(deps, {
+  return {
     id: "telegram",
-    url: (n) => `https://t.me/${encodeURIComponent(n)}`,
-    subject: (n) => `@${n}`,
-    profile: (n) => `https://t.me/${n}`,
-    bodyMeansTaken: (body) => body.includes("tgme_page_title"),
-  });
+    async check(name, signal): Promise<ProviderOutcome> {
+      const subject = `@${name}`;
+      const invalid = invalidOutcome("telegram", name, subject);
+      if (invalid !== null) return invalid;
+      const url = `https://t.me/${encodeURIComponent(name)}`;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        signal.throwIfAborted();
+        const attemptSignal = AbortSignal.any([
+          signal,
+          AbortSignal.timeout(Math.max(1, Math.min(2000, Math.floor(deps.timeoutMs / 2)))),
+        ]);
+        const res = await safeFetch(deps, url, attemptSignal, { accept: "text/html" });
+        if (res === null || res.status >= 500) continue;
+        if (res.status !== 200) return unknown(subject, `Telegram returned HTTP ${res.status}`);
+        try {
+          const body = await readTextCapped(res);
+          if (body.includes("tgme_page_title")) return taken(subject, url);
+          if (body.includes("tgme_username_link")) {
+            return unknown(subject, "Telegram contact page does not prove the handle is claimable");
+          }
+        } catch (err) {
+          if (err instanceof Error && err.name === "AbortError") throw err;
+          signal.throwIfAborted();
+        }
+      }
+      return unknown(
+        subject,
+        "Telegram could not verify a public profile after two attempts; availability is unproven",
+      );
+    },
+  };
 }
 
 /** Medium profile check via the public RSS feed `medium.com/feed/@{name}`:

@@ -8,6 +8,7 @@ export type WhoisVerdict = "available" | "taken" | "unknown";
  * which is why WHOIS is only a fallback when a TLD has no RDAP service.
  */
 const NOT_FOUND_PATTERNS = [
+  /the queried object does not exist:\s*no object found/i,
   /no match/i,
   /not found/i,
   /no entries found/i,
@@ -21,11 +22,8 @@ const NOT_FOUND_PATTERNS = [
 
 /** Fields that indicate a real registration record came back. */
 const TAKEN_PATTERNS = [
-  /domain name/i,
-  /registrar/i,
-  /name server/i,
-  /creation date/i,
-  /expiry|expires|expiration/i,
+  /"(?:domain name|registrar|name server|creation date|expiry date|expiration date)"\s*:\s*(?:"[^"\s][^"]*"|\[\s*"[^"\s][^"]*")/i,
+  /(?:^|\\[rn]|[\r\n]|")(?:domain name|registrar|name server|creation date|expiry date|expiration date):[ \t]*[^\s"\\]/i,
 ];
 
 function stringify(response: unknown): string {
@@ -42,11 +40,22 @@ function stringify(response: unknown): string {
  * contains neither a clear "not found" marker nor registration fields —
  * different registries phrase things differently.
  */
-export async function whoisLookup(fqdn: string, deps: ProviderDeps): Promise<WhoisVerdict> {
-  const response = await deps.whoisDomain(fqdn, {
-    timeout: Math.max(1_000, deps.timeoutMs - 250),
-    raw: true,
-  });
+export async function whoisLookup(
+  fqdn: string,
+  deps: ProviderDeps,
+  timeoutMs = Math.max(1_000, deps.timeoutMs - 250),
+): Promise<WhoisVerdict> {
+  let response: unknown;
+  try {
+    response = await deps.whoisDomain(fqdn, {
+      timeout: timeoutMs,
+      raw: true,
+      ...(fqdn.endsWith(".co") ? { host: "whois.registry.co" } : {}),
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") throw err;
+    return "unknown";
+  }
   // Cap the scanned text — WHOIS payloads are unbounded and registry
   // responses are matched by regex, so bound both memory and CPU.
   const text = stringify(response).slice(0, 512 * 1024);

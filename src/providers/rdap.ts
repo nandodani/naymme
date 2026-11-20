@@ -1,5 +1,5 @@
 import type { ProviderDeps } from "../deps.js";
-import { readJsonCapped } from "../security.js";
+import { readJsonCapped, readTextCapped } from "../security.js";
 
 export type RdapVerdict = "available" | "taken" | "unknown" | "invalid";
 
@@ -65,7 +65,17 @@ export function createRdapClient(deps: ProviderDeps): RdapClient {
         if (err instanceof Error && err.name === "AbortError") throw err;
         return "unknown";
       }
-      if (res.status === 404) return "available";
+      if (res.status === 404) {
+        const body = await readTextCapped(res);
+        if (
+          /not available for registration|registry (?:reserved|blocked)|blocked domain|globalblock/i.test(
+            body,
+          )
+        ) {
+          return "unknown";
+        }
+        return "available";
+      }
       if (res.status === 200) return "taken";
       if (res.status === 400 || res.status === 422) return "invalid";
       return "unknown"; // other 4xx/5xx, 429 — inconclusive
