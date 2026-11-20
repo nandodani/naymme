@@ -116,7 +116,7 @@ export function createGitHubRepoAdapter(deps: ProviderDeps): ProviderAdapter {
     async check(name, signal): Promise<ProviderOutcome> {
       const invalid = invalidOutcome("github:repo", name);
       if (invalid !== null) return invalid;
-      const url = `${deps.githubApiBase}/search/repositories?q=${encodeURIComponent(`${name} in:name`)}&per_page=10`;
+      const url = `${deps.githubApiBase}/search/repositories?q=${encodeURIComponent(`${name} in:name is:public`)}&per_page=10`;
       let res: Response;
       try {
         res = await deps.fetch(url, {

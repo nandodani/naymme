@@ -318,6 +318,20 @@ describe("optional GitHub authentication", () => {
       });
     },
   );
+  it("limits authenticated repository search to public repositories", async () => {
+    vi.stubEnv("GITHUB_TOKEN", "test-token");
+    let query = "";
+    const adapters = createAdapters(
+      defaultDeps({
+        fetch: async (url) => {
+          query = new URL(url instanceof Request ? url.url : url).searchParams.get("q") ?? "";
+          return Response.json({ items: [] });
+        },
+      }),
+    );
+    await adapters["github:repo"]?.check("microsoft", new AbortController().signal);
+    expect(query).toContain("is:public");
+  });
   it("does not leak a rejected credential into the outcome", async () => {
     vi.stubEnv("GITHUB_TOKEN", "test-token");
     const result = await check("github:user", {
